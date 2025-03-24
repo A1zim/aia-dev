@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8000/api"; // Adjust to your backend URL
+  static const String baseUrl = "http://10.0.2.2:8001/api"; // Adjust to your backend URL
   String? _accessToken;
   String? _refreshToken;
 
@@ -29,9 +29,7 @@ class ApiService {
     return prefs.getString('refresh_token');
   }
 
-  // Register a new user
-  Future<void> register(String username, String password,
-      {String? email}) async {
+  Future<void> register(String username, String password, {String? email}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/register/'),
       headers: {'Content-Type': 'application/json'},
@@ -50,6 +48,43 @@ class ApiService {
     }
   }
 
+  Future<void> login(String username, String password) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/token/'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'username': username, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      await saveTokens(data['access'], data['refresh']);
+    } else {
+      throw Exception('Failed to login: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    if (token == null) {
+      throw Exception('No token found');
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/user/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load user data: ${response.statusCode}');
+    }
+  }
+
   // Save tokens to SharedPreferences
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     _accessToken = accessToken;
@@ -59,7 +94,6 @@ class ApiService {
     await prefs.setString('refresh_token', refreshToken);
   }
 
-  // Clear tokens on logout
   Future<void> clearTokens() async {
     _accessToken = null;
     _refreshToken = null;
@@ -103,22 +137,6 @@ class ApiService {
       response = await request(token!);
     }
     return response;
-  }
-
-  // Login to obtain tokens
-  Future<void> login(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/token/'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'username': username, 'password': password}),
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      await saveTokens(data['access'], data['refresh']);
-    } else {
-      throw Exception('Failed to login: ${response.body}');
-    }
   }
 
   // Fetch all transactions

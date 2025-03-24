@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
 import 'dart:io'; // For SocketException
+import 'package:personal_finance/theme/styles.dart'; // Import the styles file
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction; // Change to Transaction?
@@ -109,6 +110,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 widget.transaction == null
                     ? 'Transaction added successfully!'
                     : 'Transaction updated successfully!',
+                style: AppTextStyles.body(context),
               ),
               backgroundColor: Colors.green,
             ),
@@ -123,13 +125,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           // Clean up the error message for better user experience
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           if (e is SocketException) {
-            errorMessage = 'Network error: Unable to reach the server. Please check your internet connection.';
+            errorMessage =
+            'Network error: Unable to reach the server. Please check your internet connection.';
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
+              content: Text(
+                errorMessage,
+                style: AppTextStyles.body(context),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -145,6 +151,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     List<String> _categories =
     _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
@@ -152,170 +159,177 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       appBar: AppBar(
         title: Text(
           widget.transaction == null ? 'Add Transaction' : 'Edit Transaction',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueAccent, Colors.purpleAccent],
+              colors: isDark
+                  ? [AppColors.darkPrimary, AppColors.darkSecondary]
+                  : [AppColors.lightPrimary, AppColors.lightSecondary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Description Field
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [AppColors.darkBackground, AppColors.darkSurface]
+                : [AppColors.lightBackground, AppColors.lightSurface],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Description Field
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: AppInputStyles.textField(context).copyWith(
+                      labelText: 'Description',
+                      prefixIcon: const Icon(Icons.description),
                     ),
-                    prefixIcon: const Icon(Icons.description),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a description';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a description';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Amount Field
-                TextFormField(
-                  controller: _amountController,
-                  decoration: InputDecoration(
-                    labelText: 'Amount',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  // Amount Field
+                  TextFormField(
+                    controller: _amountController,
+                    decoration: AppInputStyles.textField(context).copyWith(
+                      labelText: 'Amount',
+                      prefixIcon: const Icon(Icons.attach_money),
                     ),
-                    prefixIcon: const Icon(Icons.attach_money),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter an amount';
+                      }
+                      if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                        return 'Please enter a valid amount';
+                      }
+                      return null;
+                    },
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter an amount';
-                    }
-                    if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                      return 'Please enter a valid amount';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Type Dropdown
-                DropdownButtonFormField<String>(
-                  value: _selectedType,
-                  decoration: InputDecoration(
-                    labelText: 'Type',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  // Type Dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedType,
+                    decoration: AppInputStyles.dropdown(context).copyWith(
+                      labelText: 'Type',
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                  items: ['expense', 'income']
-                      .map((type) => DropdownMenuItem(
-                    value: type,
-                    child: Text(type.capitalize()),
-                  ))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedType = value!;
-                      _selectedCategory = _selectedType == 'expense' ? 'food' : 'salary';
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Category Dropdown
-                DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  decoration: InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                  ),
-                  items: _categories
-                      .map((category) => DropdownMenuItem(
-                    value: category,
-                    child: Text(category.capitalize()),
-                  ))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCategory = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Date Picker
-                ListTile(
-                  title: Text(
-                    "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}",
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () => _selectDate(context),
-                ),
-                const SizedBox(height: 20),
-
-                // Submit Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    items: ['expense', 'income']
+                        .map((type) => DropdownMenuItem(
+                      value: type,
+                      child: Text(
+                        type.capitalize(),
+                        style: AppTextStyles.body(context),
                       ),
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
+                    ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedType = value!;
+                        _selectedCategory = _selectedType == 'expense' ? 'food' : 'salary';
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Category Dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    decoration: AppInputStyles.dropdown(context).copyWith(
+                      labelText: 'Category',
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+                    items: _categories
+                        .map((category) => DropdownMenuItem(
+                      value: category,
+                      child: Text(
+                        category.capitalize(),
+                        style: AppTextStyles.body(context),
                       ),
-                    )
-                        : Text(
-                      widget.transaction == null ? 'Add' : 'Update',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Date Picker
+                  ListTile(
+                    title: Text(
+                      "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}",
+                      style: AppTextStyles.body(context),
+                    ),
+                    trailing: Icon(
+                      Icons.calendar_today,
+                      color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                    ),
+                    onTap: () => _selectDate(context),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
                       ),
                     ),
+                    tileColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _submit,
+                      style: AppButtonStyles.elevatedButton(context).copyWith(
+                        padding: WidgetStateProperty.all(
+                          const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : Text(
+                        widget.transaction == null ? 'Add' : 'Update',
+                        style: AppTextStyles.body(context).copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
