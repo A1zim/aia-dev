@@ -64,24 +64,23 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    final token = await getAccessToken();
     if (token == null) {
-      throw Exception('No token found');
+      throw Exception('No access token found');
     }
 
     final response = await http.get(
-      Uri.parse('$baseUrl/user/'),
+      Uri.parse('$baseUrl/user/'), // Adjust the endpoint as needed
       headers: {
-        'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
       },
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return json.decode(response.body);
     } else {
-      throw Exception('Failed to load user data: ${response.statusCode}');
+      throw Exception('Failed to fetch user data: ${response.body}');
     }
   }
 

@@ -4,12 +4,10 @@ import 'package:personal_finance/pages/ReportsScreen.dart';
 import 'package:personal_finance/pages/SettingsScreen.dart';
 import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:personal_finance/theme/styles.dart';
 
 class MainNavigationScreen extends StatefulWidget {
-  final VoidCallback? onThemeToggle;
-
-  const MainNavigationScreen({super.key, this.onThemeToggle});
+  const MainNavigationScreen({super.key});
 
   @override
   _MainNavigationScreenState createState() => _MainNavigationScreenState();
@@ -25,28 +23,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     _screens = [
-      HomeScreen(
-        key: const ValueKey('HomeScreen'),
-        onThemeToggle: widget.onThemeToggle,
-      ),
+      const HomeScreen(key: ValueKey('HomeScreen')),
       const TransactionHistoryScreen(key: ValueKey('TransactionHistoryScreen')),
       const ReportsScreen(key: ValueKey('ReportsScreen')),
-      SettingsScreen(
-        key: const ValueKey('SettingsScreen'),
-        onThemeToggle: widget.onThemeToggle, // Pass the theme toggle callback
-      ),
+      const SettingsScreen(key: ValueKey('SettingsScreen')),
     ];
     _checkAuthentication();
   }
 
-  // Check if the user is authenticated
   Future<void> _checkAuthentication() async {
     try {
       final token = await _apiService.getAccessToken();
       if (token == null) {
         _navigateToLogin();
       } else {
-        // Optionally, make a test API call to verify the token
         await _apiService.getFinancialSummary();
       }
     } catch (e) {

@@ -11,7 +11,11 @@ import 'package:personal_finance/theme/styles.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+      ChangeNotifierProvider(
+        create: (_) => ThemeProvider(),
+        child: const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {

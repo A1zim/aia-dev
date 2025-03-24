@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/widgets/summary_card.dart';
-import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
-import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:personal_finance/models/transaction.dart';
+import 'package:personal_finance/theme/styles.dart';
+import 'package:provider/provider.dart';
+import 'package:personal_finance/providers/theme_provider.dart'; // Import ThemeProvider
 
 class HomeScreen extends StatefulWidget {
-  final VoidCallback? onThemeToggle;
-
-  const HomeScreen({super.key, this.onThemeToggle});
+  const HomeScreen({super.key});
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
   late Future<List<Transaction>> _transactionsFuture;
-  late Future<Map<String, String>> _userDataFuture; // For fetching user data
+  late Future<Map<String, String>> _userDataFuture;
 
   double _totalIncome = 0.0;
   double _totalExpenses = 0.0;
@@ -27,19 +27,17 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _userDataFuture = _fetchUserData(); // Fetch user data
+    _userDataFuture = _fetchUserData();
   }
 
-  // Load transactions and summary data
   void _loadData() {
     _transactionsFuture = _fetchTransactions();
     _fetchSummaryData();
   }
 
-  // Fetch user data (nickname and email)
   Future<Map<String, String>> _fetchUserData() async {
     try {
-      final userData = await _apiService.getUserData(); // Implement this in ApiService
+      final userData = await _apiService.getUserData();
       return {
         'nickname': userData['nickname'] ?? 'User',
         'email': userData['email'] ?? 'user@example.com',
@@ -52,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Fetch summary data (income, expenses, balance)
   Future<void> _fetchSummaryData() async {
     try {
       final summary = await _apiService.getFinancialSummary();
@@ -76,7 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Fetch all transactions
   Future<List<Transaction>> _fetchTransactions() async {
     try {
       return await _apiService.getTransactions();
@@ -165,7 +161,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Column(
         children: [
-          // Summary Cards
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -193,8 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
-          // Recent Transactions
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -248,8 +241,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      // Floating Action Button
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.pushNamed(context, '/add_transaction');
@@ -312,7 +303,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Show options for Edit and Delete
   void _showTransactionActions(BuildContext context, Transaction transaction) {
     showDialog(
       context: context,
@@ -357,7 +347,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Edit transaction
   void _editTransaction(Transaction transaction) async {
     final result = await Navigator.push(
       context,
@@ -373,7 +362,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Delete transaction
   Future<void> _deleteTransaction(int transactionId) async {
     bool confirmDelete = await showDialog(
       context: context,
@@ -431,7 +419,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Drawer Widget
   Widget _buildDrawer() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Drawer(
@@ -458,12 +445,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.account_circle,
-                      size: 50,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(
+                          Icons.account_circle,
+                          size: 50,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            isDark ? Icons.wb_sunny : Icons.nightlight_round,
+                            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                            size: 28,
+                          ),
+                          onPressed: () {
+                            Provider.of<ThemeProvider>(context, listen: false)
+                                .toggleTheme();
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -538,20 +541,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               ListTile(
                 leading: Icon(
-                  Icons.brightness_6,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(
-                  'Toggle Theme',
-                  style: AppTextStyles.body(context),
-                ),
-                onTap: () {
-                  widget.onThemeToggle?.call();
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(
                   Icons.logout,
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
@@ -569,7 +558,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Helper function for capitalization
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
 }
