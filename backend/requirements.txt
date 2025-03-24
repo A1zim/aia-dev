@@ -1,0 +1,16 @@
+# Core Django requirements
+Django>=3.2,<4.0
+djangorestframework>=3.12.0
+djangorestframework-simplejwt>=5.0.0
+django-cors-headers>=3.7.0
+django-filter==21.1
+
+# Additional utilities
+Pillow>=8.3.1  # For image handling
+gunicorn==20.1.0  # For production deployment
+python-dotenv>=0.19.0  # For environment variables
+
+# Database (uncomment as needed)
+psycopg2-binary>=2.9.1  # For PostgreSQL
+# mysqlclient==2.0.3  # For MySQL
+drf-yasg>=1.20.0
