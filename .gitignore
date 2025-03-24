@@ -1,0 +1,102 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.tmp
+*.bak
+*.zip
+*.tar.gz
+*.rar
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+# pubspec.lock (commented out)
+flutter/.pub-cache/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/local.properties
+/android/key.properties
+/android/.cxx/
+/android/.externalNativeBuild/
+*.hprof
+*.apk
+*.aab
+
+# iOS specific
+/ios/build/
+/ios/Pods/
+/ios/Podfile.lock
+*.ipa
+
+# Flutter plugin build artifacts
+flutter_plugins/*/android/build/
+flutter_plugins/*/ios/build/
+
+# CMake generated files
+CMakeCache.txt
+cmake_install.cmake
+CMakeFiles/
+*.cmake
+
+# Sensitive files
+.env
+*.pem
+/android/app/google-services.json
+
+# Test artifacts
+coverage/
+lcov.info
+
+# Django backend (if in the same repo)
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/db.sqlite3
+
+# Large media files (uncommented to exclude)
+*.mp4
+*.mov
+*.avi
+*.pdf
+# Optimize images before including them, or exclude large ones
+*.jpg
+*.png
