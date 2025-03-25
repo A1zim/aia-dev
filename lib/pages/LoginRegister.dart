@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/pages/MainNavigationScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/theme/styles.dart';
+import 'package:provider/provider.dart';
+import 'package:personal_finance/providers/theme_provider.dart';
 
 class LoginRegister extends StatefulWidget {
   const LoginRegister({super.key});
@@ -28,8 +30,8 @@ class _LoginRegisterState extends State<LoginRegister> {
         if (_isLogin) {
           // Login
           await _apiService.login(
-            _usernameController.text,
-            _passwordController.text,
+            _usernameController.text.trim(),
+            _passwordController.text.trim(),
           );
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/main');
@@ -37,15 +39,21 @@ class _LoginRegisterState extends State<LoginRegister> {
         } else {
           // Registration
           await _apiService.register(
-            _usernameController.text,
-            _passwordController.text,
-            email: _emailController.text,
+            _usernameController.text.trim(),
+            _passwordController.text.trim(),
+            email: _emailController.text.trim().isEmpty
+                ? null
+                : _emailController.text.trim(),
           );
+          // Note: The register method already logs the user in, so no need to call login again
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Registered successfully! Logging you in..."),
-                backgroundColor: Colors.green,
+              SnackBar(
+                content: Text(
+                  "Registered successfully! Logging you in...",
+                  style: AppTextStyles.body(context),
+                ),
+                backgroundColor: Theme.of(context).colorScheme.primary,
               ),
             );
             Navigator.pushReplacementNamed(context, '/main');
@@ -56,8 +64,11 @@ class _LoginRegisterState extends State<LoginRegister> {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
+              content: Text(
+                errorMessage,
+                style: AppTextStyles.body(context),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -79,11 +90,14 @@ class _LoginRegisterState extends State<LoginRegister> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blueAccent, Colors.purpleAccent],
+            colors: isDark
+                ? [AppColors.darkBackground, AppColors.darkSurface]
+                : [AppColors.lightAccent, AppColors.lightSurface],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -97,6 +111,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Form(
@@ -104,18 +119,35 @@ class _LoginRegisterState extends State<LoginRegister> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.account_circle,
-                          size: 80,
-                          color: Colors.blueAccent,
+                        // Card Header with Icon and Theme Switch
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Icon(
+                              Icons.account_circle,
+                              size: 80,
+                              color: AppColors.lightAccent, // Kept as lightAccent for visibility
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                isDark ? Icons.wb_sunny : Icons.nightlight_round,
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                size: 28,
+                              ),
+                              onPressed: () {
+                                Provider.of<ThemeProvider>(context, listen: false)
+                                    .toggleTheme();
+                              },
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         Text(
                           _isLogin ? "Welcome Back!" : "Create Account",
-                          style: const TextStyle(
+                          style: AppTextStyles.heading(context).copyWith(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueAccent,
+                            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -126,10 +158,35 @@ class _LoginRegisterState extends State<LoginRegister> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             labelText: 'Username',
-                            prefixIcon: const Icon(Icons.person),
+                            labelStyle: AppTextStyles.body(context).copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.person,
+                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                            ),
                             filled: true,
-                            fillColor: Colors.grey[100],
+                            fillColor: isDark
+                                ? AppColors.darkBackground.withOpacity(0.3)
+                                : Colors.grey[100],
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
+                            ),
                           ),
+                          style: AppTextStyles.body(context),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter a username';
@@ -149,12 +206,23 @@ class _LoginRegisterState extends State<LoginRegister> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock),
+                            labelStyle: AppTextStyles.body(context).copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.lightTextSecondary,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.lock,
+                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _isPasswordVisible
                                     ? Icons.visibility
                                     : Icons.visibility_off,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
                               ),
                               onPressed: () {
                                 setState(() {
@@ -163,8 +231,25 @@ class _LoginRegisterState extends State<LoginRegister> {
                               },
                             ),
                             filled: true,
-                            fillColor: Colors.grey[100],
+                            fillColor: isDark
+                                ? AppColors.darkBackground.withOpacity(0.3)
+                                : Colors.grey[100],
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
+                            ),
                           ),
+                          style: AppTextStyles.body(context),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter a password';
@@ -184,12 +269,39 @@ class _LoginRegisterState extends State<LoginRegister> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               labelText: 'Email (optional)',
-                              prefixIcon: const Icon(Icons.email),
+                              labelStyle: AppTextStyles.body(context).copyWith(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.email,
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
                               filled: true,
-                              fillColor: Colors.grey[100],
+                              fillColor: isDark
+                                  ? AppColors.darkBackground.withOpacity(0.3)
+                                  : Colors.grey[100],
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                ),
+                              ),
                             ),
+                            style: AppTextStyles.body(context),
                             validator: (value) {
-                              if (value != null && value.isNotEmpty && !value.contains('@')) {
+                              if (value != null &&
+                                  value.isNotEmpty &&
+                                  !value.contains('@')) {
                                 return 'Please enter a valid email';
                               }
                               return null;
@@ -205,8 +317,11 @@ class _LoginRegisterState extends State<LoginRegister> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              backgroundColor: Colors.blueAccent,
-                              foregroundColor: Colors.white,
+                              backgroundColor:
+                              isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              foregroundColor: isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.lightTextPrimary,
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -219,9 +334,12 @@ class _LoginRegisterState extends State<LoginRegister> {
                             )
                                 : Text(
                               _isLogin ? "Login" : "Register",
-                              style: const TextStyle(
+                              style: AppTextStyles.body(context).copyWith(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.lightTextPrimary,
                               ),
                             ),
                           ),
@@ -240,7 +358,9 @@ class _LoginRegisterState extends State<LoginRegister> {
                             _isLogin
                                 ? "Don't have an account? Register"
                                 : "Already have an account? Login",
-                            style: const TextStyle(color: Colors.blueAccent),
+                            style: AppTextStyles.body(context).copyWith(
+                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                            ),
                           ),
                         ),
                       ],

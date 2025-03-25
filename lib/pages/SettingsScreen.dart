@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/theme/styles.dart'; // Import the styles file
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final VoidCallback? onThemeToggle;
+
+  const SettingsScreen({super.key, this.onThemeToggle});
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
@@ -10,15 +13,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final ApiService _apiService = ApiService();
-  bool _isDarkMode = false;
   String _selectedCurrency = 'USD';
   bool _isFingerprintEnabled = false;
-
-  void _toggleTheme() {
-    setState(() {
-      _isDarkMode = !_isDarkMode;
-    });
-  }
 
   void _selectCurrency(String? value) {
     setState(() {
@@ -37,19 +33,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
+          title: Text(
+            'Logout',
+            style: AppTextStyles.subheading(context),
+          ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: AppTextStyles.body(context),
+          ),
           actions: [
             TextButton(
+              style: AppButtonStyles.textButton(context),
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: AppTextStyles.body(context),
+              ),
             ),
             TextButton(
+              style: AppButtonStyles.textButton(context),
               onPressed: () async {
                 await _apiService.clearTokens();
                 Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
               },
-              child: const Text('Logout'),
+              child: Text(
+                'Logout',
+                style: AppTextStyles.body(context).copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
             ),
           ],
         );
@@ -59,96 +71,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Settings',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueAccent, Colors.purpleAccent],
+              colors: isDark
+                  ? [AppColors.darkPrimary, AppColors.darkSecondary]
+                  : [AppColors.lightPrimary, AppColors.lightSecondary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(
+          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Theme Toggle
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              child: SwitchListTile.adaptive(
-                title: const Text('Dark Mode', style: TextStyle(fontSize: 16)),
-                subtitle: Text(_isDarkMode ? 'Enabled' : 'Disabled'),
-                value: _isDarkMode,
-                onChanged: (value) => _toggleTheme(),
-                secondary: const Icon(Icons.dark_mode, color: Colors.deepPurple),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-            const Divider(),
-
-            // Currency Selection
-            ListTile(
-              leading: const Icon(Icons.attach_money, color: Colors.deepPurple),
-              title: const Text('Select Currency', style: TextStyle(fontSize: 16)),
-              subtitle: DropdownButtonFormField<String>(
-                value: _selectedCurrency,
-                onChanged: _selectCurrency,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [AppColors.darkBackground, AppColors.darkSurface]
+                : [AppColors.lightBackground, AppColors.lightSurface],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Theme Toggle
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'USD', child: Text('USD - US Dollar')),
-                  DropdownMenuItem(value: 'EUR', child: Text('EUR - Euro')),
-                  DropdownMenuItem(value: 'INR', child: Text('INR - Indian Rupee')),
-                ],
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                child: SwitchListTile.adaptive(
+                  title: Text(
+                    'Dark Mode',
+                    style: AppTextStyles.body(context).copyWith(fontSize: 16),
+                  ),
+                  subtitle: Text(
+                    isDark ? 'Enabled' : 'Disabled',
+                    style: AppTextStyles.body(context).copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                  value: isDark,
+                  onChanged: (value) {
+                    widget.onThemeToggle?.call();
+                  },
+                  secondary: Icon(
+                    Icons.dark_mode,
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                  ),
+                  activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-            const Divider(),
-
-            // Fingerprint Authentication
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              child: SwitchListTile.adaptive(
-                title: const Text('Enable Fingerprint', style: TextStyle(fontSize: 16)),
-                subtitle: Text(_isFingerprintEnabled ? 'Enabled' : 'Disabled'),
-                value: _isFingerprintEnabled,
-                onChanged: _toggleFingerprint,
-                secondary: const Icon(Icons.fingerprint, color: Colors.deepPurple),
+              const SizedBox(height: 16),
+              Divider(
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
-            ),
 
-            const SizedBox(height: 16),
-            const Divider(),
+              // Currency Selection
+              ListTile(
+                leading: Icon(
+                  Icons.attach_money,
+                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                ),
+                title: Text(
+                  'Select Currency',
+                  style: AppTextStyles.body(context).copyWith(fontSize: 16),
+                ),
+                subtitle: DropdownButtonFormField<String>(
+                  value: _selectedCurrency,
+                  onChanged: _selectCurrency,
+                  decoration: AppInputStyles.dropdown(context).copyWith(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'USD', child: Text('USD - US Dollar')),
+                    DropdownMenuItem(value: 'EUR', child: Text('EUR - Euro')),
+                    DropdownMenuItem(value: 'INR', child: Text('INR - Indian Rupee')),
+                  ],
+                  itemHeight: 50,
+                ),
+              ),
 
-            // Logout Option
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.deepPurple),
-              title: const Text('Logout', style: TextStyle(fontSize: 16)),
-              onTap: _logout,
-            ),
-          ],
+              const SizedBox(height: 16),
+              Divider(
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+
+              // Fingerprint Authentication
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                child: SwitchListTile.adaptive(
+                  title: Text(
+                    'Enable Fingerprint',
+                    style: AppTextStyles.body(context).copyWith(fontSize: 16),
+                  ),
+                  subtitle: Text(
+                    _isFingerprintEnabled ? 'Enabled' : 'Disabled',
+                    style: AppTextStyles.body(context).copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                  value: _isFingerprintEnabled,
+                  onChanged: _toggleFingerprint,
+                  secondary: Icon(
+                    Icons.fingerprint,
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                  ),
+                  activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              Divider(
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+
+              // Logout Option
+              ListTile(
+                leading: Icon(
+                  Icons.logout,
+                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                ),
+                title: Text(
+                  'Logout',
+                  style: AppTextStyles.body(context).copyWith(fontSize: 16),
+                ),
+                onTap: _logout,
+              ),
+            ],
+          ),
         ),
       ),
     );
