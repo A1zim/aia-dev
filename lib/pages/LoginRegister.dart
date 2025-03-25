@@ -135,8 +135,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                                 size: 28,
                               ),
                               onPressed: () {
-                                Provider.of<ThemeProvider>(context, listen: false)
-                                    .toggleTheme();
+                                Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
                               },
                             ),
                           ],
