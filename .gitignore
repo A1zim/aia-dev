@@ -5,7 +5,6 @@
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
@@ -35,8 +34,6 @@ migrate_working_dir/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
-.pub/
-/build/
 # pubspec.lock (commented out)
 flutter/.pub-cache/
 
@@ -47,15 +44,8 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/app/build/
-/android/build/
-/android/.gradle/
 /android/local.properties
 /android/key.properties
-/android/.cxx/
 /android/.externalNativeBuild/
 *.hprof
 *.apk
@@ -68,14 +58,8 @@ app.*.map.json
 *.ipa
 
 # Flutter plugin build artifacts
-flutter_plugins/*/android/build/
 flutter_plugins/*/ios/build/
 
-# CMake generated files
-CMakeCache.txt
-cmake_install.cmake
-CMakeFiles/
-*.cmake
 
 # Sensitive files
 .env
