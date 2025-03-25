@@ -182,7 +182,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.bar_chart_outlined,
+                    Icons.stacked_bar_chart,
                     color: _selectedIndex == 2
                         ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
                         : (isDark

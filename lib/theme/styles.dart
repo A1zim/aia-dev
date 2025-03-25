@@ -186,10 +186,92 @@ class AppInputStyles {
     );
   }
 
-  static InputDecoration dropdown(BuildContext context) {
-    return textField(context).copyWith(
+  static InputDecoration dropdown(BuildContext context, {String? labelText}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: AppTextStyles.label(context),
+      filled: true,
+      fillColor: isDark
+          ? AppColors.darkBackground.withOpacity(0.3)
+          : AppColors.lightSurface.withOpacity(0.8),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20), // Rounded corners
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide(
+          color: isDark ? AppColors.darkAccent.withOpacity(0.3) : AppColors.lightAccent.withOpacity(0.3),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide(
+          color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+          width: 2,
+        ),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
+  }
+
+  // Custom dropdown icon with gradient
+  static Widget dropdownIcon(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [AppColors.darkAccent, AppColors.darkSecondary]
+              : [AppColors.lightAccent, AppColors.lightSecondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.arrow_drop_down,
+        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      ),
+    );
+  }
+
+  // Custom style for dropdown menu items
+  static DropdownMenuItem<T> dropdownMenuItem<T>(
+      BuildContext context,
+      T value,
+      String displayText,
+      ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DropdownMenuItem<T>(
+      value: value,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Text(
+          displayText,
+          style: AppTextStyles.body(context).copyWith(
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Common properties for DropdownButtonFormField
+  static Map<String, dynamic> dropdownProperties(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return {
+      'style': AppTextStyles.body(context).copyWith(
+        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      ),
+      'dropdownColor': isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      'icon': dropdownIcon(context),
+      'menuMaxHeight': 300.0,
+      'borderRadius': BorderRadius.circular(16), // Rounded corners for the dropdown menu
+      'elevation': 8,
+    };
   }
 }
 

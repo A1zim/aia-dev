@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
+import 'package:personal_finance/models/transaction.dart';
 import 'dart:io'; // For SocketException
 import 'package:personal_finance/theme/styles.dart'; // Import the styles file
 
 class AddTransactionScreen extends StatefulWidget {
-  final Transaction? transaction; // Change to Transaction?
+  final Transaction? transaction;
 
   const AddTransactionScreen({super.key, this.transaction});
 
@@ -83,26 +83,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       });
 
       try {
-        // Create a Transaction object from the form data
         final transaction = Transaction(
-          id: widget.transaction?.id ?? 0, // ID will be ignored for new transactions
-          user: widget.transaction?.user ?? 0, // Will be set by the backend
+          id: widget.transaction?.id ?? 0,
+          user: widget.transaction?.user ?? 0,
           type: _selectedType,
           category: _selectedCategory,
           amount: double.parse(_amountController.text),
           description: _descriptionController.text,
           timestamp: _selectedDate.toIso8601String(),
-          username: widget.transaction?.username ?? '', // Will be set by the backend
+          username: widget.transaction?.username ?? '',
         );
 
-        // Add or update transaction
         if (widget.transaction == null) {
           await _apiService.addTransaction(transaction);
         } else {
           await _apiService.updateTransaction(widget.transaction!.id, transaction);
         }
 
-        // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -116,13 +113,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
           );
 
-          // Delay navigation to allow the user to see the success message
           await Future.delayed(const Duration(seconds: 1));
-          Navigator.pop(context, true); // Return true to indicate success
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
-          // Clean up the error message for better user experience
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           if (e is SocketException) {
             errorMessage =
@@ -199,6 +194,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     decoration: AppInputStyles.textField(context).copyWith(
                       labelText: 'Description',
                       prefixIcon: const Icon(Icons.description),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                          width: 2,
+                        ),
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -215,6 +226,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     decoration: AppInputStyles.textField(context).copyWith(
                       labelText: 'Amount',
                       prefixIcon: const Icon(Icons.attach_money),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                          width: 2,
+                        ),
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
@@ -232,17 +259,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   // Type Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedType,
-                    decoration: AppInputStyles.dropdown(context).copyWith(
-                      labelText: 'Type',
-                    ),
+                    decoration: AppInputStyles.dropdown(context, labelText: 'Type'),
                     items: ['expense', 'income']
-                        .map((type) => DropdownMenuItem(
-                      value: type,
-                      child: Text(
-                        type.capitalize(),
-                        style: AppTextStyles.body(context),
-                      ),
-                    ))
+                        .map((type) => AppInputStyles.dropdownMenuItem(context, type, type.capitalize()))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -250,29 +269,33 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         _selectedCategory = _selectedType == 'expense' ? 'food' : 'salary';
                       });
                     },
+                    style: AppInputStyles.dropdownProperties(context)['style'],
+                    dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
+                    icon: AppInputStyles.dropdownProperties(context)['icon'],
+                    menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
+                    borderRadius: AppInputStyles.dropdownProperties(context)['borderRadius'],
+                    elevation: AppInputStyles.dropdownProperties(context)['elevation'],
                   ),
                   const SizedBox(height: 16),
 
                   // Category Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedCategory,
-                    decoration: AppInputStyles.dropdown(context).copyWith(
-                      labelText: 'Category',
-                    ),
+                    decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
                     items: _categories
-                        .map((category) => DropdownMenuItem(
-                      value: category,
-                      child: Text(
-                        category.capitalize(),
-                        style: AppTextStyles.body(context),
-                      ),
-                    ))
+                        .map((category) => AppInputStyles.dropdownMenuItem(context, category, category.capitalize()))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
                         _selectedCategory = value!;
                       });
                     },
+                    style: AppInputStyles.dropdownProperties(context)['style'],
+                    dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
+                    icon: AppInputStyles.dropdownProperties(context)['icon'],
+                    menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
+                    borderRadius: AppInputStyles.dropdownProperties(context)['borderRadius'],
+                    elevation: AppInputStyles.dropdownProperties(context)['elevation'],
                   ),
                   const SizedBox(height: 16),
 

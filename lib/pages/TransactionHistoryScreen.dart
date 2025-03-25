@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
-import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:personal_finance/models/transaction.dart';
+import 'package:personal_finance/theme/styles.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -16,7 +16,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   List<Transaction> _transactions = [];
   String _searchQuery = "";
   String _filterType = "All";
-  int? _expandedIndex; // Track the currently expanded card
+  int? _expandedIndex;
 
   @override
   void initState() {
@@ -47,6 +47,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
   Future<void> _deleteTransaction(int id, int index) async {
     final deletedTransaction = _transactions[index];
+    bool shouldDelete = true; // Flag to determine if we should proceed with backend deletion
+
+    // Remove the transaction from the UI
     setState(() {
       _transactions.removeAt(index);
       if (_expandedIndex == index) {
@@ -56,53 +59,60 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       }
     });
 
-    // Show SnackBar with Undo option
+    // Show the SnackBar with an "Undo" option
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Transaction deleted',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          action: SnackBarAction(
-            label: 'Undo',
-            textColor: Colors.white,
-            onPressed: () {
-              setState(() {
-                _transactions.insert(index, deletedTransaction);
-                if (_expandedIndex != null && _expandedIndex! >= index) {
-                  _expandedIndex = _expandedIndex! + 1;
-                }
-              });
-            },
-          ),
-          duration: const Duration(seconds: 3),
+      final snackBar = SnackBar(
+        content: Text(
+          'Transaction deleted',
+          style: AppTextStyles.body(context),
         ),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.white,
+          onPressed: () {
+            shouldDelete = false; // User tapped "Undo", so we won't delete from backend
+            setState(() {
+              _transactions.insert(index, deletedTransaction);
+              if (_expandedIndex != null && _expandedIndex! >= index) {
+                _expandedIndex = _expandedIndex! + 1;
+              }
+            });
+          },
+        ),
+        duration: const Duration(seconds: 3),
       );
-    }
 
-    try {
-      await _apiService.deleteTransaction(id);
-    } catch (e) {
-      // If deletion fails, revert the UI change
-      setState(() {
-        _transactions.insert(index, deletedTransaction);
-        if (_expandedIndex != null && _expandedIndex! >= index) {
-          _expandedIndex = _expandedIndex! + 1;
+      // Show the SnackBar and wait for it to be dismissed
+      await ScaffoldMessenger.of(context)
+          .showSnackBar(snackBar)
+          .closed
+          .then((reason) {
+        // If the SnackBar was dismissed without "Undo" (e.g., timed out or page switched),
+        // proceed with the backend deletion
+        if (shouldDelete && reason != SnackBarClosedReason.action) {
+          _apiService.deleteTransaction(id).catchError((e) {
+            // If backend deletion fails, restore the transaction
+            setState(() {
+              _transactions.insert(index, deletedTransaction);
+              if (_expandedIndex != null && _expandedIndex! >= index) {
+                _expandedIndex = _expandedIndex! + 1;
+              }
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Failed to delete transaction: $e',
+                    style: AppTextStyles.body(context),
+                  ),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                ),
+              );
+            }
+          });
         }
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to delete transaction: $e',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
     }
   }
 
@@ -117,6 +127,86 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     if (result == true) {
       _loadTransactions();
     }
+  }
+
+  Future<bool> _confirmDeleteTransaction(int id, int index) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: Colors.transparent,
+          content: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [AppColors.darkSurface, AppColors.darkBackground]
+                    : [AppColors.lightSurface, AppColors.lightBackground],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Delete Transaction',
+                    style: AppTextStyles.subheading(context),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Are you sure you want to delete this transaction?',
+                    style: AppTextStyles.body(context),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          style: AppButtonStyles.textButton(context),
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(
+                            'Cancel',
+                            style: AppTextStyles.body(context),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: AppButtonStyles.elevatedButton(context).copyWith(
+                            backgroundColor: WidgetStateProperty.all(
+                              Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            'Confirm',
+                            style: AppTextStyles.body(context).copyWith(
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    return confirmed ?? false;
   }
 
   @override
@@ -224,6 +314,22 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             },
           )
               : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+              width: 2,
+            ),
+          ),
         ),
         onChanged: (value) {
           setState(() {
@@ -261,13 +367,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         confirmDismiss: (direction) async {
           if (direction == DismissDirection.endToStart) {
-            // Swipe left to delete
-            await _deleteTransaction(transaction.id, index);
-            return false; // Prevent immediate dismissal since we handle it manually
+            final confirmed = await _confirmDeleteTransaction(transaction.id, index);
+            if (confirmed) {
+              await _deleteTransaction(transaction.id, index);
+            }
+            return false;
           } else if (direction == DismissDirection.startToEnd) {
-            // Swipe right to edit
             _editTransaction(transaction);
-            return false; // Prevent dismissal since we're navigating
+            return false;
           }
           return false;
         },
@@ -408,22 +515,22 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _filterType,
-                decoration: AppInputStyles.dropdown(context),
-                items: ["All", "Income", "Expense"].map((String type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(
-                      type,
-                      style: AppTextStyles.body(context),
-                    ),
-                  );
-                }).toList(),
+                decoration: AppInputStyles.dropdown(context, labelText: 'Filter by Type'),
+                items: ["All", "Income", "Expense"]
+                    .map((type) => AppInputStyles.dropdownMenuItem(context, type, type))
+                    .toList(),
                 onChanged: (value) {
                   setState(() {
                     _filterType = value!;
                   });
                   Navigator.pop(context);
                 },
+                style: AppInputStyles.dropdownProperties(context)['style'],
+                dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
+                icon: AppInputStyles.dropdownProperties(context)['icon'],
+                menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
+                borderRadius: AppInputStyles.dropdownProperties(context)['borderRadius'],
+                elevation: AppInputStyles.dropdownProperties(context)['elevation'],
               ),
             ],
           ),
