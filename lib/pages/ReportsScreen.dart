@@ -51,7 +51,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   bool _isMonthlySpendingEmpty = true;
   bool _shouldShowNoDataForCategorySpending = false;
   bool _shouldShowNoDataForMonthlySpending = false;
-  // State for disappearing sections
   Map<String, AnimationController> _disappearingControllers = {};
   Map<String, Animation<double>> _disappearingAnimations = {};
   Map<String, double> _disappearingValues = {};
@@ -120,11 +119,11 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
     _disappearAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: -0.1), // Overshoot to -0.1
+        tween: Tween<double>(begin: 1.0, end: -0.1),
         weight: 70.0,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: -0.1, end: 0.0), // Bounce back to 0
+        tween: Tween<double>(begin: -0.1, end: 0.0),
         weight: 30.0,
       ),
     ]).animate(
@@ -148,7 +147,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     _detailsAnimationController.dispose();
     _disappearAnimationController.dispose();
     _scrollController.dispose();
-    // Dispose of disappearing controllers
     _disappearingControllers.values.forEach((controller) => controller.dispose());
     _disappearingControllers.clear();
     _disappearingAnimations.clear();
@@ -229,10 +227,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       final previousSpending = _cachedReportsData["categorySpending"] as Map<String, double>;
       final newSpending = newReportsData["categorySpending"] as Map<String, double>;
 
-      // Detect removed categories
       final removedCategories = previousSpending.keys.where((category) => !newSpending.containsKey(category)).toList();
 
-      // Set up animations for removed categories
       for (var category in removedCategories) {
         if (!_disappearingControllers.containsKey(category)) {
           final controller = AnimationController(
@@ -248,9 +244,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           _disappearingAnimations[category] = animation;
           _disappearingValues[category] = initialValue;
 
-          // Start the animation
           controller.forward().then((_) {
-            // Clean up after animation completes
             setState(() {
               _disappearingControllers.remove(category);
               _disappearingAnimations.remove(category);
@@ -331,20 +325,25 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Color _getChartColor(String category) {
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-      Colors.teal,
-      Colors.pink,
-      Colors.cyan,
-      Colors.amber,
-      Colors.indigo,
-    ];
-    final index = category.hashCode % colors.length;
-    return colors[index].withOpacity(0.8);
+    final Map<String, Color> categoryColors = {
+      'food': const Color(0xFFEF5350), // Red
+      'transport': const Color(0xFF66BB6A), // Green
+      'housing': const Color(0xFF42A5F5), // Blue
+      'utilities': const Color(0xFFFFCA28), // Yellow
+      'entertainment': const Color(0xFFAB47BC), // Purple
+      'healthcare': const Color(0xFF26C6DA), // Cyan
+      'education': const Color(0xFFFFA726), // Orange
+      'shopping': const Color(0xFFEC407A), // Pink
+      'other_expense': const Color(0xFF8D6E63), // Brown
+      'other_income': const Color(0xFF78909C), // Blue-Grey
+      'salary': const Color(0xFF4CAF50), // Dark Green
+      'gift': const Color(0xFFF06292), // Light Pink
+      'interest': const Color(0xFF29B6F6), // Light Blue
+      'unknown': const Color(0xFFB0BEC5), // Grey
+    };
+
+    return categoryColors[category.toLowerCase()]?.withOpacity(0.8) ??
+        Colors.grey.withOpacity(0.8);
   }
 
   Color _getBarColor(String month) {
@@ -451,9 +450,12 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           _valueAnimationController,
                           _pulseAnimationController,
                           _disappearAnimationController,
-                          ..._disappearingAnimations.values, // Listen to disappearing animations
+                          ..._disappearingAnimations.values,
                         ]),
                         builder: (context, child) {
+                          // Calculate total for percentage computation
+                          final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
+
                           return Column(
                             children: [
                               SizedBox(
@@ -474,7 +476,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     child: PieChart(
                                       PieChartData(
                                         sections: [
-                                          // Current sections
                                           ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"]
                                               .entries
                                               .map<PieChartSectionData>((entry) {
@@ -484,8 +485,30 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
                                             final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
                                             final animatedValue = _valueAnimations[category]?.value ?? 0.0;
+
+                                            // Calculate the percentage of this section
+                                            final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
+
+                                            // Adjust text position and size based on percentage
+                                            double titlePositionOffset;
+                                            double fontSize;
+                                            if (percentage < 5) {
+                                              // For very small sections, move text further out and reduce font size
+                                              titlePositionOffset = 0.8; // Move text further out
+                                              fontSize = 10.0; // Smaller font size
+                                            } else if (percentage < 10) {
+                                              // For medium-small sections, adjust slightly
+                                              titlePositionOffset = 0.65;
+                                              fontSize = 11.0;
+                                            } else {
+                                              // For larger sections, keep text closer and use default font size
+                                              titlePositionOffset = 0.55;
+                                              fontSize = isSelected ? 14.0 : 12.0;
+                                            }
+
                                             print(
-                                                "Rendering pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius");
+                                                "Rendering pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius, percentage: $percentage");
+
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
                                               title:
@@ -493,7 +516,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                               radius: radius,
                                               color: _getChartColor(category),
                                               titleStyle: AppTextStyles.chartLabel(context).copyWith(
-                                                fontSize: isSelected ? 14 : 12,
+                                                fontSize: fontSize,
                                                 shadows: isSelected
                                                     ? [
                                                   Shadow(
@@ -505,7 +528,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                     : null,
                                               ),
                                               showTitle: animatedValue > 0,
-                                              titlePositionPercentageOffset: 0.55,
+                                              titlePositionPercentageOffset: titlePositionOffset,
                                               badgeWidget: isSelected
                                                   ? Container(
                                                 padding: const EdgeInsets.all(4),
@@ -529,7 +552,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                   : null,
                                             );
                                           }).toList(),
-                                          // Disappearing sections
                                           ..._disappearingAnimations.entries.map<PieChartSectionData>((entry) {
                                             final category = entry.key;
                                             final isSelected = _selectedCategory == category;
@@ -537,8 +559,27 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
                                             final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
                                             final animatedValue = entry.value.value;
+
+                                            // Calculate the percentage of this section
+                                            final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
+
+                                            // Adjust text position and size based on percentage
+                                            double titlePositionOffset;
+                                            double fontSize;
+                                            if (percentage < 5) {
+                                              titlePositionOffset = 0.8;
+                                              fontSize = 10.0;
+                                            } else if (percentage < 10) {
+                                              titlePositionOffset = 0.65;
+                                              fontSize = 11.0;
+                                            } else {
+                                              titlePositionOffset = 0.55;
+                                              fontSize = isSelected ? 14.0 : 12.0;
+                                            }
+
                                             print(
-                                                "Rendering disappearing pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius");
+                                                "Rendering disappearing pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius, percentage: $percentage");
+
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
                                               title:
@@ -546,7 +587,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                               radius: radius,
                                               color: _getChartColor(category),
                                               titleStyle: AppTextStyles.chartLabel(context).copyWith(
-                                                fontSize: isSelected ? 14 : 12,
+                                                fontSize: fontSize,
                                                 shadows: isSelected
                                                     ? [
                                                   Shadow(
@@ -558,7 +599,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                     : null,
                                               ),
                                               showTitle: animatedValue > 0,
-                                              titlePositionPercentageOffset: 0.55,
+                                              titlePositionPercentageOffset: titlePositionOffset,
                                               badgeWidget: isSelected
                                                   ? Container(
                                                 padding: const EdgeInsets.all(4),

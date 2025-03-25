@@ -12,10 +12,11 @@ import 'package:personal_finance/providers/theme_provider.dart';
 
 void main() {
   runApp(
-      ChangeNotifierProvider(
-        create: (_) => ThemeProvider(),
-        child: const MyApp(),
-  ));
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -23,28 +24,25 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
-          return MaterialApp(
-            title: 'Personal Finance',
-            theme: AppTheme.lightTheme(),
-            darkTheme: AppTheme.darkTheme(),
-            themeMode: themeProvider.themeMode,
-            debugShowCheckedModeBanner: false,
-            initialRoute: '/',
-            routes: {
-              '/': (context) => const LoginRegister(),
-              '/main': (context) => const MainNavigationScreen(),
-              '/add_transaction': (context) => const AddTransactionScreen(),
-              '/reports': (context) => const ReportsScreen(),
-              '/history': (context) => const TransactionHistoryScreen(),
-              '/settings': (context) => const SettingsScreen(),
-            },
-          );
-        },
-      ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'Personal Finance',
+          theme: AppTheme.lightTheme(),
+          darkTheme: AppTheme.darkTheme(),
+          themeMode: themeProvider.themeMode,
+          debugShowCheckedModeBanner: false,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const LoginRegister(),
+            '/main': (context) => const MainNavigationScreen(),
+            '/add_transaction': (context) => const AddTransactionScreen(),
+            '/reports': (context) => const ReportsScreen(),
+            '/history': (context) => const TransactionHistoryScreen(),
+            '/settings': (context) => const SettingsScreen(),
+          },
+        );
+      },
     );
   }
 }
