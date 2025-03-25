@@ -1,2 +1,0 @@
-D:/GitHub/aia-dev/android/app/.cxx/Debug/44c125w6/armeabi-v7a/CMakeFiles/edit_cache.dir
-D:/GitHub/aia-dev/android/app/.cxx/Debug/44c125w6/armeabi-v7a/CMakeFiles/rebuild_cache.dir
