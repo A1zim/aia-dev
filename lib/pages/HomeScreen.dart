@@ -5,7 +5,8 @@ import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:personal_finance/providers/theme_provider.dart'; 
+import 'package:personal_finance/models/currency_converter.dart'; // Add this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,12 +23,30 @@ class _HomeScreenState extends State<HomeScreen> {
   double _totalIncome = 0.0;
   double _totalExpenses = 0.0;
   double _balance = 0.0;
+  String _currentCurrency = 'KGS'; // Add this line
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _userDataFuture = _fetchUserData();
+    _loadCurrency(); // Add this method call
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when returning to this screen (in case currency changed)
+    _loadCurrency();
+    _loadData();
+  }
+
+  // Add this method
+  Future<void> _loadCurrency() async {
+    final currency = await CurrencyConverter.getPreferredCurrency();
+    setState(() {
+      _currentCurrency = currency;
+    });
   }
 
   void _loadData() {
@@ -133,6 +152,51 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildSummaryCards() {
+    return Column(
+      children: [
+        FutureBuilder<String>(
+          future: CurrencyConverter.formatWithPreferredCurrency(_totalIncome, 'KGS'),
+          builder: (context, snapshot) {
+            return SummaryCard(
+              title: 'Income',
+              amount: snapshot.data ?? 
+                CurrencyConverter.formatWithCurrency(_totalIncome, _currentCurrency),
+              color: Colors.green,
+              icon: Icons.arrow_upward,
+            );
+          }
+        ),
+        const SizedBox(height: 12),
+        FutureBuilder<String>(
+          future: CurrencyConverter.formatWithPreferredCurrency(_totalExpenses, 'KGS'),
+          builder: (context, snapshot) {
+            return SummaryCard(
+              title: 'Expenses',
+              amount: snapshot.data ?? 
+                CurrencyConverter.formatWithCurrency(_totalExpenses, _currentCurrency),
+              color: Colors.red,
+              icon: Icons.arrow_downward,
+            );
+          }
+        ),
+        const SizedBox(height: 12),
+        FutureBuilder<String>(
+          future: CurrencyConverter.formatWithPreferredCurrency(_balance, 'KGS'),
+          builder: (context, snapshot) {
+            return SummaryCard(
+              title: 'Balance',
+              amount: snapshot.data ?? 
+                CurrencyConverter.formatWithCurrency(_balance, _currentCurrency),
+              color: Colors.blue,
+              icon: Icons.account_balance_wallet,
+            );
+          }
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -163,30 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                SummaryCard(
-                  title: 'Income',
-                  amount: '\$${_totalIncome.toStringAsFixed(2)}',
-                  color: Colors.green,
-                  icon: Icons.arrow_upward,
-                ),
-                const SizedBox(height: 12),
-                SummaryCard(
-                  title: 'Expenses',
-                  amount: '\$${_totalExpenses.toStringAsFixed(2)}',
-                  color: Colors.red,
-                  icon: Icons.arrow_downward,
-                ),
-                const SizedBox(height: 12),
-                SummaryCard(
-                  title: 'Balance',
-                  amount: '\$${_balance.toStringAsFixed(2)}',
-                  color: Colors.blue,
-                  icon: Icons.account_balance_wallet,
-                ),
-              ],
-            ),
+            child: _buildSummaryCards(), // Use the updated method
           ),
           Expanded(
             child: RefreshIndicator(
@@ -245,6 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () async {
           final result = await Navigator.pushNamed(context, '/add_transaction');
           if (result == true) {
+            // Reload data and currency when returning from add transaction
+            await _loadCurrency();
             setState(() {
               _loadData();
             });
@@ -290,13 +333,18 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 12,
           ),
         ),
-        trailing: Text(
-          '\$${transaction.amount.toStringAsFixed(2)}',
-          style: AppTextStyles.body(context).copyWith(
-            color: isIncome ? Colors.green : Colors.red,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+        trailing: FutureBuilder<String>(
+          future: CurrencyConverter.formatWithPreferredCurrency(transaction.amount, 'KGS'),
+          builder: (context, snapshot) {
+            return Text(
+              snapshot.data ?? CurrencyConverter.formatWithCurrency(transaction.amount, _currentCurrency),
+              style: AppTextStyles.body(context).copyWith(
+                color: isIncome ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            );
+          }
         ),
         onTap: () => _showTransactionActions(context, transaction),
       ),

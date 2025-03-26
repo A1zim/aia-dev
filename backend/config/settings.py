@@ -184,3 +184,7 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
+
+# Exchange Rate API settings
+EXCHANGE_RATE_API_KEY = '74269d3ded2eedd6d6dacac4'
+EXCHANGE_RATE_API_URL = 'https://v6.exchangerate-api.com/v6/'
