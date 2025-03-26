@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:personal_finance/pages/LoginRegister.dart';
 import 'package:personal_finance/pages/MainNavigationScreen.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
+import 'package:personal_finance/pages/HomeScreen.dart';
 import 'package:personal_finance/pages/ReportsScreen.dart';
 import 'package:personal_finance/pages/SettingsScreen.dart';
 import 'package:personal_finance/pages/TransactionHistoryScreen.dart';

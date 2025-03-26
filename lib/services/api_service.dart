@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
 
 class ApiService {
-  static const String baseUrl = "http://localhost:8000/api"; // Adjust to your backend URL
+  static const String baseUrl = "http://10.0.2.2:8001/api"; // Adjust to your backend URL
   String? _accessToken;
   String? _refreshToken;
 
@@ -57,7 +57,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      // Update to match Django Simple JWT response format which uses 'access' and 'refresh'
       await saveTokens(data['access'], data['refresh']);
     } else {
       throw Exception('Failed to login: ${response.body}');
@@ -115,7 +114,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      // Make sure we're saving the access token from the correct field name
       await saveTokens(data['access'], refreshToken);
       return true;
     }
@@ -282,42 +280,5 @@ class ApiService {
       return List<String>.from(json.decode(response.body));
     }
     throw Exception('Failed to fetch categories: ${response.body}');
-  }
-
-  // Get exchange rate between two currencies
-  Future<double> getExchangeRate(String fromCurrency, String toCurrency) async {
-    try {
-      final token = await getAccessToken();
-      if (token == null) throw Exception('Not authenticated');
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/exchange-rate/$fromCurrency/$toCurrency/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['rate'];
-      } else {
-        throw Exception(
-            'Failed to fetch exchange rate: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to fetch exchange rate: $e');
-    }
-  }
-
-  // Convert amount between currencies
-  Future<double> convertCurrency(
-      double amount, String fromCurrency, String toCurrency) async {
-    if (fromCurrency == toCurrency) {
-      return amount;
-    }
-    
-    final rate = await getExchangeRate(fromCurrency, toCurrency);
-    return amount * rate;
   }
 }
