@@ -9,7 +9,7 @@ import 'package:personal_finance/pages/HomeScreen.dart';
 import 'package:personal_finance/pages/ReportsScreen.dart';
 import 'package:personal_finance/pages/SettingsScreen.dart';
 import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
-import 'package:personal_finance/pages/ProfileScreen.dart'; // Add this
+import 'package:personal_finance/pages/ProfileScreen.dart';
 import 'package:personal_finance/pages/CurrencyScreen.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
@@ -29,6 +29,22 @@ class LocaleProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('locale', locale.languageCode);
     notifyListeners();
+  }
+}
+
+// Custom PageTransitionsBuilder to disable all transitions
+class NoTransitionPageTransitionsBuilder extends PageTransitionsBuilder {
+  const NoTransitionPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+      PageRoute<T> route,
+      BuildContext context,
+      Animation<double> animation,
+      Animation<double> secondaryAnimation,
+      Widget child,
+      ) {
+    return child; // No transition animation
   }
 }
 
@@ -68,8 +84,28 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, localeProvider, child) {
         return MaterialApp(
           title: 'Personal Finance',
-          theme: AppTheme.lightTheme(),
-          darkTheme: AppTheme.darkTheme(),
+          theme: AppTheme.lightTheme().copyWith(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.iOS: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.macOS: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.windows: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.linux: NoTransitionPageTransitionsBuilder(),
+              },
+            ),
+          ),
+          darkTheme: AppTheme.darkTheme().copyWith(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.iOS: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.macOS: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.windows: NoTransitionPageTransitionsBuilder(),
+                TargetPlatform.linux: NoTransitionPageTransitionsBuilder(),
+              },
+            ),
+          ),
           themeMode: themeProvider.themeMode,
           locale: localeProvider.locale,
           supportedLocales: const [
@@ -92,7 +128,7 @@ class MyApp extends StatelessWidget {
             '/reports': (context) => const ReportsScreen(),
             '/history': (context) => const TransactionHistoryScreen(),
             '/settings': (context) => const SettingsScreen(),
-            '/profile': (context) => const ProfileScreen(), // Add this
+            '/profile': (context) => const ProfileScreen(),
             '/currency': (context) => const CurrencyScreen(),
           },
         );

@@ -30,7 +30,10 @@ class ProfileScreen extends StatelessWidget {
           color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
-      drawer: const CustomDrawer(currentRoute: '/profile'),
+      drawer: CustomDrawer(
+        currentRoute: '/profile',
+        parentContext: context, // Pass the context as parentContext
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

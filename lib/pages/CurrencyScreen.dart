@@ -129,11 +129,15 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         ),
       );
 
-      // Navigate to HomeScreen and make it the root
+      // Close the drawer if it's open
+      if (Scaffold.of(context).isDrawerOpen) {
+        Navigator.pop(context); // Close the drawer
+      }
+
       Navigator.pushNamedAndRemoveUntil(
         context,
-        '/main', // Use '/main' as per your route naming
-            (route) => false, // Remove all previous routes
+        '/main',
+            (route) => false,
       );
     }
   }
@@ -308,7 +312,10 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
-      drawer: const CustomDrawer(currentRoute: '/currency'),
+      drawer: CustomDrawer(
+        currentRoute: '/currency',
+        parentContext: context, // Pass the context as parentContext
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

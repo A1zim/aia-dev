@@ -131,7 +131,10 @@ class _HomeScreenState extends State<HomeScreen> {
           color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
-      drawer: const CustomDrawer(currentRoute: '/main'), // Updated to /main
+      drawer: CustomDrawer(
+        currentRoute: '/main',
+        parentContext: context, // Pass the context as parentContext
+      ),
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Column(
         children: [
