@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
+import 'package:personal_finance/models/transaction.dart';
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8001/api"; // Adjust to your backend URL
+  static const String baseUrl = "http://10.0.2.2:8000/api"; // Adjust to your backend URL
   String? _accessToken;
   String? _refreshToken;
 
@@ -41,7 +41,6 @@ class ApiService {
     );
 
     if (response.statusCode == 201) {
-      // Registration successful, now log the user in
       await login(username, password);
     } else {
       throw Exception('Failed to register: ${response.body}');
@@ -70,7 +69,7 @@ class ApiService {
     }
 
     final response = await http.get(
-      Uri.parse('$baseUrl/user/'), // Adjust the endpoint as needed
+      Uri.parse('$baseUrl/user/'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -84,7 +83,6 @@ class ApiService {
     }
   }
 
-  // Save tokens to SharedPreferences
   Future<void> saveTokens(String accessToken, String refreshToken) async {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
@@ -101,7 +99,6 @@ class ApiService {
     await prefs.remove('refresh_token');
   }
 
-  // Refresh the access token using the refresh token
   Future<bool> refreshAccessToken() async {
     final refreshToken = await getRefreshToken();
     if (refreshToken == null) return false;
@@ -120,7 +117,6 @@ class ApiService {
     return false;
   }
 
-  // Generic method to make authenticated requests
   Future<http.Response> makeAuthenticatedRequest(
       Future<http.Response> Function(String token) request) async {
     String? token = await getAccessToken();
@@ -128,7 +124,6 @@ class ApiService {
 
     var response = await request(token);
     if (response.statusCode == 401) {
-      // Token might be expired, try refreshing
       final refreshed = await refreshAccessToken();
       if (!refreshed) throw Exception('Session expired. Please log in again.');
 
@@ -138,7 +133,6 @@ class ApiService {
     return response;
   }
 
-  // Fetch all transactions
   Future<List<Transaction>> getTransactions() async {
     final response = await makeAuthenticatedRequest((token) =>
         http.get(
@@ -157,7 +151,6 @@ class ApiService {
     throw Exception('Failed to fetch transactions: ${response.body}');
   }
 
-  // Add a new transaction
   Future<void> addTransaction(Transaction transaction) async {
     final response = await makeAuthenticatedRequest((token) async {
       return await http.post(
@@ -175,7 +168,6 @@ class ApiService {
     }
   }
 
-  // Update an existing transaction
   Future<void> updateTransaction(int id, Transaction transaction) async {
     final response = await makeAuthenticatedRequest((token) async {
       return await http.put(
@@ -193,7 +185,6 @@ class ApiService {
     }
   }
 
-  // Delete a transaction
   Future<void> deleteTransaction(int id) async {
     final response = await makeAuthenticatedRequest((token) =>
         http.delete(
@@ -209,7 +200,6 @@ class ApiService {
     }
   }
 
-  // Fetch financial summary
   Future<Map<String, dynamic>> getFinancialSummary() async {
     final response = await makeAuthenticatedRequest((token) =>
         http.get(
@@ -235,20 +225,16 @@ class ApiService {
     final queryParams = <String, String>{};
     if (type != null) queryParams['type'] = type;
     if (categories != null && categories.isNotEmpty) {
-      queryParams['category'] =
-          categories.join(','); // Changed 'categories' to 'category'
+      queryParams['category'] = categories.join(',');
     }
     if (startDate != null) {
-      queryParams['date_from'] = startDate.toIso8601String().split(
-          'T')[0]; // Changed 'start_date' to 'date_from' and fixed format
+      queryParams['date_from'] = startDate.toIso8601String().split('T')[0];
     }
     if (endDate != null) {
-      queryParams['date_to'] = endDate.toIso8601String().split(
-          'T')[0]; // Changed 'end_date' to 'date_to' and fixed format
+      queryParams['date_to'] = endDate.toIso8601String().split('T')[0];
     }
 
-    final uri = Uri.parse('$baseUrl/reports/').replace(
-        queryParameters: queryParams);
+    final uri = Uri.parse('$baseUrl/reports/').replace(queryParameters: queryParams);
 
     final response = await makeAuthenticatedRequest((token) async {
       return await http.get(
@@ -280,5 +266,55 @@ class ApiService {
       return List<String>.from(json.decode(response.body));
     }
     throw Exception('Failed to fetch categories: ${response.body}');
+  }
+
+  // New methods for currency management
+
+  Future<List<String>> getUserCurrencies() async {
+    final response = await makeAuthenticatedRequest((token) =>
+        http.get(
+          Uri.parse('$baseUrl/currencies/'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ));
+
+    if (response.statusCode == 200) {
+      return List<String>.from(json.decode(response.body));
+    }
+    throw Exception('Failed to fetch user currencies: ${response.body}');
+  }
+
+  Future<void> addUserCurrency(String currency) async {
+    final response = await makeAuthenticatedRequest((token) async {
+      return await http.post(
+        Uri.parse('$baseUrl/currencies/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'currency': currency}),
+      );
+    });
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to add currency: ${response.body}');
+    }
+  }
+
+  Future<void> deleteUserCurrency(String currency) async {
+    final response = await makeAuthenticatedRequest((token) =>
+        http.delete(
+          Uri.parse('$baseUrl/currencies/$currency/'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ));
+
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete currency: ${response.body}');
+    }
   }
 }

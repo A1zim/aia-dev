@@ -1,0 +1,15 @@
+{
+  "appTitle": "Personal Finance",
+  "settingsTitle": "Settings",
+  "darkMode": "Dark Mode",
+  "darkModeEnabled": "Enabled",
+  "darkModeDisabled": "Disabled",
+  "selectCurrency": "Select Currency",
+  "selectLanguage": "Select Language",
+  "logout": "Logout",
+  "logoutConfirm": "Are you sure you want to logout?",
+  "cancel": "Cancel",
+  "confirmLogout": "Logout",
+  "currencyChanged": "Currency changed to {currency}",
+  "currencyChangeFailed": "Failed to update currency: {error}"
+}

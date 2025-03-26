@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:provider/provider.dart';
+import 'package:personal_finance/providers/currency_provider.dart'; // Import CurrencyProvider
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -191,11 +193,14 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         endDate: selectedEndDate,
       );
 
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+
       final Map<String, double> categorySpending = {};
       final incomeSpending = Map<String, dynamic>.from(reports['income_by_category']);
       incomeSpending.forEach((key, value) {
         if (key != null && value != null) {
-          categorySpending[key] = (value is double) ? value : double.parse(value.toString());
+          final amount = (value is double) ? value : double.parse(value.toString());
+          categorySpending[key] = currencyProvider.convertAmount(amount);
         }
       });
 
@@ -203,7 +208,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         final expenseSpending = Map<String, dynamic>.from(reports['expense_by_category']);
         expenseSpending.forEach((key, value) {
           if (key != null && value != null) {
-            categorySpending[key] = (value is double) ? value : double.parse(value.toString());
+            final amount = (value is double) ? value : double.parse(value.toString());
+            categorySpending[key] = currencyProvider.convertAmount(amount);
           }
         });
       }
@@ -214,7 +220,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         if (transaction['type'] == selectedType) {
           final date = transaction['timestamp'].substring(0, 7);
           final amount = double.parse(transaction['amount'].toString());
-          monthlySpending[date] = (monthlySpending[date] ?? 0) + amount;
+          final convertedAmount = currencyProvider.convertAmount(amount);
+          monthlySpending[date] = (monthlySpending[date] ?? 0) + convertedAmount;
         }
       }
 
@@ -391,9 +398,22 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     return (interval / 100).ceil() * 100;
   }
 
+  String _getCurrencySymbol(String currency) {
+    const symbols = {
+      'KGS': 'KGS ',
+      'USD': '\$',
+      'EUR': '€',
+      'INR': '₹',
+    };
+    return symbols[currency] ?? '$currency ';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final currencySymbol = _getCurrencySymbol(currencyProvider.currency);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -436,7 +456,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSummaryCard(),
+                    _buildSummaryCard(currencySymbol),
                     const SizedBox(height: 20),
                     _buildFilters(),
                     const SizedBox(height: 20),
@@ -453,7 +473,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           ..._disappearingAnimations.values,
                         ]),
                         builder: (context, child) {
-                          // Calculate total for percentage computation
                           final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
 
                           return Column(
@@ -486,22 +505,17 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
                                             final animatedValue = _valueAnimations[category]?.value ?? 0.0;
 
-                                            // Calculate the percentage of this section
                                             final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
 
-                                            // Adjust text position and size based on percentage
                                             double titlePositionOffset;
                                             double fontSize;
                                             if (percentage < 5) {
-                                              // For very small sections, move text further out and reduce font size
-                                              titlePositionOffset = 0.8; // Move text further out
-                                              fontSize = 10.0; // Smaller font size
+                                              titlePositionOffset = 0.8;
+                                              fontSize = 10.0;
                                             } else if (percentage < 10) {
-                                              // For medium-small sections, adjust slightly
                                               titlePositionOffset = 0.65;
                                               fontSize = 11.0;
                                             } else {
-                                              // For larger sections, keep text closer and use default font size
                                               titlePositionOffset = 0.55;
                                               fontSize = isSelected ? 14.0 : 12.0;
                                             }
@@ -512,7 +526,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
                                               title:
-                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n\$${animatedValue.toStringAsFixed(2)}",
+                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n$currencySymbol${animatedValue.toStringAsFixed(2)}",
                                               radius: radius,
                                               color: _getChartColor(category),
                                               titleStyle: AppTextStyles.chartLabel(context).copyWith(
@@ -560,10 +574,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
                                             final animatedValue = entry.value.value;
 
-                                            // Calculate the percentage of this section
                                             final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
 
-                                            // Adjust text position and size based on percentage
                                             double titlePositionOffset;
                                             double fontSize;
                                             if (percentage < 5) {
@@ -583,7 +595,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
                                               title:
-                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n\$${animatedValue.toStringAsFixed(2)}",
+                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n$currencySymbol${animatedValue.toStringAsFixed(2)}",
                                               radius: radius,
                                               color: _getChartColor(category),
                                               titleStyle: AppTextStyles.chartLabel(context).copyWith(
@@ -712,7 +724,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           position: _detailsSlideAnimation,
                           child: FadeTransition(
                             opacity: _detailsFadeAnimation,
-                            child: _buildCategoryStats(),
+                            child: _buildCategoryStats(currencySymbol),
                           ),
                         )
                             : const SizedBox.shrink();
@@ -791,7 +803,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                           (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]),
                                       getTitlesWidget: (value, meta) {
                                         return Text(
-                                          "\$${value.toInt()}",
+                                          "$currencySymbol${value.toInt()}",
                                           style: AppTextStyles.chartLabel(context),
                                         );
                                       },
@@ -833,7 +845,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                           .keys
                                           .elementAt(groupIndex);
                                       return BarTooltipItem(
-                                        "${_getMonthLabel(int.parse(month.split('-')[1]))}\n\$${rod.toY.toStringAsFixed(2)}",
+                                        "${_getMonthLabel(int.parse(month.split('-')[1]))}\n$currencySymbol${rod.toY.toStringAsFixed(2)}",
                                         const TextStyle(color: Colors.white, fontSize: 12),
                                       );
                                     },
@@ -887,7 +899,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
     return AppCardStyles.card(
@@ -916,7 +928,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "\$${total.toStringAsFixed(2)}",
+                  "$currencySymbol${total.toStringAsFixed(2)}",
                   style: AppTextStyles.heading(context).copyWith(
                     color: selectedType == 'income' ? Colors.green : Colors.red,
                   ),
@@ -1164,7 +1176,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildCategoryStats() {
+  Widget _buildCategoryStats(String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final categorySpending =
     (_isLoading ? _cachedReportsData : _reportsData)["categorySpending"] as Map<String, double>;
@@ -1245,14 +1257,14 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Amount: \$${categoryAmount.toStringAsFixed(2)}",
+                        "Amount: $currencySymbol${categoryAmount.toStringAsFixed(2)}",
                         style: AppTextStyles.body(context).copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Total: \$${total.toStringAsFixed(2)}",
+                        "Total: $currencySymbol${total.toStringAsFixed(2)}",
                         style: AppTextStyles.body(context),
                       ),
                       const SizedBox(height: 8),

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:personal_finance/services/currency_api_service.dart';
+import 'package:personal_finance/theme/styles.dart';
+import 'package:provider/provider.dart';
+import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
+import 'package:personal_finance/main.dart';
+
+import '../providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final VoidCallback? onThemeToggle;
-
-  const SettingsScreen({super.key, this.onThemeToggle});
+  const SettingsScreen({super.key});
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
@@ -13,19 +18,82 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final ApiService _apiService = ApiService();
-  String _selectedCurrency = 'USD';
-  bool _isFingerprintEnabled = false;
+  final CurrencyApiService _currencyApiService = CurrencyApiService();
+  String _selectedCurrency = 'KGS'; // Default to KGS
+  double _exchangeRate = 1.0;       // Default rate (KGS to KGS)
+  String _selectedLanguage = 'en';  // Default to English
+  bool _isLoading = false;
 
-  void _selectCurrency(String? value) {
-    setState(() {
-      _selectedCurrency = value!;
-    });
+  List<String> _availableCurrencies = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    _selectedLanguage = localeProvider.locale.languageCode;
+    _loadAvailableCurrencies();
   }
 
-  void _toggleFingerprint(bool value) {
+  Future<void> _loadAvailableCurrencies() async {
+    try {
+      final userCurrencies = await _apiService.getUserCurrencies();
+      setState(() {
+        _availableCurrencies = userCurrencies;
+      });
+    } catch (e) {
+      print('Failed to load available currencies: $e');
+      setState(() {
+        _availableCurrencies = ['KGS']; // Fallback to KGS if there's an error
+      });
+    }
+  }
+
+  void _selectCurrency(String? value) {
+    if (value == null || value == _selectedCurrency) return;
+
     setState(() {
-      _isFingerprintEnabled = value;
+      _isLoading = true;
     });
+
+    try {
+      final rate = _currencyApiService.getConversionRate('KGS', value);
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+      currencyProvider.setCurrency(value, rate);
+
+      setState(() {
+        _selectedCurrency = value;
+        _exchangeRate = rate;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.currencyChanged(value)),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.currencyChangeFailed(e.toString())),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectLanguage(String? value) {
+    if (value == null || value == _selectedLanguage) return;
+
+    setState(() {
+      _selectedLanguage = value;
+    });
+
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    localeProvider.setLocale(Locale(value));
   }
 
   void _logout() {
@@ -33,22 +101,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(
-            'Logout',
-            style: AppTextStyles.subheading(context),
-          ),
-          content: Text(
-            'Are you sure you want to logout?',
-            style: AppTextStyles.body(context),
-          ),
+          title: Text(AppLocalizations.of(context)!.logout, style: AppTextStyles.subheading(context)),
+          content: Text(AppLocalizations.of(context)!.logoutConfirm, style: AppTextStyles.body(context)),
           actions: [
             TextButton(
               style: AppButtonStyles.textButton(context),
               onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: AppTextStyles.body(context),
-              ),
+              child: Text(AppLocalizations.of(context)!.cancel, style: AppTextStyles.body(context)),
             ),
             TextButton(
               style: AppButtonStyles.textButton(context),
@@ -57,10 +116,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
               },
               child: Text(
-                'Logout',
-                style: AppTextStyles.body(context).copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                AppLocalizations.of(context)!.confirmLogout,
+                style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error),
               ),
             ),
           ],
@@ -72,12 +129,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    _selectedCurrency = currencyProvider.currency; // Sync with provider
+    _exchangeRate = currencyProvider.exchangeRate;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Settings',
-          style: AppTextStyles.heading(context),
-        ),
+        title: Text(AppLocalizations.of(context)!.settingsTitle, style: AppTextStyles.heading(context)),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -89,9 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        iconTheme: IconThemeData(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        ),
+        iconTheme: IconThemeData(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -111,26 +168,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Theme Toggle
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 child: SwitchListTile.adaptive(
-                  title: Text(
-                    'Dark Mode',
-                    style: AppTextStyles.body(context).copyWith(fontSize: 16),
-                  ),
+                  title: Text(AppLocalizations.of(context)!.darkMode,
+                      style: AppTextStyles.body(context).copyWith(fontSize: 16)),
                   subtitle: Text(
-                    isDark ? 'Enabled' : 'Disabled',
+                    isDark
+                        ? AppLocalizations.of(context)!.darkModeEnabled
+                        : AppLocalizations.of(context)!.darkModeDisabled,
                     style: AppTextStyles.body(context).copyWith(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                     ),
                   ),
                   value: isDark,
                   onChanged: (value) {
-                    widget.onThemeToggle?.call();
+                    themeProvider.toggleTheme();
                   },
                   secondary: Icon(
                     Icons.dark_mode,
@@ -139,11 +192,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
               ),
-
               const SizedBox(height: 16),
-              Divider(
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              ),
+              Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
 
               // Currency Selection
               ListTile(
@@ -151,64 +201,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icons.attach_money,
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
-                title: Text(
-                  'Select Currency',
-                  style: AppTextStyles.body(context).copyWith(fontSize: 16),
-                ),
+                title: Text(AppLocalizations.of(context)!.selectCurrency,
+                    style: AppTextStyles.body(context).copyWith(fontSize: 16)),
                 subtitle: DropdownButtonFormField<String>(
-                  value: _selectedCurrency,
-                  onChanged: _selectCurrency,
+                  value: _availableCurrencies.contains(_selectedCurrency) ? _selectedCurrency : 'KGS',
+                  onChanged: _isLoading ? null : _selectCurrency,
+                  decoration: AppInputStyles.dropdown(context, labelText: 'Currency'),
+                  items: _availableCurrencies.map((currency) {
+                    final country = _currencyApiService.getCountryForCurrency(currency);
+                    return DropdownMenuItem<String>(
+                      value: currency,
+                      child: Text('$currency - $country'),
+                    );
+                  }).toList(),
+                  itemHeight: 50,
+                  style: AppTextStyles.body(context).copyWith(
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                  ),
+                  dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  icon: AppInputStyles.dropdownIcon(context),
+                  menuMaxHeight: 300.0,
+                  borderRadius: BorderRadius.circular(16),
+                  elevation: 8,
+                ),
+                trailing: _isLoading
+                    ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                  ),
+                )
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+
+              // Language Selection
+              ListTile(
+                leading: Icon(
+                  Icons.language,
+                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                ),
+                title: Text(AppLocalizations.of(context)!.selectLanguage,
+                    style: AppTextStyles.body(context).copyWith(fontSize: 16)),
+                subtitle: DropdownButtonFormField<String>(
+                  value: _selectedLanguage,
+                  onChanged: _selectLanguage,
                   decoration: AppInputStyles.dropdown(context).copyWith(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'USD', child: Text('USD - US Dollar')),
-                    DropdownMenuItem(value: 'EUR', child: Text('EUR - Euro')),
-                    DropdownMenuItem(value: 'INR', child: Text('INR - Indian Rupee')),
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'ky', child: Text('Kyrgyz')),
+                    DropdownMenuItem(value: 'ru', child: Text('Russian')),
                   ],
                   itemHeight: 50,
                 ),
               ),
-
               const SizedBox(height: 16),
-              Divider(
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              ),
-
-              // Fingerprint Authentication
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                child: SwitchListTile.adaptive(
-                  title: Text(
-                    'Enable Fingerprint',
-                    style: AppTextStyles.body(context).copyWith(fontSize: 16),
-                  ),
-                  subtitle: Text(
-                    _isFingerprintEnabled ? 'Enabled' : 'Disabled',
-                    style: AppTextStyles.body(context).copyWith(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
-                    ),
-                  ),
-                  value: _isFingerprintEnabled,
-                  onChanged: _toggleFingerprint,
-                  secondary: Icon(
-                    Icons.fingerprint,
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                  activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              Divider(
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              ),
+              Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
 
               // Logout Option
               ListTile(
@@ -216,10 +268,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icons.logout,
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
-                title: Text(
-                  'Logout',
-                  style: AppTextStyles.body(context).copyWith(fontSize: 16),
-                ),
+                title: Text(AppLocalizations.of(context)!.logout,
+                    style: AppTextStyles.body(context).copyWith(fontSize: 16)),
                 onTap: _logout,
               ),
             ],
