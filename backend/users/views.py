@@ -2,14 +2,14 @@ from decimal import Decimal
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.views import APIView  # Use APIView consistently
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Sum
 from datetime import datetime
 
-from .models import User, Transaction, CategoryAmount
-from .serializers import UserSerializer, TransactionSerializer, CategoryAmountSerializer
+from .models import User, Transaction, CategoryAmount, UserCurrency
+from .serializers import UserSerializer, TransactionSerializer, CategoryAmountSerializer, UserCurrencySerializer
 from .utils import api_response
 from .pagination import StandardResultsSetPagination
 
@@ -17,7 +17,6 @@ from .pagination import StandardResultsSetPagination
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
-
 
 class RegisterView(APIView):  # Changed from ApiView to APIView
     """Register a new user"""
@@ -105,6 +104,85 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
         """Этот метод вызывается при DELETE запросе, чтобы удалить данные пользователя"""
         print("Destroy method called")
         return super().destroy(request, *args, **kwargs)
+    
+class UserCurrencyViewSet(APIView):
+    """Manage user-specific currencies"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """List all currencies for the authenticated user"""
+        try:
+            print(f"Fetching currencies for user: {request.user.username}")
+            currencies = UserCurrency.objects.filter(user=request.user).values_list('currency', flat=True)
+            # Ensure KGS is always included
+            currency_list = list(currencies)
+            if 'KGS' not in currency_list:
+                currency_list.insert(0, 'KGS')
+            print(f"Returning currencies for user {request.user.username}: {currency_list}")
+            return Response(currency_list, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error in UserCurrencyViewSet.get: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        """Add a new currency for the authenticated user"""
+        try:
+            print(f"Adding currency for user: {request.user.username}")
+            serializer = UserCurrencySerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                currency = serializer.validated_data['currency']
+                # Create the UserCurrency instance
+                UserCurrency.objects.create(user=request.user, currency=currency)
+                print(f"Currency {currency} added for user {request.user.username}")
+                return Response(
+                    {'message': f'Currency {currency} added successfully'},
+                    status=status.HTTP_201_CREATED
+                )
+            print(f"Validation errors: {serializer.errors}")
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            print(f"Error in UserCurrencyViewSet.post: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def delete(self, request, currency):
+        """Delete a currency for the authenticated user"""
+        try:
+            currency = currency.upper()
+            print(f"Deleting currency {currency} for user: {request.user.username}")
+            # Prevent deleting KGS
+            if currency == 'KGS':
+                print("Attempted to delete KGS, which is not allowed")
+                return Response(
+                    {'error': 'Cannot delete KGS'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Check if the currency exists
+            try:
+                user_currency = UserCurrency.objects.get(user=request.user, currency=currency)
+                user_currency.delete()
+                print(f"Currency {currency} deleted for user {request.user.username}")
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            except UserCurrency.DoesNotExist:
+                print(f"Currency {currency} not found for user {request.user.username}")
+                return Response(
+                    {'error': f'Currency {currency} not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        except Exception as e:
+            print(f"Error in UserCurrencyViewSet.delete: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AddTransaction(APIView):
     """Add a new transaction and update user balances"""
@@ -113,30 +191,13 @@ class AddTransaction(APIView):
     def post(self, request):
         """Process a new transaction and update user balances"""
         print(f"Adding transaction for user: {request.user.username}")
-        serializer = TransactionSerializer(data=request.data)
+        serializer = TransactionSerializer(data=request.data, context={'request': request})
 
         if serializer.is_valid():
             with transaction.atomic():
                 category = serializer.validated_data['category']
                 amount = Decimal(str(serializer.validated_data['amount']))
                 trans_type = serializer.validated_data['type']
-
-                category_choices = [choice[0] for choice in Transaction._meta.get_field('category').choices]
-                if category not in category_choices:
-                    return api_response(
-                        None,
-                        message=f'Invalid category. Choose from: {category_choices}',
-                        success=False,
-                        status_code=status.HTTP_400_BAD_REQUEST
-                    )
-
-                if amount <= 0:
-                    return api_response(
-                        None,
-                        message='Amount must be greater than zero',
-                        success=False,
-                        status_code=status.HTTP_400_BAD_REQUEST
-                    )
 
                 # Explicitly set the user to the authenticated user
                 serializer.validated_data['user'] = request.user
@@ -168,12 +229,135 @@ class AddTransaction(APIView):
                 status_code=status.HTTP_201_CREATED
             )
 
+        print(f"Validation errors: {serializer.errors}")
         return api_response(
             serializer.errors,
             message="Invalid transaction data",
             success=False,
             status_code=status.HTTP_400_BAD_REQUEST
         )
+
+# Update TransactionDetailView to ensure original_currency is validated by the serializer
+class TransactionDetailView(APIView):
+    """Update or delete a specific transaction"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, transaction_id):
+        """Update a transaction"""
+        try:
+            print(f"Updating transaction {transaction_id} for user: {request.user.username}")
+            transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
+            serializer = TransactionSerializer(
+                transaction_obj,
+                data=request.data,
+                partial=True,
+                context={'request': request}
+            )
+
+            if serializer.is_valid():
+                with transaction.atomic():
+                    old_amount = transaction_obj.amount
+                    old_type = transaction_obj.type
+                    old_category = transaction_obj.category
+
+                    # Update the transaction
+                    serializer.save()
+
+                    # Adjust user balances and category amounts
+                    user = request.user
+                    new_amount = Decimal(str(serializer.validated_data['amount']))
+                    new_type = serializer.validated_data['type']
+                    new_category = serializer.validated_data['category']
+
+                    # Revert the old transaction's effect
+                    if old_type == 'income':
+                        user.income -= old_amount
+                        user.balance -= old_amount
+                    else:  # expense
+                        user.expense -= old_amount
+                        user.balance += old_amount
+
+                    # Apply the new transaction's effect
+                    if new_type == 'income':
+                        user.income += new_amount
+                        user.balance += new_amount
+                    else:  # expense
+                        user.expense += new_amount
+                        user.balance -= new_amount
+
+                    # Update CategoryAmount
+                    if old_category != new_category or old_type != new_type:
+                        # Revert old category amount
+                        old_category_amount = CategoryAmount.objects.get(
+                            user=user, category=old_category, type=old_type
+                        )
+                        old_category_amount.amount -= old_amount
+                        if old_category_amount.amount <= 0:
+                            old_category_amount.delete()
+                        else:
+                            old_category_amount.save()
+
+                        # Update or create new category amount
+                        new_category_amount, created = CategoryAmount.objects.get_or_create(
+                            user=user, category=new_category, type=new_type, defaults={'amount': 0}
+                        )
+                        new_category_amount.amount += new_amount
+                        new_category_amount.save()
+                    else:
+                        # Same category and type, just update the amount
+                        category_amount = CategoryAmount.objects.get(
+                            user=user, category=new_category, type=new_type
+                        )
+                        category_amount.amount = category_amount.amount - old_amount + new_amount
+                        category_amount.save()
+
+                    user.save()
+
+                print(f"Transaction {transaction_id} updated for user {user.username}: {serializer.data}")
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            print(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"Error in TransactionDetailView.put: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, transaction_id):
+        """Delete a transaction"""
+        try:
+            print(f"Deleting transaction {transaction_id} for user: {request.user.username}")
+            transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
+            with transaction.atomic():
+                # Revert the transaction's effect on user balances
+                user = request.user
+                amount = transaction_obj.amount
+                trans_type = transaction_obj.type
+                category = transaction_obj.category
+
+                if trans_type == 'income':
+                    user.income -= amount
+                    user.balance -= amount
+                else:  # expense
+                    user.expense -= amount
+                    user.balance += amount
+
+                # Update CategoryAmount
+                category_amount = CategoryAmount.objects.get(user=user, category=category, type=trans_type)
+                category_amount.amount -= amount
+                if category_amount.amount <= 0:
+                    category_amount.delete()
+                else:
+                    category_amount.save()
+
+                user.save()
+                transaction_obj.delete()
+
+            print(f"Transaction {transaction_id} deleted for user: {user.username}")
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            print(f"Error in TransactionDetailView.delete: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ... (other views like GetTransactionsByCategory, ClearHistory, etc., remain unchanged)
 
 
 class GetTransactionsByCategory(APIView):

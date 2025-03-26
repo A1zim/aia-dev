@@ -1,13 +1,14 @@
-// models/transaction.dart
 class Transaction {
   final int id;
   final int user;
   final String type;
   final String category;
-  final double amount; // Store as double
+  final double amount; // Amount in KGS (Soms)
   final String description;
   final String timestamp;
   final String username;
+  final String? originalCurrency; // The currency in which the amount was entered
+  final double? originalAmount; // The original amount before conversion to KGS
 
   Transaction({
     required this.id,
@@ -18,18 +19,22 @@ class Transaction {
     required this.description,
     required this.timestamp,
     required this.username,
+    this.originalCurrency,
+    this.originalAmount,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
     return Transaction(
-      id: json['id'] as int,
-      user: json['user'] as int,
-      type: json['type'] as String,
-      category: json['category'] as String,
-      amount: double.parse(json['amount'].toString()), // Convert string to double
-      description: json['description'] as String? ?? '',
-      timestamp: json['timestamp'] as String,
-      username: json['username'] as String,
+      id: json['id'],
+      user: json['user'],
+      type: json['type'],
+      category: json['category'],
+      amount: double.parse(json['amount'].toString()),
+      description: json['description'],
+      timestamp: json['timestamp'],
+      username: json['username'],
+      originalCurrency: json['originalCurrency'],
+      originalAmount: json['originalAmount'] != null ? double.parse(json['originalAmount'].toString()) : null,
     );
   }
 
@@ -39,10 +44,12 @@ class Transaction {
       'user': user,
       'type': type,
       'category': category,
-      'amount': amount,
+      'amount': double.parse(amount.toStringAsFixed(2)), // Ensure 2 decimal places
       'description': description,
       'timestamp': timestamp,
       'username': username,
+      'originalCurrency': originalCurrency,
+      'originalAmount': originalAmount != null ? double.parse(originalAmount!.toStringAsFixed(2)) : null,
     };
   }
 }

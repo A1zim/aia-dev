@@ -1,0 +1,15 @@
+{
+  "appTitle": "Жеке Финансы",
+  "settingsTitle": "Жөндөөлөр",
+  "darkMode": "Караңгы Режим",
+  "darkModeEnabled": "Иштетилген",
+  "darkModeDisabled": "Өчүрүлгөн",
+  "selectCurrency": "Валюта Тандоо",
+  "selectLanguage": "Тил Тандоо",
+  "logout": "Чыгуу",
+  "logoutConfirm": "Чыгууну каалайсызбы?",
+  "cancel": "Жокко чыгаруу",
+  "confirmLogout": "Чыгуу",
+  "currencyChanged": "Валюта {currency} болуп өзгөртүлдү",
+  "currencyChangeFailed": "Валютаны өзгөртүү ишке ашкан жок: {error}"
+}

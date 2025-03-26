@@ -78,6 +78,7 @@ CMakeFiles/
 *.cmake
 
 # Sensitive files
+.bin
 .env
 *.pem
 /android/app/google-services.json

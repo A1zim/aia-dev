@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 import 'package:personal_finance/pages/LoginRegister.dart';
 import 'package:personal_finance/pages/MainNavigationScreen.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
@@ -7,13 +9,51 @@ import 'package:personal_finance/pages/HomeScreen.dart';
 import 'package:personal_finance/pages/ReportsScreen.dart';
 import 'package:personal_finance/pages/SettingsScreen.dart';
 import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
+import 'package:personal_finance/pages/ProfileScreen.dart'; // Add this
+import 'package:personal_finance/pages/CurrencyScreen.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
+import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+// Define LocaleProvider
+class LocaleProvider with ChangeNotifier {
+  Locale _locale;
+
+  LocaleProvider(this._locale);
+
+  Locale get locale => _locale;
+
+  void setLocale(Locale locale) async {
+    _locale = locale;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('locale', locale.languageCode);
+    notifyListeners();
+  }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load saved preferences
+  final prefs = await SharedPreferences.getInstance();
+  final savedLocale = prefs.getString('locale') ?? 'en';
+  final savedTheme = prefs.getString('themeMode') ?? 'system';
+
+  // Initialize providers
+  final themeProvider = ThemeProvider(initialMode: ThemeProvider().themeModeFromString(savedTheme));
+  await themeProvider.loadTheme(); // Ensure the theme is loaded
+  final localeProvider = LocaleProvider(Locale(savedLocale));
+  final currencyProvider = CurrencyProvider();
+  await currencyProvider.loadCurrency(); // Load saved currency
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: localeProvider),
+        ChangeNotifierProvider.value(value: currencyProvider),
+      ],
       child: const MyApp(),
     ),
   );
@@ -24,13 +64,25 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, LocaleProvider>(
+      builder: (context, themeProvider, localeProvider, child) {
         return MaterialApp(
           title: 'Personal Finance',
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
           themeMode: themeProvider.themeMode,
+          locale: localeProvider.locale,
+          supportedLocales: const [
+            Locale('en', ''),
+            Locale('ky', ''),
+            Locale('ru', ''),
+          ],
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           debugShowCheckedModeBanner: false,
           initialRoute: '/',
           routes: {
@@ -40,6 +92,8 @@ class MyApp extends StatelessWidget {
             '/reports': (context) => const ReportsScreen(),
             '/history': (context) => const TransactionHistoryScreen(),
             '/settings': (context) => const SettingsScreen(),
+            '/profile': (context) => const ProfileScreen(), // Add this
+            '/currency': (context) => const CurrencyScreen(),
           },
         );
       },

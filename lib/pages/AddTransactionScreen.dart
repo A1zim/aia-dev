@@ -3,6 +3,9 @@ import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'dart:io'; // For SocketException
 import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:provider/provider.dart';
+import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -48,7 +51,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.initState();
     if (widget.transaction != null) {
       _descriptionController.text = widget.transaction!.description;
-      _amountController.text = widget.transaction!.amount.toString();
+      _amountController.text = widget.transaction!.originalAmount?.toString() ?? widget.transaction!.amount.toString();
       _selectedType = widget.transaction!.type;
       _selectedCategory = widget.transaction!.category;
       _selectedDate = DateTime.parse(widget.transaction!.timestamp);
@@ -83,15 +86,33 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       });
 
       try {
+        // Get the CurrencyProvider to access the selected currency and exchange rate
+        final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+
+        // Parse the entered amount (assumed to be in the selected currency)
+        final double enteredAmount = double.parse(_amountController.text);
+
+        // Convert the entered amount to KGS (Soms)
+        double amountInKGS;
+        if (currencyProvider.currency == 'KGS') {
+          amountInKGS = enteredAmount; // No conversion needed for KGS
+        } else {
+          // The exchange rate in CurrencyProvider is KGS -> selected currency
+          // To convert from selected currency to KGS, we divide by the exchange rate
+          amountInKGS = enteredAmount / currencyProvider.exchangeRate;
+        }
+
         final transaction = Transaction(
           id: widget.transaction?.id ?? 0,
           user: widget.transaction?.user ?? 0,
           type: _selectedType,
           category: _selectedCategory,
-          amount: double.parse(_amountController.text),
+          amount: amountInKGS, // Save the amount in KGS
           description: _descriptionController.text,
           timestamp: _selectedDate.toIso8601String(),
           username: widget.transaction?.username ?? '',
+          originalCurrency: currencyProvider.currency, // Store the currency in which the amount was entered
+          originalAmount: enteredAmount, // Store the original amount before conversion
         );
 
         if (widget.transaction == null) {
@@ -105,8 +126,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             SnackBar(
               content: Text(
                 widget.transaction == null
-                    ? 'Transaction added successfully!'
-                    : 'Transaction updated successfully!',
+                    ? AppLocalizations.of(context)!.transactionAdded
+                    : AppLocalizations.of(context)!.transactionUpdated,
                 style: AppTextStyles.body(context),
               ),
               backgroundColor: Colors.green,
@@ -120,8 +141,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (mounted) {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           if (e is SocketException) {
-            errorMessage =
-            'Network error: Unable to reach the server. Please check your internet connection.';
+            errorMessage = AppLocalizations.of(context)!.networkError;
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -147,13 +167,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
     List<String> _categories =
     _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
+
+    // Calculate the converted amount in KGS for display
+    double enteredAmount = double.tryParse(_amountController.text) ?? 0.0;
+    double amountInKGS = enteredAmount;
+    if (currencyProvider.currency != 'KGS') {
+      amountInKGS = enteredAmount / currencyProvider.exchangeRate;
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.transaction == null ? 'Add Transaction' : 'Edit Transaction',
+          widget.transaction == null
+              ? AppLocalizations.of(context)!.addTransaction
+              : AppLocalizations.of(context)!.editTransaction,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -192,7 +222,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   TextFormField(
                     controller: _descriptionController,
                     decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: 'Description',
+                      labelText: AppLocalizations.of(context)!.description,
                       prefixIcon: const Icon(Icons.description),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -213,7 +243,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a description';
+                        return AppLocalizations.of(context)!.descriptionRequired;
                       }
                       return null;
                     },
@@ -224,7 +254,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   TextFormField(
                     controller: _amountController,
                     decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: 'Amount',
+                      labelText: '${AppLocalizations.of(context)!.amount} (${currencyProvider.currency})',
                       prefixIcon: const Icon(Icons.attach_money),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -246,20 +276,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter an amount';
+                        return AppLocalizations.of(context)!.amountRequired;
                       }
                       if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                        return 'Please enter a valid amount';
+                        return AppLocalizations.of(context)!.amountInvalid;
                       }
                       return null;
+                    },
+                    onChanged: (value) {
+                      setState(() {}); // Update the converted amount display
                     },
                   ),
                   const SizedBox(height: 16),
 
+                  // Display the converted amount in KGS
+                  if (currencyProvider.currency != 'KGS')
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Text(
+                        '${AppLocalizations.of(context)!.amountInKGS}: ${amountInKGS.toStringAsFixed(2)} KGS',
+                        style: AppTextStyles.body(context).copyWith(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ),
+
                   // Type Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedType,
-                    decoration: AppInputStyles.dropdown(context, labelText: 'Type'),
+                    decoration: AppInputStyles.dropdown(context, labelText: AppLocalizations.of(context)!.type),
                     items: ['expense', 'income']
                         .map((type) => AppInputStyles.dropdownMenuItem(context, type, type.capitalize()))
                         .toList(),
@@ -281,7 +326,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   // Category Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedCategory,
-                    decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
+                    decoration: AppInputStyles.dropdown(context, labelText: AppLocalizations.of(context)!.category),
                     items: _categories
                         .map((category) => AppInputStyles.dropdownMenuItem(context, category, category.capitalize()))
                         .toList(),
@@ -302,7 +347,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   // Date Picker
                   ListTile(
                     title: Text(
-                      "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}",
+                      "${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}",
                       style: AppTextStyles.body(context),
                     ),
                     trailing: Icon(
@@ -344,7 +389,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ),
                       )
                           : Text(
-                        widget.transaction == null ? 'Add' : 'Update',
+                        widget.transaction == null
+                            ? AppLocalizations.of(context)!.add
+                            : AppLocalizations.of(context)!.update,
                         style: AppTextStyles.body(context).copyWith(
                           fontWeight: FontWeight.bold,
                         ),

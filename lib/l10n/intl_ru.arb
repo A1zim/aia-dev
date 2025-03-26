@@ -1,0 +1,15 @@
+{
+  "appTitle": "Личные Финансы",
+  "settingsTitle": "Настройки",
+  "darkMode": "Темный Режим",
+  "darkModeEnabled": "Включен",
+  "darkModeDisabled": "Отключен",
+  "selectCurrency": "Выбрать Валюту",
+  "selectLanguage": "Выбрать Язык",
+  "logout": "Выйти",
+  "logoutConfirm": "Вы уверены, что хотите выйти?",
+  "cancel": "Отмена",
+  "confirmLogout": "Выйти",
+  "currencyChanged": "Валюта изменена на {currency}",
+  "currencyChangeFailed": "Не удалось обновить валюту: {error}"
+}

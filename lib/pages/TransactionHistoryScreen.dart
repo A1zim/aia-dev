@@ -3,6 +3,8 @@ import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:provider/provider.dart';
+import 'package:personal_finance/providers/currency_provider.dart'; // Import CurrencyProvider
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -47,9 +49,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
   Future<void> _deleteTransaction(int id, int index) async {
     final deletedTransaction = _transactions[index];
-    bool shouldDelete = true; // Flag to determine if we should proceed with backend deletion
+    bool shouldDelete = true;
 
-    // Remove the transaction from the UI
     setState(() {
       _transactions.removeAt(index);
       if (_expandedIndex == index) {
@@ -59,7 +60,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       }
     });
 
-    // Show the SnackBar with an "Undo" option
     if (mounted) {
       final snackBar = SnackBar(
         content: Text(
@@ -71,7 +71,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           label: 'Undo',
           textColor: Colors.white,
           onPressed: () {
-            shouldDelete = false; // User tapped "Undo", so we won't delete from backend
+            shouldDelete = false;
             setState(() {
               _transactions.insert(index, deletedTransaction);
               if (_expandedIndex != null && _expandedIndex! >= index) {
@@ -83,16 +83,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         duration: const Duration(seconds: 3),
       );
 
-      // Show the SnackBar and wait for it to be dismissed
       await ScaffoldMessenger.of(context)
           .showSnackBar(snackBar)
           .closed
           .then((reason) {
-        // If the SnackBar was dismissed without "Undo" (e.g., timed out or page switched),
-        // proceed with the backend deletion
         if (shouldDelete && reason != SnackBarClosedReason.action) {
           _apiService.deleteTransaction(id).catchError((e) {
-            // If backend deletion fails, restore the transaction
             setState(() {
               _transactions.insert(index, deletedTransaction);
               if (_expandedIndex != null && _expandedIndex! >= index) {
@@ -209,9 +205,22 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return confirmed ?? false;
   }
 
+  String _getCurrencySymbol(String currency) {
+    const symbols = {
+      'KGS': 'KGS ',
+      'USD': '\$',
+      'EUR': '€',
+      'INR': '₹',
+    };
+    return symbols[currency] ?? '$currency ';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final currencySymbol = _getCurrencySymbol(currencyProvider.currency);
+
     List<Transaction> filteredTransactions = _transactions.where((transaction) {
       final matchesSearch =
       transaction.description.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -282,7 +291,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   itemCount: filteredTransactions.length,
                   itemBuilder: (context, index) {
                     final transaction = filteredTransactions[index];
-                    return _buildTransactionCard(transaction, index);
+                    return _buildTransactionCard(transaction, index, currencyProvider, currencySymbol);
                   },
                 ),
               ),
@@ -340,10 +349,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildTransactionCard(Transaction transaction, int index) {
+  Widget _buildTransactionCard(Transaction transaction, int index, CurrencyProvider currencyProvider, String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isExpanded = _expandedIndex == index;
     final isIncome = transaction.type == 'income';
+    final convertedAmount = currencyProvider.convertAmount(transaction.amount);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -410,7 +420,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                "\$${transaction.amount.toStringAsFixed(2)}",
+                "$currencySymbol${convertedAmount.toStringAsFixed(2)}",
                 style: AppTextStyles.body(context).copyWith(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -445,7 +455,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   const SizedBox(height: 8),
                   _buildDetailRow(
                     "Amount",
-                    "\$${transaction.amount.toStringAsFixed(2)}",
+                    "$currencySymbol${convertedAmount.toStringAsFixed(2)}",
                     context,
                     valueColor: isIncome ? Colors.green : Colors.red,
                   ),
@@ -540,7 +550,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   }
 }
 
-// Helper function for capitalization
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
 }
