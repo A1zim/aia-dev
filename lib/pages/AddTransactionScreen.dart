@@ -1,11 +1,8 @@
-// ignore_for_file: library_private_types_in_public_api
-
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'dart:io'; // For SocketException
 import 'package:personal_finance/theme/styles.dart'; // Import the styles file
-import 'package:personal_finance/models/currency_converter.dart'; // Add this import
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -24,12 +21,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _selectedCategory = 'food';
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
-  String _currentCurrency = 'KGS'; // Add this field
 
   final ApiService _apiService = ApiService();
 
-  // Fix: Make the lists final and define them as static constants
-  static final List<String> expenseCategories = [
+  List<String> _expenseCategories = [
     'food',
     'transport',
     'housing',
@@ -41,7 +36,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     'other_expense',
   ];
 
-  static final List<String> incomeCategories = [
+  List<String> _incomeCategories = [
     'salary',
     'gift',
     'interest',
@@ -51,8 +46,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCurrency(); // Add this method call
-    
     if (widget.transaction != null) {
       _descriptionController.text = widget.transaction!.description;
       _amountController.text = widget.transaction!.amount.toString();
@@ -83,99 +76,79 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-  // Add this method
-  Future<void> _loadCurrency() async {
-    final currency = await CurrencyConverter.getPreferredCurrency();
-    setState(() {
-      _currentCurrency = currency;
-    });
-  }
+  Future<void> _submit() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
 
- Future<void> _submit() async {
-  if (_formKey.currentState!.validate()) {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Ensure proper decimal handling
-      double amount = double.parse(_amountController.text);
-      
-      // Don't round in a way that might eliminate small values
-      amount = double.parse(amount.toStringAsFixed(2));
-
-      // If the current currency is not KGS, convert the amount to KGS for storage
-      if (_currentCurrency != 'KGS') {
-        double rate = await CurrencyConverter.getConversionRate(_currentCurrency, 'KGS');
-        amount = amount * rate;
-        amount = double.parse(amount.toStringAsFixed(2));
-      }
-
-      final transaction = Transaction(
-        id: widget.transaction?.id ?? 0,
-        user: widget.transaction?.user ?? 0,
-        type: _selectedType,
-        category: _selectedCategory,
-        amount: amount, // Use the rounded amount
-        description: _descriptionController.text,
-        timestamp: _selectedDate.toIso8601String(),
-        username: widget.transaction?.username ?? '',
-      );
-
-      if (widget.transaction == null) {
-        await _apiService.addTransaction(transaction);
-      } else {
-        await _apiService.updateTransaction(widget.transaction!.id, transaction);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.transaction == null
-                  ? 'Transaction added successfully!'
-                  : 'Transaction updated successfully!',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Colors.green,
-          ),
+      try {
+        final transaction = Transaction(
+          id: widget.transaction?.id ?? 0,
+          user: widget.transaction?.user ?? 0,
+          type: _selectedType,
+          category: _selectedCategory,
+          amount: double.parse(_amountController.text),
+          description: _descriptionController.text,
+          timestamp: _selectedDate.toIso8601String(),
+          username: widget.transaction?.username ?? '',
         );
 
-        await Future.delayed(const Duration(seconds: 1));
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMessage = e.toString().replaceFirst('Exception: ', '');
-        if (e is SocketException) {
-          errorMessage =
-              'Network error: Unable to reach the server. Please check your internet connection.';
+        if (widget.transaction == null) {
+          await _apiService.addTransaction(transaction);
+        } else {
+          await _apiService.updateTransaction(widget.transaction!.id, transaction);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              errorMessage,
-              style: AppTextStyles.body(context),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.transaction == null
+                    ? 'Transaction added successfully!'
+                    : 'Transaction updated successfully!',
+                style: AppTextStyles.body(context),
+              ),
+              backgroundColor: Colors.green,
             ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+          );
+
+          await Future.delayed(const Duration(seconds: 1));
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage = e.toString().replaceFirst('Exception: ', '');
+          if (e is SocketException) {
+            errorMessage =
+            'Network error: Unable to reach the server. Please check your internet connection.';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                errorMessage,
+                style: AppTextStyles.body(context),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
-}
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Fix: Use the static constants instead of instance variables
-    final categories = _selectedType == 'expense' ? expenseCategories : incomeCategories;
+    List<String> _categories =
+    _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
     return Scaffold(
       appBar: AppBar(
@@ -247,14 +220,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Amount Field - Update to show currency
+                  // Amount Field
                   TextFormField(
                     controller: _amountController,
                     decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: 'Amount ($_currentCurrency)', // Add currency to label
+                      labelText: 'Amount',
                       prefixIcon: const Icon(Icons.attach_money),
-                      suffixText: _currentCurrency == 'KGS' ? 'сом' : null,
-                      hintText: 'Any positive amount (e.g., 0.5, 10, 100)', // Add hint for small amounts
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -272,20 +243,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ),
                       ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true), // Explicitly enable decimal input
+                    keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter an amount';
                       }
-                      try {
-                        double amount = double.parse(value);
-                        if (amount <= 0) {
-                          return 'Amount must be greater than zero';
-                        }
-                        return null;
-                      } catch (e) {
-                        return 'Please enter a valid number';
+                      if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                        return 'Please enter a valid amount';
                       }
+                      return null;
                     },
                   ),
                   const SizedBox(height: 16),
@@ -300,10 +266,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     onChanged: (value) {
                       setState(() {
                         _selectedType = value!;
-                        // Fix: Use the first category from the appropriate list
-                        _selectedCategory = _selectedType == 'expense' 
-                            ? expenseCategories.first 
-                            : incomeCategories.first;
+                        _selectedCategory = _selectedType == 'expense' ? 'food' : 'salary';
                       });
                     },
                     style: AppInputStyles.dropdownProperties(context)['style'],
@@ -315,11 +278,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Category Dropdown - Fix: Use categories variable defined above
+                  // Category Dropdown
                   DropdownButtonFormField<String>(
-                    value: categories.contains(_selectedCategory) ? _selectedCategory : categories.first,
+                    value: _selectedCategory,
                     decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
-                    items: categories
+                    items: _categories
                         .map((category) => AppInputStyles.dropdownMenuItem(context, category, category.capitalize()))
                         .toList(),
                     onChanged: (value) {
