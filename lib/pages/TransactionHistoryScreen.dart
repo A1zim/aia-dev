@@ -3,6 +3,7 @@ import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:personal_finance/models/currency_converter.dart'; // Add this import
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -17,11 +18,28 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   String _searchQuery = "";
   String _filterType = "All";
   int? _expandedIndex;
+  String _currentCurrency = 'KGS'; // Add this field
 
   @override
   void initState() {
     super.initState();
     _loadTransactions();
+    _loadCurrency(); // Add this method call
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when returning to this screen (in case currency changed)
+    _loadCurrency();
+    _loadTransactions();
+  }
+
+  Future<void> _loadCurrency() async {
+    final currency = await CurrencyConverter.getPreferredCurrency();
+    setState(() {
+      _currentCurrency = currency;
+    });
   }
 
   Future<void> _loadTransactions() async {
@@ -342,7 +360,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
   Widget _buildTransactionCard(Transaction transaction, int index) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isExpanded = _expandedIndex == index;
+    // Removed unused variable 'isExpanded'
     final isIncome = transaction.type == 'income';
 
     return Card(
@@ -409,13 +427,28 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                "\$${transaction.amount.toStringAsFixed(2)}",
-                style: AppTextStyles.body(context).copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isIncome ? Colors.green : Colors.red,
-                ),
+              FutureBuilder<String>(
+                future: CurrencyConverter.formatWithPreferredCurrency(transaction.amount, 'KGS'),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text(
+                      "${CurrencyConverter.formatWithCurrency(transaction.amount, _currentCurrency)}",
+                      style: AppTextStyles.body(context).copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isIncome ? Colors.green : Colors.red,
+                      ),
+                    );
+                  }
+                  return Text(
+                    snapshot.data ?? "${CurrencyConverter.formatWithCurrency(transaction.amount, _currentCurrency)}",
+                    style: AppTextStyles.body(context).copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isIncome ? Colors.green : Colors.red,
+                    ),
+                  );
+                }
               ),
             ],
           ),
@@ -443,11 +476,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     context,
                   ),
                   const SizedBox(height: 8),
-                  _buildDetailRow(
-                    "Amount",
-                    "\$${transaction.amount.toStringAsFixed(2)}",
-                    context,
-                    valueColor: isIncome ? Colors.green : Colors.red,
+                  FutureBuilder<String>(
+                    future: CurrencyConverter.formatWithPreferredCurrency(transaction.amount),
+                    builder: (context, snapshot) {
+                      return _buildDetailRow(
+                        "Amount",
+                        snapshot.data ?? "${CurrencyConverter.formatWithCurrency(transaction.amount, _currentCurrency)}",
+                        context,
+                        valueColor: isIncome ? Colors.green : Colors.red,
+                      );
+                    }
                   ),
                   const SizedBox(height: 8),
                   _buildDetailRow(
