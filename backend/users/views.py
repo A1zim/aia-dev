@@ -38,6 +38,7 @@ class RegisterView(APIView):  # Changed from ApiView to APIView
                 user = User.objects.create_user(
                     username=username,
                     password=serializer.validated_data['password'],
+                    email=serializer.validated_data['email'],
                     is_active=True  # Ensure the user is active
                 )
                 return Response(
@@ -87,7 +88,23 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         print(f"Fetching user detail for user: {user.username}")
         return user
+    
+    def retrieve(self, request, *args, **kwargs):
+        """Этот метод вызывается при GET запросе, чтобы вернуть данные пользователя"""
+        print("Retrieve method called")
+        return super().retrieve(request, *args, **kwargs)
 
+    # Метод для обработки PUT/PATCH запроса, чтобы обновить данные пользователя
+    def update(self, request, *args, **kwargs):
+        """Этот метод вызывается при PUT/PATCH запросе, чтобы обновить данные пользователя"""
+        print("Update method called")
+        return super().update(request, *args, **kwargs)
+
+    # Метод для обработки DELETE запроса, чтобы удалить пользователя
+    def destroy(self, request, *args, **kwargs):
+        """Этот метод вызывается при DELETE запросе, чтобы удалить данные пользователя"""
+        print("Destroy method called")
+        return super().destroy(request, *args, **kwargs)
 
 class AddTransaction(APIView):
     """Add a new transaction and update user balances"""

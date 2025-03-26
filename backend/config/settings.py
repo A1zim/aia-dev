@@ -121,14 +121,14 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings for Flutter
-CORS_ALLOW_ALL_ORIGINS = False  # Don't enable in production
+CORS_ALLOW_ALL_ORIGINS = True  # Don't enable in production
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:8080",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
-    "http://192.168.1.100:8000",  # Replace with your computer's IP
-    "http://192.168.1.100:8080",
+    "http://192.168.50.250:8000",  # Replace with your computer's IP
+    "http://192.168.50.250:8080",
 ]
 
 # Allow these HTTP methods for CORS
