@@ -7,15 +7,19 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'password']
         extra_kwargs = {
             'password': {'write_only': True},
-            'id': {'read_only': True}
+            # 'id': {'read_only': True}
         }
+        
 
 class TransactionSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
 
     class Meta:
         model = Transaction
-        fields = ['id', 'user', 'type', 'category', 'amount', 'description', 'timestamp', 'username']
+        fields = '__all__'
+        # fields = ['id', 'user', 'type', 'category', 'amount', 'description', 'timestamp', 'username']
         read_only_fields = ['id', 'user', 'timestamp', 'username']
 
     def get_username(self, obj):

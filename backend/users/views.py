@@ -18,6 +18,8 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
 
+import requests
+from django.conf import settings
 
 class RegisterView(APIView):  # Changed from ApiView to APIView
     """Register a new user"""
@@ -732,3 +734,64 @@ class ReportView(APIView):
         except Exception as e:
             print(f"Error in ReportView: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ExchangeRateView(APIView):
+    """Get currency exchange rates from external API"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, from_currency, to_currency):
+        try:
+            print(f"Fetching exchange rate from {from_currency} to {to_currency}")
+            api_key = settings.EXCHANGE_RATE_API_KEY
+            base_url = settings.EXCHANGE_RATE_API_URL
+            url = f"{base_url}{api_key}/latest/{from_currency}"
+            
+            response = requests.get(url)
+            
+            if response.status_code != 200:
+                return Response(
+                    {'error': f'External API error: {response.status_code}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            data = response.json()
+            
+            if data.get('result') != 'success' or 'conversion_rates' not in data or to_currency not in data['conversion_rates']:
+                return Response(
+                    {'error': f'Unable to get exchange rate for {from_currency} to {to_currency}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            rate = data['conversion_rates'][to_currency]
+            return Response({
+                'from_currency': from_currency,
+                'to_currency': to_currency,
+                'rate': rate,
+                'timestamp': data.get('time_last_update_unix', None)
+            })
+        except Exception as e:
+            print(f"Error in ExchangeRateView: {str(e)}")
+            return Response(
+                {'error': f'Error fetching exchange rate: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        return Response({
+            'id': request.user.id,
+            'username': request.user.username,
+            'email': request.user.email,
+        })
+
+class TestAuthView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        return Response({
+            'message': 'Authentication successful!',
+            'user': request.user.username
+        })
