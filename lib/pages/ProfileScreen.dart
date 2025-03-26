@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/theme/styles.dart';
-import 'package:personal_finance/widgets/drawer.dart'; // Import the CustomDrawer
+import 'package:personal_finance/widgets/drawer.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -30,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
           color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
-      drawer: const CustomDrawer(currentRoute: '/profile'), // Add the CustomDrawer
+      drawer: const CustomDrawer(currentRoute: '/profile'),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

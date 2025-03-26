@@ -7,7 +7,7 @@ import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/widgets/drawer.dart'; // Import the CustomDrawer
+import 'package:personal_finance/widgets/drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -94,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Map currency codes to their symbols
   String _getCurrencySymbol(String currency) {
     const symbols = {
       'KGS': 'KGS ',
@@ -132,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
-      drawer: const CustomDrawer(currentRoute: '/home'), // Use CustomDrawer
+      drawer: const CustomDrawer(currentRoute: '/main'), // Updated to /main
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Column(
         children: [

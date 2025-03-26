@@ -4,7 +4,7 @@ import 'package:personal_finance/services/currency_api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/widgets/drawer.dart'; // Import the CustomDrawer
+import 'package:personal_finance/widgets/drawer.dart';
 
 class CurrencyScreen extends StatefulWidget {
   const CurrencyScreen({super.key});
@@ -42,11 +42,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     });
 
     try {
-      // Fetch currencies from the backend
       final userCurrencies = await _apiService.getUserCurrencies();
       final rates = <String, double>{};
 
-      // The backend already includes KGS in the list
       final combinedCurrencies = userCurrencies;
 
       for (var currency in combinedCurrencies) {
@@ -104,7 +102,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           final rate = _currencyApiService.getConversionRate('KGS', currency);
           rates[currency] = rate;
         } catch (e) {
-          // Skip currencies that fail to get a rate
           continue;
         }
       }
@@ -131,9 +128,14 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           backgroundColor: Colors.green,
         ),
       );
-    }
 
-    Navigator.pop(context);
+      // Navigate to HomeScreen and make it the root
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/main', // Use '/main' as per your route naming
+            (route) => false, // Remove all previous routes
+      );
+    }
   }
 
   void _addCurrency(String currency) async {
@@ -147,7 +149,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       setState(() {
         _currencies.add(currency);
         _exchangeRates[currency] = rate;
-        _filterCurrencies(); // Update filtered list to exclude the added currency
+        _filterCurrencies();
       });
 
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
@@ -234,10 +236,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
     if (confirmDelete == true) {
       try {
-        // Remove the currency from the backend
         await _apiService.deleteUserCurrency(currency);
 
-        // If the deleted currency is the currently selected one, revert to KGS
         final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
         if (currencyProvider.currency == currency) {
           await currencyProvider.setCurrency('KGS', 1.0);
@@ -246,10 +246,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         setState(() {
           _currencies.remove(currency);
           _exchangeRates.remove(currency);
-          _filterCurrencies(); // Update filtered list to include the deleted currency
+          _filterCurrencies();
         });
 
-        // Refresh the provider's currency list
         await currencyProvider.refreshCurrencies();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -262,7 +261,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           ),
         );
 
-        // Refresh the currency list
         await _fetchCurrencies();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -310,7 +308,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
-      drawer: const CustomDrawer(currentRoute: '/currency'), // Add the CustomDrawer
+      drawer: const CustomDrawer(currentRoute: '/currency'),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -404,7 +402,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                               Icons.check,
                               color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             ),
-                          if (currency != 'KGS') // Remove delete icon for KGS
+                          if (currency != 'KGS')
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
@@ -420,7 +418,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                 },
               ),
             ),
-            // Search Field and Results
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(

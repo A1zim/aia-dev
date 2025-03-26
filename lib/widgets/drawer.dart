@@ -16,11 +16,13 @@ class CustomDrawer extends StatelessWidget {
       return {
         'nickname': userData['nickname'] ?? 'User',
         'email': userData['email'] ?? 'user@example.com',
+        'username': userData['username'] ?? 'Unknown', // Add username
       };
     } catch (e) {
       return {
         'nickname': 'User',
         'email': 'user@example.com',
+        'username': 'Unknown',
       };
     }
   }
@@ -78,6 +80,7 @@ class CustomDrawer extends StatelessWidget {
         builder: (context, snapshot) {
           final nickname = snapshot.data?['nickname'] ?? 'User';
           final email = snapshot.data?['email'] ?? 'user@example.com';
+          final username = snapshot.data?['username'] ?? 'Unknown';
 
           return ListView(
             padding: EdgeInsets.zero,
@@ -120,11 +123,19 @@ class CustomDrawer extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      nickname,
+                      'Nickname: $nickname',
                       style: AppTextStyles.subheading(context),
                     ),
                     Text(
-                      email,
+                      'Username: $username',
+                      style: AppTextStyles.body(context).copyWith(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    Text(
+                      'Email: $email',
                       style: AppTextStyles.body(context).copyWith(
                         color: isDark
                             ? AppColors.darkTextSecondary
@@ -145,9 +156,13 @@ class CustomDrawer extends StatelessWidget {
                 ),
                 selected: currentRoute == '/main',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close the drawer
                   if (currentRoute != '/main') {
-                    Navigator.pushNamed(context, '/main');
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/main',
+                          (route) => false, // Remove all previous routes
+                    );
                   }
                 },
               ),
@@ -162,9 +177,13 @@ class CustomDrawer extends StatelessWidget {
                 ),
                 selected: currentRoute == '/profile',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close the drawer
                   if (currentRoute != '/profile') {
-                    Navigator.pushNamed(context, '/profile');
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/profile',
+                          (route) => false, // Remove all previous routes
+                    );
                   }
                 },
               ),
@@ -179,9 +198,13 @@ class CustomDrawer extends StatelessWidget {
                 ),
                 selected: currentRoute == '/currency',
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close the drawer
                   if (currentRoute != '/currency') {
-                    Navigator.pushNamed(context, '/currency');
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/currency',
+                          (route) => false, // Remove all previous routes
+                    );
                   }
                 },
               ),
@@ -195,7 +218,7 @@ class CustomDrawer extends StatelessWidget {
                   style: AppTextStyles.body(context),
                 ),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close the drawer
                   _showLogoutDialog(context);
                 },
               ),
