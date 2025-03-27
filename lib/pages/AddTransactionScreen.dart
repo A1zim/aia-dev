@@ -3,6 +3,7 @@ import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'dart:io'; // For SocketException
 import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:personal_finance/localization/app_localizations.dart'; // Импорт локализации
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -77,6 +78,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _submit() async {
+    final localizations = AppLocalizations.of(context);
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -105,8 +107,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             SnackBar(
               content: Text(
                 widget.transaction == null
-                    ? 'Transaction added successfully!'
-                    : 'Transaction updated successfully!',
+                    ? localizations.transactionAddedSuccessfully
+                    : localizations.transactionUpdatedSuccessfully,
                 style: AppTextStyles.body(context),
               ),
               backgroundColor: Colors.green,
@@ -120,8 +122,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (mounted) {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           if (e is SocketException) {
-            errorMessage =
-            'Network error: Unable to reach the server. Please check your internet connection.';
+            errorMessage = localizations.networkError;
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -147,13 +148,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context);
     List<String> _categories =
-    _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
+        _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.transaction == null ? 'Add Transaction' : 'Edit Transaction',
+          widget.transaction == null
+              ? localizations.addTransaction
+              : localizations.editTransaction,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -192,7 +196,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   TextFormField(
                     controller: _descriptionController,
                     decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: 'Description',
+                      labelText: localizations.description,
                       prefixIcon: const Icon(Icons.description),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -213,7 +217,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a description';
+                        return localizations.pleaseEnterDescription;
                       }
                       return null;
                     },
@@ -224,7 +228,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   TextFormField(
                     controller: _amountController,
                     decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: 'Amount',
+                      labelText: localizations.amount,
                       prefixIcon: const Icon(Icons.attach_money),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -246,10 +250,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter an amount';
+                        return localizations.pleaseEnterAmount;
                       }
                       if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                        return 'Please enter a valid amount';
+                        return localizations.pleaseEnterValidAmount;
                       }
                       return null;
                     },
@@ -259,9 +263,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   // Type Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedType,
-                    decoration: AppInputStyles.dropdown(context, labelText: 'Type'),
+                    decoration: AppInputStyles.dropdown(context, labelText: localizations.type),
                     items: ['expense', 'income']
-                        .map((type) => AppInputStyles.dropdownMenuItem(context, type, type.capitalize()))
+                        .map((type) => AppInputStyles.dropdownMenuItem(
+                              context,
+                              type,
+                              type == 'expense' ? localizations.expense : localizations.income,
+                            ))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -281,9 +289,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   // Category Dropdown
                   DropdownButtonFormField<String>(
                     value: _selectedCategory,
-                    decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
+                    decoration: AppInputStyles.dropdown(context, labelText: localizations.category),
                     items: _categories
-                        .map((category) => AppInputStyles.dropdownMenuItem(context, category, category.capitalize()))
+                        .map((category) => AppInputStyles.dropdownMenuItem(
+                              context,
+                              category,
+                              _getCategoryTranslation(category, localizations),
+                            ))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -302,7 +314,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   // Date Picker
                   ListTile(
                     title: Text(
-                      "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}",
+                      "${localizations.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}",
                       style: AppTextStyles.body(context),
                     ),
                     trailing: Icon(
@@ -334,21 +346,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                       child: _isLoading
                           ? SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary,
-                          strokeWidth: 2,
-                        ),
-                      )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: isDark
+                                    ? AppColors.darkTextPrimary
+                                    : AppColors.lightTextPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : Text(
-                        widget.transaction == null ? 'Add' : 'Update',
-                        style: AppTextStyles.body(context).copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                              widget.transaction == null ? localizations.add : localizations.update,
+                              style: AppTextStyles.body(context).copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -358,6 +370,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ),
       ),
     );
+  }
+
+  // Метод для получения перевода категории
+  String _getCategoryTranslation(String category, AppLocalizations localizations) {
+    switch (category) {
+      case 'food':
+        return localizations.food;
+      case 'transport':
+        return localizations.transport;
+      case 'housing':
+        return localizations.housing;
+      case 'utilities':
+        return localizations.utilities;
+      case 'entertainment':
+        return localizations.entertainment;
+      case 'healthcare':
+        return localizations.healthcare;
+      case 'education':
+        return localizations.education;
+      case 'shopping':
+        return localizations.shopping;
+      case 'other_expense':
+        return localizations.otherExpense;
+      case 'salary':
+        return localizations.salary;
+      case 'gift':
+        return localizations.gift;
+      case 'interest':
+        return localizations.interest;
+      case 'other_income':
+        return localizations.otherIncome;
+      default:
+        return localizations.unknown;
+    }
   }
 }
 

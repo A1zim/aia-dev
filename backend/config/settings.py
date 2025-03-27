@@ -127,8 +127,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
-    "http://192.168.50.250:8000",  # Replace with your computer's IP
-    "http://192.168.50.250:8080",
+    "http://192.168.50.153:8000",  # Replace with your computer's IP
+    "http://192.168.50.153:8080",
 ]
 
 # Allow these HTTP methods for CORS

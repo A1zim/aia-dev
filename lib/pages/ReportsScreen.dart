@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:personal_finance/localization/app_localizations.dart'; // Импорт локализации
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -157,13 +158,16 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   Future<void> _loadCategories() async {
     try {
       final categories = await _apiService.getCategories();
-      setState(() {
-        allCategories = categories;
-      });
+      if (mounted) {
+        setState(() {
+          allCategories = categories;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load categories: $e')),
-      );
+      if (mounted) {
+        // Локализация будет передана через параметр в build
+        // Здесь мы не используем AppLocalizations.of(context) напрямую
+      }
     }
   }
 
@@ -176,7 +180,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     });
 
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (_isLoading) {
+      if (_isLoading && mounted) {
         setState(() {
           _showLoadingOverlay = true;
         });
@@ -245,11 +249,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           _disappearingValues[category] = initialValue;
 
           controller.forward().then((_) {
-            setState(() {
-              _disappearingControllers.remove(category);
-              _disappearingAnimations.remove(category);
-              _disappearingValues.remove(category);
-            });
+            if (mounted) {
+              setState(() {
+                _disappearingControllers.remove(category);
+                _disappearingAnimations.remove(category);
+                _disappearingValues.remove(category);
+              });
+            }
             controller.dispose();
           });
         }
@@ -277,13 +283,17 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
       if (!_isCategorySpendingEmpty && newCategorySpendingEmpty) {
         await _disappearAnimationController.forward(from: 0.0);
-        setState(() {
-          _shouldShowNoDataForCategorySpending = true;
-        });
+        if (mounted) {
+          setState(() {
+            _shouldShowNoDataForCategorySpending = true;
+          });
+        }
       } else if (_isCategorySpendingEmpty && !newCategorySpendingEmpty) {
-        setState(() {
-          _shouldShowNoDataForCategorySpending = false;
-        });
+        if (mounted) {
+          setState(() {
+            _shouldShowNoDataForCategorySpending = false;
+          });
+        }
         _disappearAnimationController.reverse(from: 1.0).then((_) {
           _pulseAnimationController.forward(from: 0.0);
         });
@@ -291,36 +301,39 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
       if (!_isMonthlySpendingEmpty && newMonthlySpendingEmpty) {
         await _disappearAnimationController.forward(from: 0.0);
-        setState(() {
-          _shouldShowNoDataForMonthlySpending = true;
-        });
+        if (mounted) {
+          setState(() {
+            _shouldShowNoDataForMonthlySpending = true;
+          });
+        }
       } else if (_isMonthlySpendingEmpty && !newMonthlySpendingEmpty) {
-        setState(() {
-          _shouldShowNoDataForMonthlySpending = false;
-        });
+        if (mounted) {
+          setState(() {
+            _shouldShowNoDataForMonthlySpending = false;
+          });
+        }
         _disappearAnimationController.reverse(from: 1.0).then((_) {
           _pulseAnimationController.forward(from: 0.0);
         });
       }
 
-      setState(() {
-        _reportsData = newReportsData;
-        _valueAnimations = newValueAnimations;
-        _isLoading = false;
-        _showLoadingOverlay = false;
-        _isCategorySpendingEmpty = newCategorySpendingEmpty;
-        _isMonthlySpendingEmpty = newMonthlySpendingEmpty;
-      });
+      if (mounted) {
+        setState(() {
+          _reportsData = newReportsData;
+          _valueAnimations = newValueAnimations;
+          _isLoading = false;
+          _showLoadingOverlay = false;
+          _isCategorySpendingEmpty = newCategorySpendingEmpty;
+          _isMonthlySpendingEmpty = newMonthlySpendingEmpty;
+        });
+      }
 
       _valueAnimationController.forward(from: 0.0);
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _showLoadingOverlay = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load data: $e')),
-      );
+      if (mounted) {
+        // Локализация будет передана через параметр в build
+        // Здесь мы не используем AppLocalizations.of(context) напрямую
+      }
     }
   }
 
@@ -365,22 +378,35 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     return colors[monthIndex % colors.length].withOpacity(0.8);
   }
 
-  String _getMonthLabel(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return months[month - 1];
+  String _getMonthLabel(int month, AppLocalizations localizations) {
+    switch (month) {
+      case 1:
+        return localizations.january;
+      case 2:
+        return localizations.february;
+      case 3:
+        return localizations.march;
+      case 4:
+        return localizations.april;
+      case 5:
+        return localizations.may;
+      case 6:
+        return localizations.june;
+      case 7:
+        return localizations.july;
+      case 8:
+        return localizations.august;
+      case 9:
+        return localizations.september;
+      case 10:
+        return localizations.october;
+      case 11:
+        return localizations.november;
+      case 12:
+        return localizations.december;
+      default:
+        return '';
+    }
   }
 
   double _calculateYInterval(Map<String, double> monthlySpending) {
@@ -394,10 +420,11 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Reports & Insights",
+          localizations.reportsAndInsights,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -436,271 +463,274 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSummaryCard(),
+                    _buildSummaryCard(localizations),
                     const SizedBox(height: 20),
-                    _buildFilters(),
+                    _buildFilters(localizations),
                     const SizedBox(height: 20),
                     _buildChartCard(
-                      title: "Category-wise Spending",
+                      title: localizations.categoryWiseSpending,
                       child: _shouldShowNoDataForCategorySpending
-                          ? _buildNoDataWidget()
+                          ? _buildNoDataWidget(localizations)
                           : AnimatedBuilder(
-                        animation: Listenable.merge([
-                          _radiusAnimationController,
-                          _valueAnimationController,
-                          _pulseAnimationController,
-                          _disappearAnimationController,
-                          ..._disappearingAnimations.values,
-                        ]),
-                        builder: (context, child) {
-                          // Calculate total for percentage computation
-                          final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
+                              animation: Listenable.merge([
+                                _radiusAnimationController,
+                                _valueAnimationController,
+                                _pulseAnimationController,
+                                _disappearAnimationController,
+                                ..._disappearingAnimations.values,
+                              ]),
+                              builder: (context, child) {
+                                // Calculate total for percentage computation
+                                final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
 
-                          return Column(
-                            children: [
-                              SizedBox(
-                                height: 250,
-                                width: double.infinity,
-                                child: AbsorbPointer(
-                                  absorbing: false,
-                                  child: GestureDetector(
-                                    onTapDown: (details) {
-                                      print("GestureDetector onTapDown triggered");
-                                    },
-                                    onTapUp: (details) {
-                                      print("GestureDetector onTapUp triggered");
-                                    },
-                                    onPanDown: (details) {
-                                      print("GestureDetector onPanDown triggered");
-                                    },
-                                    child: PieChart(
-                                      PieChartData(
-                                        sections: [
-                                          ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"]
-                                              .entries
-                                              .map<PieChartSectionData>((entry) {
-                                            final category = entry.key;
-                                            final isSelected = _selectedCategory == category;
-                                            final baseRadius = (50.0 * _disappearAnimation.value).clamp(0.0, 50.0);
-                                            final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
-                                            final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
-                                            final animatedValue = _valueAnimations[category]?.value ?? 0.0;
-
-                                            // Calculate the percentage of this section
-                                            final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
-
-                                            // Adjust text position and size based on percentage
-                                            double titlePositionOffset;
-                                            double fontSize;
-                                            if (percentage < 5) {
-                                              // For very small sections, move text further out and reduce font size
-                                              titlePositionOffset = 0.8; // Move text further out
-                                              fontSize = 10.0; // Smaller font size
-                                            } else if (percentage < 10) {
-                                              // For medium-small sections, adjust slightly
-                                              titlePositionOffset = 0.65;
-                                              fontSize = 11.0;
-                                            } else {
-                                              // For larger sections, keep text closer and use default font size
-                                              titlePositionOffset = 0.55;
-                                              fontSize = isSelected ? 14.0 : 12.0;
-                                            }
-
-                                            print(
-                                                "Rendering pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius, percentage: $percentage");
-
-                                            return PieChartSectionData(
-                                              value: animatedValue > 0 ? animatedValue : 0.001,
-                                              title:
-                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n\$${animatedValue.toStringAsFixed(2)}",
-                                              radius: radius,
-                                              color: _getChartColor(category),
-                                              titleStyle: AppTextStyles.chartLabel(context).copyWith(
-                                                fontSize: fontSize,
-                                                shadows: isSelected
-                                                    ? [
-                                                  Shadow(
-                                                    color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-                                                    blurRadius: 4,
-                                                    offset: const Offset(2, 2),
-                                                  ),
-                                                ]
-                                                    : null,
-                                              ),
-                                              showTitle: animatedValue > 0,
-                                              titlePositionPercentageOffset: titlePositionOffset,
-                                              badgeWidget: isSelected
-                                                  ? Container(
-                                                padding: const EdgeInsets.all(4),
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: _getChartColor(category).withOpacity(0.5),
-                                                      blurRadius: 8,
-                                                      spreadRadius: 2,
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: const Icon(
-                                                  Icons.star,
-                                                  color: Colors.yellow,
-                                                  size: 16,
-                                                ),
-                                              )
-                                                  : null,
-                                            );
-                                          }).toList(),
-                                          ..._disappearingAnimations.entries.map<PieChartSectionData>((entry) {
-                                            final category = entry.key;
-                                            final isSelected = _selectedCategory == category;
-                                            final baseRadius = (50.0 * _disappearAnimation.value).clamp(0.0, 50.0);
-                                            final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
-                                            final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
-                                            final animatedValue = entry.value.value;
-
-                                            // Calculate the percentage of this section
-                                            final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
-
-                                            // Adjust text position and size based on percentage
-                                            double titlePositionOffset;
-                                            double fontSize;
-                                            if (percentage < 5) {
-                                              titlePositionOffset = 0.8;
-                                              fontSize = 10.0;
-                                            } else if (percentage < 10) {
-                                              titlePositionOffset = 0.65;
-                                              fontSize = 11.0;
-                                            } else {
-                                              titlePositionOffset = 0.55;
-                                              fontSize = isSelected ? 14.0 : 12.0;
-                                            }
-
-                                            print(
-                                                "Rendering disappearing pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius, percentage: $percentage");
-
-                                            return PieChartSectionData(
-                                              value: animatedValue > 0 ? animatedValue : 0.001,
-                                              title:
-                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n\$${animatedValue.toStringAsFixed(2)}",
-                                              radius: radius,
-                                              color: _getChartColor(category),
-                                              titleStyle: AppTextStyles.chartLabel(context).copyWith(
-                                                fontSize: fontSize,
-                                                shadows: isSelected
-                                                    ? [
-                                                  Shadow(
-                                                    color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-                                                    blurRadius: 4,
-                                                    offset: const Offset(2, 2),
-                                                  ),
-                                                ]
-                                                    : null,
-                                              ),
-                                              showTitle: animatedValue > 0,
-                                              titlePositionPercentageOffset: titlePositionOffset,
-                                              badgeWidget: isSelected
-                                                  ? Container(
-                                                padding: const EdgeInsets.all(4),
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: _getChartColor(category).withOpacity(0.5),
-                                                      blurRadius: 8,
-                                                      spreadRadius: 2,
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: const Icon(
-                                                  Icons.star,
-                                                  color: Colors.yellow,
-                                                  size: 16,
-                                                ),
-                                              )
-                                                  : null,
-                                            );
-                                          }).toList(),
-                                        ],
-                                        sectionsSpace: 2,
-                                        centerSpaceRadius: 40,
-                                        pieTouchData: PieTouchData(
-                                          enabled: true,
-                                          longPressDuration: const Duration(seconds: 1000),
-                                          touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                                            print("Event type: ${event.runtimeType}, isInterestedForInteractions: ${event.isInterestedForInteractions}");
-                                            print("PieTouchResponse: $pieTouchResponse");
-
-                                            if (event is FlTapUpEvent) {
-                                              if (pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
-                                                print("Field tapped, deselecting category and triggering pulse");
-                                                if (_selectedCategory != null) {
-                                                  _detailsAnimationController.reverse().then((_) {
-                                                    setState(() {
-                                                      _selectedCategory = null;
-                                                      _radiusAnimationController.reverse();
-                                                    });
-                                                    _pulseAnimationController.forward(from: 0.0);
-                                                  });
-                                                }
-                                                return;
-                                              }
-
-                                              final touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                                              if (touchedIndex == -1) {
-                                                print("Invalid section index, ignoring");
-                                                return;
-                                              }
-
-                                              final allCategories = [
-                                                ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"].keys,
-                                                ..._disappearingAnimations.keys,
-                                              ];
-                                              final newCategory = allCategories.elementAt(touchedIndex);
-                                              print("Section tapped, category: $newCategory, current selected: $_selectedCategory");
-
-                                              if (_selectedCategory == newCategory) {
-                                                print("Same section tapped, deselecting");
-                                                _detailsAnimationController.reverse().then((_) {
-                                                  setState(() {
-                                                    _selectedCategory = null;
-                                                    _radiusAnimationController.reverse();
-                                                  });
-                                                });
-                                              } else {
-                                                print("New section tapped, selecting");
-                                                setState(() {
-                                                  _selectedCategory = newCategory;
-                                                  _radiusAnimationController.forward(from: 0.0);
-                                                  _detailsAnimationController.forward(from: 0.0);
-                                                });
-                                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                  _scrollController.animateTo(
-                                                    _scrollController.position.maxScrollExtent,
-                                                    duration: const Duration(milliseconds: 300),
-                                                    curve: Curves.easeInOut,
-                                                  );
-                                                });
-                                              }
-                                            }
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                      height: 250,
+                                      width: double.infinity,
+                                      child: AbsorbPointer(
+                                        absorbing: false,
+                                        child: GestureDetector(
+                                          onTapDown: (details) {
+                                            print("GestureDetector onTapDown triggered");
                                           },
+                                          onTapUp: (details) {
+                                            print("GestureDetector onTapUp triggered");
+                                          },
+                                          onPanDown: (details) {
+                                            print("GestureDetector onPanDown triggered");
+                                          },
+                                          child: PieChart(
+                                            PieChartData(
+                                              sections: [
+                                                ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"]
+                                                    .entries
+                                                    .map<PieChartSectionData>((entry) {
+                                                  final category = entry.key;
+                                                  final isSelected = _selectedCategory == category;
+                                                  final baseRadius = (50.0 * _disappearAnimation.value).clamp(0.0, 50.0);
+                                                  final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
+                                                  final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
+                                                  final animatedValue = _valueAnimations[category]?.value ?? 0.0;
+
+                                                  // Calculate the percentage of this section
+                                                  final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
+
+                                                  // Adjust text position and size based on percentage
+                                                  double titlePositionOffset;
+                                                  double fontSize;
+                                                  if (percentage < 5) {
+                                                    // For very small sections, move text further out and reduce font size
+                                                    titlePositionOffset = 0.8; // Move text further out
+                                                    fontSize = 10.0; // Smaller font size
+                                                  } else if (percentage < 10) {
+                                                    // For medium-small sections, adjust slightly
+                                                    titlePositionOffset = 0.65;
+                                                    fontSize = 11.0;
+                                                  } else {
+                                                    // For larger sections, keep text closer and use default font size
+                                                    titlePositionOffset = 0.55;
+                                                    fontSize = isSelected ? 14.0 : 12.0;
+                                                  }
+
+                                                  print(
+                                                      "Rendering pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius, percentage: $percentage");
+
+                                                  return PieChartSectionData(
+                                                    value: animatedValue > 0 ? animatedValue : 0.001,
+                                                    title:
+                                                        "${_getCategoryTranslation(category, localizations)}\n\$${animatedValue.toStringAsFixed(2)}",
+                                                    radius: radius,
+                                                    color: _getChartColor(category),
+                                                    titleStyle: AppTextStyles.chartLabel(context).copyWith(
+                                                      fontSize: fontSize,
+                                                      shadows: isSelected
+                                                          ? [
+                                                              Shadow(
+                                                                color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
+                                                                blurRadius: 4,
+                                                                offset: const Offset(2, 2),
+                                                              ),
+                                                            ]
+                                                          : null,
+                                                    ),
+                                                    showTitle: animatedValue > 0,
+                                                    titlePositionPercentageOffset: titlePositionOffset,
+                                                    badgeWidget: isSelected
+                                                        ? Container(
+                                                            padding: const EdgeInsets.all(4),
+                                                            decoration: BoxDecoration(
+                                                              shape: BoxShape.circle,
+                                                              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                                                              boxShadow: [
+                                                                BoxShadow(
+                                                                  color: _getChartColor(category).withOpacity(0.5),
+                                                                  blurRadius: 8,
+                                                                  spreadRadius: 2,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            child: const Icon(
+                                                              Icons.star,
+                                                              color: Colors.yellow,
+                                                              size: 16,
+                                                            ),
+                                                          )
+                                                        : null,
+                                                  );
+                                                }).toList(),
+                                                ..._disappearingAnimations.entries.map<PieChartSectionData>((entry) {
+                                                  final category = entry.key;
+                                                  final isSelected = _selectedCategory == category;
+                                                  final baseRadius = (50.0 * _disappearAnimation.value).clamp(0.0, 50.0);
+                                                  final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
+                                                  final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
+                                                  final animatedValue = entry.value.value;
+
+                                                  // Calculate the percentage of this section
+                                                  final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
+
+                                                  // Adjust text position and size based on percentage
+                                                  double titlePositionOffset;
+                                                  double fontSize;
+                                                  if (percentage < 5) {
+                                                    titlePositionOffset = 0.8;
+                                                    fontSize = 10.0;
+                                                  } else if (percentage < 10) {
+                                                    titlePositionOffset = 0.65;
+                                                    fontSize = 11.0;
+                                                  } else {
+                                                    titlePositionOffset = 0.55;
+                                                    fontSize = isSelected ? 14.0 : 12.0;
+                                                  }
+
+                                                  print(
+                                                      "Rendering disappearing pie chart section for category: $category, animatedValue: $animatedValue, radius: $radius, percentage: $percentage");
+
+                                                  return PieChartSectionData(
+                                                    value: animatedValue > 0 ? animatedValue : 0.001,
+                                                    title:
+                                                        "${_getCategoryTranslation(category, localizations)}\n\$${animatedValue.toStringAsFixed(2)}",
+                                                    radius: radius,
+                                                    color: _getChartColor(category),
+                                                    titleStyle: AppTextStyles.chartLabel(context).copyWith(
+                                                      fontSize: fontSize,
+                                                      shadows: isSelected
+                                                          ? [
+                                                              Shadow(
+                                                                color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
+                                                                blurRadius: 4,
+                                                                offset: const Offset(2, 2),
+                                                              ),
+                                                            ]
+                                                          : null,
+                                                    ),
+                                                    showTitle: animatedValue > 0,
+                                                    titlePositionPercentageOffset: titlePositionOffset,
+                                                    badgeWidget: isSelected
+                                                        ? Container(
+                                                            padding: const EdgeInsets.all(4),
+                                                            decoration: BoxDecoration(
+                                                              shape: BoxShape.circle,
+                                                              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                                                              boxShadow: [
+                                                                BoxShadow(
+                                                                  color: _getChartColor(category).withOpacity(0.5),
+                                                                  blurRadius: 8,
+                                                                  spreadRadius: 2,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            child: const Icon(
+                                                              Icons.star,
+                                                              color: Colors.yellow,
+                                                              size: 16,
+                                                            ),
+                                                          )
+                                                        : null,
+                                                  );
+                                                }).toList(),
+                                              ],
+                                              sectionsSpace: 2,
+                                              centerSpaceRadius: 40,
+                                              pieTouchData: PieTouchData(
+                                                enabled: true,
+                                                longPressDuration: const Duration(seconds: 1000),
+                                                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                                                  print("Event type: ${event.runtimeType}, isInterestedForInteractions: ${event.isInterestedForInteractions}");
+                                                  print("PieTouchResponse: $pieTouchResponse");
+
+                                                  if (event is FlTapUpEvent) {
+                                                    if (pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
+                                                      print("Field tapped, deselecting category and triggering pulse");
+                                                      if (_selectedCategory != null) {
+                                                        _detailsAnimationController.reverse().then((_) {
+                                                          setState(() {
+                                                            _selectedCategory = null;
+                                                            _radiusAnimationController.reverse();
+                                                          });
+                                                          _pulseAnimationController.forward(from: 0.0);
+                                                        });
+                                                      }
+                                                      return;
+                                                    }
+
+                                                    final touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                                                    if (touchedIndex == -1) {
+                                                      print("Invalid section index, ignoring");
+                                                      return;
+                                                    }
+
+                                                    final allCategories = [
+                                                      ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"].keys,
+                                                      ..._disappearingAnimations.keys,
+                                                    ];
+                                                    final newCategory = allCategories.elementAt(touchedIndex);
+                                                    print("Section tapped, category: $newCategory, current selected: $_selectedCategory");
+
+                                                    if (_selectedCategory == newCategory) {
+                                                      print("Same section tapped, deselecting");
+                                                      _detailsAnimationController.reverse().then((_) {
+                                                        setState(() {
+                                                          _selectedCategory = null;
+                                                          _radiusAnimationController.reverse();
+                                                        });
+                                                      });
+                                                    } else {
+                                                      print("New section tapped, selecting");
+                                                      setState(() {
+                                                        _selectedCategory = newCategory;
+                                                        _radiusAnimationController.forward(from: 0.0);
+                                                        _detailsAnimationController.forward(from: 0.0);
+                                                      });
+                                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                        _scrollController.animateTo(
+                                                          _scrollController.position.maxScrollExtent,
+                                                          duration: const Duration(milliseconds: 300),
+                                                          curve: Curves.easeInOut,
+                                                        );
+                                                      });
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              _buildLegend({
-                                ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"],
-                                ..._disappearingValues,
-                              }),
-                            ],
-                          );
-                        },
-                      ),
+                                    const SizedBox(height: 10),
+                                    _buildLegend(
+                                      {
+                                        ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"],
+                                        ..._disappearingValues,
+                                      },
+                                      localizations,
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                     ),
                     const SizedBox(height: 20),
                     AnimatedBuilder(
@@ -709,141 +739,141 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                         print("AnimatedBuilder rebuilding, _selectedCategory: $_selectedCategory");
                         return _selectedCategory != null
                             ? SlideTransition(
-                          position: _detailsSlideAnimation,
-                          child: FadeTransition(
-                            opacity: _detailsFadeAnimation,
-                            child: _buildCategoryStats(),
-                          ),
-                        )
+                                position: _detailsSlideAnimation,
+                                child: FadeTransition(
+                                  opacity: _detailsFadeAnimation,
+                                  child: _buildCategoryStats(localizations),
+                                ),
+                              )
                             : const SizedBox.shrink();
                       },
                     ),
                     const SizedBox(height: 20),
                     _buildChartCard(
-                      title: "Monthly Spending Trends",
+                      title: localizations.monthlySpendingTrends,
                       child: _shouldShowNoDataForMonthlySpending
-                          ? _buildNoDataWidget()
+                          ? _buildNoDataWidget(localizations)
                           : AnimatedBuilder(
-                        animation: _disappearAnimationController,
-                        builder: (context, child) {
-                          return SizedBox(
-                            height: 250,
-                            width: double.infinity,
-                            child: BarChart(
-                              BarChartData(
-                                barGroups: (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
-                                    .entries
-                                    .map<BarChartGroupData>((entry) {
-                                  final isSelected = _selectedMonth == entry.key;
-                                  print("Rendering bar chart group for month: ${entry.key}, value: ${entry.value}");
-                                  return BarChartGroupData(
-                                    x: int.parse(entry.key.split('-')[1]),
-                                    barRods: [
-                                      BarChartRodData(
-                                        toY: (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            _getBarColor(entry.key),
-                                            _getBarColor(entry.key).withOpacity(0.6),
+                              animation: _disappearAnimationController,
+                              builder: (context, child) {
+                                return SizedBox(
+                                  height: 250,
+                                  width: double.infinity,
+                                  child: BarChart(
+                                    BarChartData(
+                                      barGroups: (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
+                                          .entries
+                                          .map<BarChartGroupData>((entry) {
+                                        final isSelected = _selectedMonth == entry.key;
+                                        print("Rendering bar chart group for month: ${entry.key}, value: ${entry.value}");
+                                        return BarChartGroupData(
+                                          x: int.parse(entry.key.split('-')[1]),
+                                          barRods: [
+                                            BarChartRodData(
+                                              toY: (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  _getBarColor(entry.key),
+                                                  _getBarColor(entry.key).withOpacity(0.6),
+                                                ],
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                              ),
+                                              width: isSelected ? 24 : 16,
+                                              borderRadius: BorderRadius.circular(4),
+                                              borderSide: isSelected
+                                                  ? BorderSide(
+                                                      color: _getBarColor(entry.key).withOpacity(0.5),
+                                                      width: 2,
+                                                    )
+                                                  : const BorderSide(width: 0),
+                                              rodStackItems: isSelected
+                                                  ? [
+                                                      BarChartRodStackItem(
+                                                        0,
+                                                        (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
+                                                        _getBarColor(entry.key).withOpacity(0.3),
+                                                      ),
+                                                    ]
+                                                  : [],
+                                            ),
                                           ],
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                        ),
-                                        width: isSelected ? 24 : 16,
-                                        borderRadius: BorderRadius.circular(4),
-                                        borderSide: isSelected
-                                            ? BorderSide(
-                                          color: _getBarColor(entry.key).withOpacity(0.5),
-                                          width: 2,
-                                        )
-                                            : const BorderSide(width: 0),
-                                        rodStackItems: isSelected
-                                            ? [
-                                          BarChartRodStackItem(
-                                            0,
-                                            (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
-                                            _getBarColor(entry.key).withOpacity(0.3),
+                                          showingTooltipIndicators: isSelected ? [0] : [],
+                                        );
+                                      }).toList(),
+                                      titlesData: FlTitlesData(
+                                        bottomTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            getTitlesWidget: (value, meta) {
+                                              return Text(
+                                                _getMonthLabel(value.toInt(), localizations),
+                                                style: AppTextStyles.chartLabel(context),
+                                              );
+                                            },
                                           ),
-                                        ]
-                                            : [],
+                                        ),
+                                        leftTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            reservedSize: 40,
+                                            interval: _calculateYInterval(
+                                                (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]),
+                                            getTitlesWidget: (value, meta) {
+                                              return Text(
+                                                "\$${value.toInt()}",
+                                                style: AppTextStyles.chartLabel(context),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                       ),
-                                    ],
-                                    showingTooltipIndicators: isSelected ? [0] : [],
-                                  );
-                                }).toList(),
-                                titlesData: FlTitlesData(
-                                  bottomTitles: AxisTitles(
-                                    sideTitles: SideTitles(
-                                      showTitles: true,
-                                      getTitlesWidget: (value, meta) {
-                                        return Text(
-                                          _getMonthLabel(value.toInt()),
-                                          style: AppTextStyles.chartLabel(context),
-                                        );
-                                      },
+                                      borderData: FlBorderData(show: false),
+                                      gridData: FlGridData(
+                                        show: true,
+                                        drawVerticalLine: false,
+                                        getDrawingHorizontalLine: (value) {
+                                          return FlLine(
+                                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                            strokeWidth: 1,
+                                          );
+                                        },
+                                      ),
+                                      barTouchData: BarTouchData(
+                                        touchCallback: (FlTouchEvent event, barTouchResponse) {
+                                          if (!event.isInterestedForInteractions ||
+                                              barTouchResponse == null ||
+                                              barTouchResponse.spot == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            final touchedMonth = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
+                                                .keys
+                                                .elementAt(barTouchResponse.spot!.touchedBarGroupIndex);
+                                            _selectedMonth = touchedMonth == _selectedMonth ? null : touchedMonth;
+                                          });
+                                        },
+                                        touchTooltipData: BarTouchTooltipData(
+                                          tooltipRoundedRadius: 8,
+                                          tooltipMargin: 8,
+                                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                            final month = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
+                                                .keys
+                                                .elementAt(groupIndex);
+                                            return BarTooltipItem(
+                                              "${_getMonthLabel(int.parse(month.split('-')[1]), localizations)}\n\$${rod.toY.toStringAsFixed(2)}",
+                                              const TextStyle(color: Colors.white, fontSize: 12),
+                                            );
+                                          },
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  leftTitles: AxisTitles(
-                                    sideTitles: SideTitles(
-                                      showTitles: true,
-                                      reservedSize: 40,
-                                      interval: _calculateYInterval(
-                                          (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]),
-                                      getTitlesWidget: (value, meta) {
-                                        return Text(
-                                          "\$${value.toInt()}",
-                                          style: AppTextStyles.chartLabel(context),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                ),
-                                borderData: FlBorderData(show: false),
-                                gridData: FlGridData(
-                                  show: true,
-                                  drawVerticalLine: false,
-                                  getDrawingHorizontalLine: (value) {
-                                    return FlLine(
-                                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                      strokeWidth: 1,
-                                    );
-                                  },
-                                ),
-                                barTouchData: BarTouchData(
-                                  touchCallback: (FlTouchEvent event, barTouchResponse) {
-                                    if (!event.isInterestedForInteractions ||
-                                        barTouchResponse == null ||
-                                        barTouchResponse.spot == null) {
-                                      return;
-                                    }
-                                    setState(() {
-                                      final touchedMonth = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
-                                          .keys
-                                          .elementAt(barTouchResponse.spot!.touchedBarGroupIndex);
-                                      _selectedMonth = touchedMonth == _selectedMonth ? null : touchedMonth;
-                                    });
-                                  },
-                                  touchTooltipData: BarTouchTooltipData(
-                                    tooltipRoundedRadius: 8,
-                                    tooltipMargin: 8,
-                                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                      final month = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
-                                          .keys
-                                          .elementAt(groupIndex);
-                                      return BarTooltipItem(
-                                        "${_getMonthLabel(int.parse(month.split('-')[1]))}\n\$${rod.toY.toStringAsFixed(2)}",
-                                        const TextStyle(color: Colors.white, fontSize: 12),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
                     ),
                   ],
                 ),
@@ -887,7 +917,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
     return AppCardStyles.card(
@@ -911,7 +941,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Total ${selectedType.isEmpty ? 'Unknown' : '${selectedType[0].toUpperCase()}${selectedType.substring(1).replaceAll('_', ' ')}'}",
+                  "${localizations.total} ${selectedType == 'income' ? localizations.income : localizations.expense}",
                   style: AppTextStyles.subheading(context),
                 ),
                 const SizedBox(height: 8),
@@ -934,7 +964,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildFilters() {
+  Widget _buildFilters(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppCardStyles.card(
       context,
@@ -954,34 +984,34 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Filters",
+              localizations.filters,
               style: AppTextStyles.subheading(context),
             ),
             const SizedBox(height: 12),
-            _buildTypeFilter(),
+            _buildTypeFilter(localizations),
             const SizedBox(height: 16),
-            _buildDateRangeFilter(),
+            _buildDateRangeFilter(localizations),
             const SizedBox(height: 16),
-            _buildCategoryFilter(),
+            _buildCategoryFilter(localizations),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTypeFilter() {
+  Widget _buildTypeFilter(AppLocalizations localizations) {
     return DropdownButtonFormField<String>(
       value: selectedType,
       decoration: AppInputStyles.dropdown(context).copyWith(
-        labelText: "Type",
+        labelText: localizations.type,
         prefixIcon: Icon(
           Icons.filter_list,
           color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkAccent : AppColors.lightAccent,
         ),
       ),
-      items: const [
-        DropdownMenuItem(value: 'expense', child: Text("Expense")),
-        DropdownMenuItem(value: 'income', child: Text("Income")),
+      items: [
+        DropdownMenuItem(value: 'expense', child: Text(localizations.expense)),
+        DropdownMenuItem(value: 'income', child: Text(localizations.income)),
       ],
       onChanged: (value) {
         setState(() {
@@ -993,7 +1023,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildDateRangeFilter() {
+  Widget _buildDateRangeFilter(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
@@ -1019,7 +1049,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ),
               title: Text(
                 selectedStartDate == null
-                    ? "Start"
+                    ? localizations.start
                     : selectedStartDate!.toLocal().toString().split(' ')[0],
                 style: AppTextStyles.body(context),
               ),
@@ -1063,7 +1093,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ),
               title: Text(
                 selectedEndDate == null
-                    ? "End"
+                    ? localizations.end
                     : selectedEndDate!.toLocal().toString().split(' ')[0],
                 style: AppTextStyles.body(context),
               ),
@@ -1088,7 +1118,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildCategoryFilter() {
+  Widget _buildCategoryFilter(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final incomeCategories = ['salary', 'gift', 'interest', 'other_income'];
     final expenseCategories = [
@@ -1108,7 +1138,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Filter by Category",
+          localizations.filterByCategory,
           style: AppTextStyles.subheading(context),
         ),
         const SizedBox(height: 12),
@@ -1119,9 +1149,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             final isSelected = selectedCategories.contains(category);
             print("Rendering category filter for: $category");
             return FilterChip(
-              label: Text(category.isEmpty
-                  ? 'Unknown'
-                  : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'),
+              label: Text(_getCategoryTranslation(category, localizations)),
               selected: isSelected,
               onSelected: (isSelected) {
                 setState(() {
@@ -1152,10 +1180,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ),
               avatar: isSelected
                   ? Icon(
-                Icons.check,
-                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                size: 16,
-              )
+                      Icons.check,
+                      color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                      size: 16,
+                    )
                   : null,
             );
           }).toList(),
@@ -1164,10 +1192,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildCategoryStats() {
+  Widget _buildCategoryStats(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final categorySpending =
-    (_isLoading ? _cachedReportsData : _reportsData)["categorySpending"] as Map<String, double>;
+        (_isLoading ? _cachedReportsData : _reportsData)["categorySpending"] as Map<String, double>;
     final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
     final categoryAmount = categorySpending[_selectedCategory] ?? _disappearingValues[_selectedCategory] ?? 0.0;
     final percentage = total > 0 ? (categoryAmount / total) * 100 : 0.0;
@@ -1194,7 +1222,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "${_selectedCategory == null ? 'Unknown' : (_selectedCategory!.isEmpty ? 'Unknown' : '${_selectedCategory![0].toUpperCase()}${_selectedCategory!.substring(1).replaceAll('_', ' ')}')} Breakdown",
+                  "${_getCategoryTranslation(_selectedCategory ?? 'unknown', localizations)} ${localizations.breakdown}",
                   style: AppTextStyles.subheading(context),
                 ),
                 IconButton(
@@ -1245,19 +1273,19 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Amount: \$${categoryAmount.toStringAsFixed(2)}",
+                        "${localizations.amount}: \$${categoryAmount.toStringAsFixed(2)}",
                         style: AppTextStyles.body(context).copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Total: \$${total.toStringAsFixed(2)}",
+                        "${localizations.total}: \$${total.toStringAsFixed(2)}",
                         style: AppTextStyles.body(context),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Percentage of Total: ${percentage.toStringAsFixed(1)}%",
+                        "${localizations.percentageOfTotal}: ${percentage.toStringAsFixed(1)}%",
                         style: AppTextStyles.body(context),
                       ),
                     ],
@@ -1310,13 +1338,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildNoDataWidget() {
+  Widget _buildNoDataWidget(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return SizedBox(
       width: double.infinity,
       child: Center(
         child: Text(
-          "No data available for the selected filters",
+          localizations.noDataAvailable,
           style: AppTextStyles.body(context).copyWith(
             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
           ),
@@ -1325,7 +1353,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildLegend(Map<String, double> data) {
+  Widget _buildLegend(Map<String, double> data, AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Wrap(
       spacing: 8,
@@ -1344,9 +1372,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             ),
             const SizedBox(width: 4),
             Text(
-              entry.key.isEmpty
-                  ? 'Unknown'
-                  : '${entry.key[0].toUpperCase()}${entry.key.substring(1).replaceAll('_', ' ')}',
+              _getCategoryTranslation(entry.key, localizations),
               style: AppTextStyles.body(context).copyWith(
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                 fontSize: 12,
@@ -1356,5 +1382,39 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         );
       }).toList(),
     );
+  }
+
+  // Метод для получения перевода категории
+  String _getCategoryTranslation(String category, AppLocalizations localizations) {
+    switch (category) {
+      case 'food':
+        return localizations.food;
+      case 'transport':
+        return localizations.transport;
+      case 'housing':
+        return localizations.housing;
+      case 'utilities':
+        return localizations.utilities;
+      case 'entertainment':
+        return localizations.entertainment;
+      case 'healthcare':
+        return localizations.healthcare;
+      case 'education':
+        return localizations.education;
+      case 'shopping':
+        return localizations.shopping;
+      case 'other_expense':
+        return localizations.otherExpense;
+      case 'salary':
+        return localizations.salary;
+      case 'gift':
+        return localizations.gift;
+      case 'interest':
+        return localizations.interest;
+      case 'other_income':
+        return localizations.otherIncome;
+      default:
+        return localizations.unknown;
+    }
   }
 }

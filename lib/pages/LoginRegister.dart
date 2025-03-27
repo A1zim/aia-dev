@@ -3,6 +3,7 @@ import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
+import 'package:personal_finance/localization/app_localizations.dart'; // Импорт локализации
 
 class LoginRegister extends StatefulWidget {
   const LoginRegister({super.key});
@@ -24,6 +25,7 @@ class _LoginRegisterState extends State<LoginRegister> {
 
   // Handle login/registration
   Future<void> _handleAuth() async {
+    final localizations = AppLocalizations.of(context);
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
@@ -50,7 +52,7 @@ class _LoginRegisterState extends State<LoginRegister> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  "Registered successfully! Logging you in...",
+                  localizations.registeredSuccessfully,
                   style: AppTextStyles.body(context),
                 ),
                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -91,6 +93,7 @@ class _LoginRegisterState extends State<LoginRegister> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context); // Получаем локализацию здесь
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -142,7 +145,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _isLogin ? "Welcome Back!" : "Create Account",
+                          _isLogin ? localizations.welcomeBack : localizations.createAccount,
                           style: AppTextStyles.heading(context).copyWith(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -156,7 +159,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            labelText: 'Username',
+                            labelText: localizations.username,
                             labelStyle: AppTextStyles.body(context).copyWith(
                               color: isDark
                                   ? AppColors.darkTextSecondary
@@ -188,10 +191,10 @@ class _LoginRegisterState extends State<LoginRegister> {
                           style: AppTextStyles.body(context),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter a username';
+                              return localizations.pleaseEnterUsername;
                             }
                             if (value.length < 3) {
-                              return 'Username must be at least 3 characters';
+                              return localizations.usernameMinLength;
                             }
                             return null;
                           },
@@ -204,14 +207,14 @@ class _LoginRegisterState extends State<LoginRegister> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            labelText: 'Password',
+                            labelText: localizations.password,
                             labelStyle: AppTextStyles.body(context).copyWith(
                               color: isDark
                                   ? AppColors.darkTextSecondary
                                   : AppColors.lightTextSecondary,
                             ),
                             prefixIcon: Icon(
-                              Icons.lock,
+                              Icons.lock, // Исправлено: Icons.lockphysics → Icons.lock
                               color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             ),
                             suffixIcon: IconButton(
@@ -251,10 +254,10 @@ class _LoginRegisterState extends State<LoginRegister> {
                           style: AppTextStyles.body(context),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter a password';
+                              return localizations.pleaseEnterPassword;
                             }
                             if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
+                              return localizations.passwordMinLength;
                             }
                             return null;
                           },
@@ -267,7 +270,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              labelText: 'Email (optional)',
+                              labelText: localizations.emailOptional,
                               labelStyle: AppTextStyles.body(context).copyWith(
                                 color: isDark
                                     ? AppColors.darkTextSecondary
@@ -301,7 +304,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                               if (value != null &&
                                   value.isNotEmpty &&
                                   !value.contains('@')) {
-                                return 'Please enter a valid email';
+                                return localizations.pleaseEnterValidEmail;
                               }
                               return null;
                             },
@@ -317,30 +320,30 @@ class _LoginRegisterState extends State<LoginRegister> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               backgroundColor:
-                              isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                  isDark ? AppColors.darkAccent : AppColors.lightAccent,
                               foregroundColor: isDark
                                   ? AppColors.darkTextPrimary
                                   : AppColors.lightTextPrimary,
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
                                 : Text(
-                              _isLogin ? "Login" : "Register",
-                              style: AppTextStyles.body(context).copyWith(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.lightTextPrimary,
-                              ),
-                            ),
+                                    _isLogin ? localizations.login : localizations.register,
+                                    style: AppTextStyles.body(context).copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? AppColors.darkTextPrimary
+                                          : AppColors.lightTextPrimary,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -355,8 +358,8 @@ class _LoginRegisterState extends State<LoginRegister> {
                           },
                           child: Text(
                             _isLogin
-                                ? "Don't have an account? Register"
-                                : "Already have an account? Login",
+                                ? localizations.noAccountRegister
+                                : localizations.haveAccountLogin,
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             ),

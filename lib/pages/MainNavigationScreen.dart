@@ -5,6 +5,7 @@ import 'package:personal_finance/pages/SettingsScreen.dart';
 import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:personal_finance/localization/app_localizations.dart'; // Импорт локализации
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -59,6 +60,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context); // Получаем локализацию
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -106,8 +108,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   decoration: BoxDecoration(
                     color: _selectedIndex == 0
                         ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
+                            ? AppColors.darkAccent.withOpacity(0.2)
+                            : AppColors.lightAccent.withOpacity(0.2))
                         : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
@@ -116,8 +118,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: _selectedIndex == 0
                         ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
                         : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
                   ),
                 ),
                 selectedIcon: Container(
@@ -133,7 +135,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'Home',
+                label: localizations.home, // Локализация метки
               ),
               NavigationDestination(
                 icon: Container(
@@ -141,8 +143,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   decoration: BoxDecoration(
                     color: _selectedIndex == 1
                         ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
+                            ? AppColors.darkAccent.withOpacity(0.2)
+                            : AppColors.lightAccent.withOpacity(0.2))
                         : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
@@ -151,8 +153,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: _selectedIndex == 1
                         ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
                         : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
                   ),
                 ),
                 selectedIcon: Container(
@@ -168,7 +170,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'History',
+                label: localizations.transactionHistory, // Локализация метки
               ),
               NavigationDestination(
                 icon: Container(
@@ -176,8 +178,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   decoration: BoxDecoration(
                     color: _selectedIndex == 2
                         ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
+                            ? AppColors.darkAccent.withOpacity(0.2)
+                            : AppColors.lightAccent.withOpacity(0.2))
                         : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
@@ -186,8 +188,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: _selectedIndex == 2
                         ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
                         : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
                   ),
                 ),
                 selectedIcon: Container(
@@ -203,7 +205,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'Reports',
+                label: localizations.reports, // Локализация метки
               ),
               NavigationDestination(
                 icon: Container(
@@ -211,8 +213,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   decoration: BoxDecoration(
                     color: _selectedIndex == 3
                         ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
+                            ? AppColors.darkAccent.withOpacity(0.2)
+                            : AppColors.lightAccent.withOpacity(0.2))
                         : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
@@ -221,8 +223,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: _selectedIndex == 3
                         ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
                         : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary),
                   ),
                 ),
                 selectedIcon: Container(
@@ -238,7 +240,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'Settings',
+                label: localizations.settings, // Локализация метки
               ),
             ],
           ),

@@ -3,6 +3,7 @@ import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:personal_finance/localization/app_localizations.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -27,16 +28,20 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   Future<void> _loadTransactions() async {
     try {
       final transactions = await _apiService.getTransactions();
-      setState(() {
-        _transactions = transactions;
-      });
+      if (mounted) {
+        setState(() {
+          _transactions = transactions;
+        });
+      }
     } catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
+        final bodyStyle = AppTextStyles.body(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to load transactions: $e',
-              style: AppTextStyles.body(context),
+              localizations.failedToLoadTransactions,
+              style: bodyStyle,
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
@@ -45,11 +50,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     }
   }
 
-  Future<void> _deleteTransaction(int id, int index) async {
+  Future<void> _deleteTransaction(
+    int id,
+    int index,
+    AppLocalizations localizations,
+    TextStyle bodyStyle,
+    Color errorColor,
+  ) async {
     final deletedTransaction = _transactions[index];
-    bool shouldDelete = true; // Flag to determine if we should proceed with backend deletion
+    bool shouldDelete = true;
 
-    // Remove the transaction from the UI
     setState(() {
       _transactions.removeAt(index);
       if (_expandedIndex == index) {
@@ -59,19 +69,18 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       }
     });
 
-    // Show the SnackBar with an "Undo" option
     if (mounted) {
       final snackBar = SnackBar(
         content: Text(
-          'Transaction deleted',
-          style: AppTextStyles.body(context),
+          localizations.transactionDeleted,
+          style: bodyStyle,
         ),
-        backgroundColor: Theme.of(context).colorScheme.error,
+        backgroundColor: errorColor,
         action: SnackBarAction(
-          label: 'Undo',
+          label: localizations.undo,
           textColor: Colors.white,
           onPressed: () {
-            shouldDelete = false; // User tapped "Undo", so we won't delete from backend
+            shouldDelete = false;
             setState(() {
               _transactions.insert(index, deletedTransaction);
               if (_expandedIndex != null && _expandedIndex! >= index) {
@@ -83,16 +92,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         duration: const Duration(seconds: 3),
       );
 
-      // Show the SnackBar and wait for it to be dismissed
       await ScaffoldMessenger.of(context)
           .showSnackBar(snackBar)
           .closed
           .then((reason) {
-        // If the SnackBar was dismissed without "Undo" (e.g., timed out or page switched),
-        // proceed with the backend deletion
         if (shouldDelete && reason != SnackBarClosedReason.action) {
           _apiService.deleteTransaction(id).catchError((e) {
-            // If backend deletion fails, restore the transaction
             setState(() {
               _transactions.insert(index, deletedTransaction);
               if (_expandedIndex != null && _expandedIndex! >= index) {
@@ -103,10 +108,10 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Failed to delete transaction: $e',
-                    style: AppTextStyles.body(context),
+                    localizations.failedToDeleteTransaction,
+                    style: bodyStyle,
                   ),
-                  backgroundColor: Theme.of(context).colorScheme.error,
+                  backgroundColor: errorColor,
                 ),
               );
             }
@@ -129,7 +134,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     }
   }
 
-  Future<bool> _confirmDeleteTransaction(int id, int index) async {
+  Future<bool> _confirmDeleteTransaction(
+    int id,
+    int index,
+    AppLocalizations localizations,
+  ) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -156,12 +165,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Delete Transaction',
+                    localizations.deleteTransaction,
                     style: AppTextStyles.subheading(context),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Are you sure you want to delete this transaction?',
+                    localizations.confirmDeleteTransaction,
                     style: AppTextStyles.body(context),
                     textAlign: TextAlign.center,
                   ),
@@ -174,7 +183,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           style: AppButtonStyles.textButton(context),
                           onPressed: () => Navigator.pop(context, false),
                           child: Text(
-                            'Cancel',
+                            localizations.cancel,
                             style: AppTextStyles.body(context),
                           ),
                         ),
@@ -189,7 +198,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           ),
                           onPressed: () => Navigator.pop(context, true),
                           child: Text(
-                            'Confirm',
+                            localizations.confirm,
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                             ),
@@ -212,18 +221,21 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context);
+    final bodyStyle = AppTextStyles.body(context);
+    final errorColor = Theme.of(context).colorScheme.error;
     List<Transaction> filteredTransactions = _transactions.where((transaction) {
       final matchesSearch =
-      transaction.description.toLowerCase().contains(_searchQuery.toLowerCase());
+          transaction.description.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesFilter =
-          _filterType == "All" || transaction.type == _filterType.toLowerCase();
+          _filterType == localizations.all || transaction.type == _filterType.toLowerCase();
       return matchesSearch && matchesFilter;
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Transaction History",
+          localizations.transactionHistory,
           style: AppTextStyles.heading(context),
         ),
         actions: [
@@ -232,7 +244,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               Icons.filter_list,
               color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
             ),
-            onPressed: () => _showFilterModal(),
+            onPressed: () => _showFilterModal(localizations),
           ),
         ],
         flexibleSpace: Container(
@@ -262,29 +274,35 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         child: Column(
           children: [
-            _buildSearchBar(),
+            _buildSearchBar(localizations),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadTransactions,
                 color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 child: filteredTransactions.isEmpty
                     ? Center(
-                  child: Text(
-                    "No transactions found",
-                    style: AppTextStyles.body(context).copyWith(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
-                    ),
-                  ),
-                )
+                        child: Text(
+                          localizations.noTransactionsFound,
+                          style: bodyStyle.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      )
                     : ListView.builder(
-                  itemCount: filteredTransactions.length,
-                  itemBuilder: (context, index) {
-                    final transaction = filteredTransactions[index];
-                    return _buildTransactionCard(transaction, index);
-                  },
-                ),
+                        itemCount: filteredTransactions.length,
+                        itemBuilder: (context, index) {
+                          final transaction = filteredTransactions[index];
+                          return _buildTransactionCard(
+                            transaction,
+                            index,
+                            localizations,
+                            bodyStyle,
+                            errorColor,
+                          );
+                        },
+                      ),
               ),
             ),
           ],
@@ -293,26 +311,26 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(AppLocalizations localizations) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: TextField(
         decoration: AppInputStyles.textField(context).copyWith(
-          labelText: 'Search Transactions',
+          labelText: localizations.searchTransactions,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-            icon: Icon(
-              Icons.clear,
-              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-            ),
-            onPressed: () {
-              setState(() {
-                _searchQuery = "";
-              });
-            },
-          )
+                  icon: Icon(
+                    Icons.clear,
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = "";
+                    });
+                  },
+                )
               : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -340,7 +358,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildTransactionCard(Transaction transaction, int index) {
+  Widget _buildTransactionCard(
+    Transaction transaction,
+    int index,
+    AppLocalizations localizations,
+    TextStyle bodyStyle,
+    Color errorColor,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isExpanded = _expandedIndex == index;
     final isIncome = transaction.type == 'income';
@@ -367,9 +391,19 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         confirmDismiss: (direction) async {
           if (direction == DismissDirection.endToStart) {
-            final confirmed = await _confirmDeleteTransaction(transaction.id, index);
+            final confirmed = await _confirmDeleteTransaction(
+              transaction.id,
+              index,
+              localizations,
+            );
             if (confirmed) {
-              await _deleteTransaction(transaction.id, index);
+              await _deleteTransaction(
+                transaction.id,
+                index,
+                localizations,
+                bodyStyle,
+                errorColor,
+              );
             }
             return false;
           } else if (direction == DismissDirection.startToEnd) {
@@ -402,7 +436,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               Expanded(
                 child: Text(
                   transaction.description,
-                  style: AppTextStyles.body(context).copyWith(
+                  style: bodyStyle.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -411,7 +445,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               const SizedBox(width: 8),
               Text(
                 "\$${transaction.amount.toStringAsFixed(2)}",
-                style: AppTextStyles.body(context).copyWith(
+                style: bodyStyle.copyWith(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: isIncome ? Colors.green : Colors.red,
@@ -420,8 +454,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             ],
           ),
           subtitle: Text(
-            "${StringExtension(transaction.category).capitalize()} - ${transaction.timestamp.split("T")[0]}",
-            style: AppTextStyles.body(context).copyWith(
+            "${_getCategoryTranslation(transaction.category, localizations)} - ${transaction.timestamp.split("T")[0]}",
+            style: bodyStyle.copyWith(
               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
             ),
           ),
@@ -432,34 +466,39 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildDetailRow(
-                    "Description",
+                    localizations.description,
                     transaction.description,
-                    context,
+                    bodyStyle,
+                    isDark,
                   ),
                   const SizedBox(height: 8),
                   _buildDetailRow(
-                    "Category",
-                    StringExtension(transaction.category).capitalize(),
-                    context,
+                    localizations.category,
+                    _getCategoryTranslation(transaction.category, localizations),
+                    bodyStyle,
+                    isDark,
                   ),
                   const SizedBox(height: 8),
                   _buildDetailRow(
-                    "Amount",
+                    localizations.amount,
                     "\$${transaction.amount.toStringAsFixed(2)}",
-                    context,
+                    bodyStyle,
+                    isDark,
                     valueColor: isIncome ? Colors.green : Colors.red,
                   ),
                   const SizedBox(height: 8),
                   _buildDetailRow(
-                    "Type",
-                    StringExtension(transaction.type).capitalize(),
-                    context,
+                    localizations.type,
+                    _getTypeTranslation(transaction.type, localizations),
+                    bodyStyle,
+                    isDark,
                   ),
                   const SizedBox(height: 8),
                   _buildDetailRow(
-                    "Date",
+                    localizations.date,
                     transaction.timestamp.split("T")[0],
-                    context,
+                    bodyStyle,
+                    isDark,
                   ),
                 ],
               ),
@@ -470,25 +509,28 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, BuildContext context,
-      {Color? valueColor}) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    TextStyle bodyStyle,
+    bool isDark, {
+    Color? valueColor,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           "$label: ",
-          style: AppTextStyles.label(context).copyWith(
+          style: bodyStyle.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: AppTextStyles.body(context).copyWith(
+            style: bodyStyle.copyWith(
               color: valueColor ??
-                  (Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.darkTextPrimary
-                      : AppColors.lightTextPrimary),
+                  (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
             ),
           ),
         ),
@@ -496,7 +538,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  void _showFilterModal() {
+  void _showFilterModal(AppLocalizations localizations) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -509,16 +551,21 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Filter Transactions",
+                localizations.filterTransactions,
                 style: AppTextStyles.subheading(context),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _filterType,
-                decoration: AppInputStyles.dropdown(context, labelText: 'Filter by Type'),
-                items: ["All", "Income", "Expense"]
-                    .map((type) => AppInputStyles.dropdownMenuItem(context, type, type))
-                    .toList(),
+                decoration: AppInputStyles.dropdown(
+                  context,
+                  labelText: localizations.filterByType,
+                ),
+                items: [
+                  localizations.all,
+                  localizations.income,
+                  localizations.expense,
+                ].map((type) => AppInputStyles.dropdownMenuItem(context, type, type)).toList(),
                 onChanged: (value) {
                   setState(() {
                     _filterType = value!;
@@ -538,9 +585,52 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       },
     );
   }
+
+  String _getCategoryTranslation(String category, AppLocalizations localizations) {
+    switch (category) {
+      case 'food':
+        return localizations.food;
+      case 'transport':
+        return localizations.transport;
+      case 'housing':
+        return localizations.housing;
+      case 'utilities':
+        return localizations.utilities;
+      case 'entertainment':
+        return localizations.entertainment;
+      case 'healthcare':
+        return localizations.healthcare;
+      case 'education':
+        return localizations.education;
+      case 'shopping':
+        return localizations.shopping;
+      case 'other_expense':
+        return localizations.otherExpense;
+      case 'salary':
+        return localizations.salary;
+      case 'gift':
+        return localizations.gift;
+      case 'interest':
+        return localizations.interest;
+      case 'other_income':
+        return localizations.otherIncome;
+      default:
+        return localizations.unknown;
+    }
+  }
+
+  String _getTypeTranslation(String type, AppLocalizations localizations) {
+    switch (type) {
+      case 'income':
+        return localizations.income;
+      case 'expense':
+        return localizations.expense;
+      default:
+        return localizations.unknown;
+    }
+  }
 }
 
-// Helper function for capitalization
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
 }

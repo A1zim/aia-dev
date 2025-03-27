@@ -5,7 +5,8 @@ import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:personal_finance/providers/theme_provider.dart';
+import 'package:personal_finance/localization/app_localizations.dart'; // Импорт локализации
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,13 +40,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final userData = await _apiService.getUserData();
       return {
-        'nickname': userData['nickname'] ?? 'User',
-        'email': userData['email'] ?? 'user@example.com',
+        'nickname': userData['nickname'] ?? AppLocalizations.of(context).defaultNickname,
+        'email': userData['email'] ?? AppLocalizations.of(context).defaultEmail,
       };
     } catch (e) {
       return {
-        'nickname': 'User',
-        'email': 'user@example.com',
+        'nickname': AppLocalizations.of(context).defaultNickname,
+        'email': AppLocalizations.of(context).defaultEmail,
       };
     }
   }
@@ -63,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to load summary: $e',
+              '${AppLocalizations.of(context).fetchSummaryFailed}: $e',
               style: AppTextStyles.body(context),
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
@@ -81,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to load transactions: $e',
+              '${AppLocalizations.of(context).fetchTransactionsFailed}: $e',
               style: AppTextStyles.body(context),
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
@@ -93,16 +94,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showLogoutDialog() {
+    final localizations = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
-            'Logout',
+            localizations.logout,
             style: AppTextStyles.subheading(context),
           ),
           content: Text(
-            'Are you sure you want to logout?',
+            localizations.confirmLogout,
             style: AppTextStyles.body(context),
           ),
           actions: [
@@ -110,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: AppButtonStyles.textButton(context),
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'Cancel',
+                localizations.cancel,
                 style: AppTextStyles.body(context),
               ),
             ),
@@ -121,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushReplacementNamed(context, '/');
               },
               child: Text(
-                'Logout',
+                localizations.logout,
                 style: AppTextStyles.body(context).copyWith(
                   color: Theme.of(context).colorScheme.error,
                 ),
@@ -136,10 +138,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Personal Finance',
+          localizations.personalFinance,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -166,21 +169,21 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               children: [
                 SummaryCard(
-                  title: 'Income',
+                  title: localizations.income,
                   amount: '\$${_totalIncome.toStringAsFixed(2)}',
                   color: Colors.green,
                   icon: Icons.arrow_upward,
                 ),
                 const SizedBox(height: 12),
                 SummaryCard(
-                  title: 'Expenses',
+                  title: localizations.expense,
                   amount: '\$${_totalExpenses.toStringAsFixed(2)}',
                   color: Colors.red,
                   icon: Icons.arrow_downward,
                 ),
                 const SizedBox(height: 12),
                 SummaryCard(
-                  title: 'Balance',
+                  title: localizations.balance,
                   amount: '\$${_balance.toStringAsFixed(2)}',
                   color: Colors.blue,
                   icon: Icons.account_balance_wallet,
@@ -208,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   } else if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Error: ${snapshot.error}',
+                        '${localizations.error}: ${snapshot.error}',
                         style: AppTextStyles.body(context).copyWith(
                           color: Theme.of(context).colorScheme.error,
                         ),
@@ -217,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
                       child: Text(
-                        'No transactions yet.',
+                        localizations.noTransactions,
                         style: AppTextStyles.body(context).copyWith(
                           color: isDark
                               ? AppColors.darkTextSecondary
@@ -304,16 +307,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showTransactionActions(BuildContext context, Transaction transaction) {
+    final localizations = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
-            "Transaction Actions",
+            localizations.transactionActions,
             style: AppTextStyles.subheading(context),
           ),
           content: Text(
-            "What would you like to do?",
+            localizations.whatToDo,
             style: AppTextStyles.body(context),
           ),
           actions: [
@@ -324,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _editTransaction(transaction);
               },
               child: Text(
-                "Edit",
+                localizations.edit,
                 style: AppTextStyles.body(context),
               ),
             ),
@@ -335,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 await _deleteTransaction(transaction.id);
               },
               child: Text(
-                "Delete",
+                localizations.delete,
                 style: AppTextStyles.body(context).copyWith(
                   color: Theme.of(context).colorScheme.error,
                 ),
@@ -363,15 +367,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteTransaction(int transactionId) async {
+    final localizations = AppLocalizations.of(context);
     bool confirmDelete = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          "Delete Transaction",
+          localizations.deleteTransaction,
           style: AppTextStyles.subheading(context),
         ),
         content: Text(
-          "Are you sure you want to delete this transaction?",
+          localizations.confirmDeleteTransaction,
           style: AppTextStyles.body(context),
         ),
         actions: [
@@ -379,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: AppButtonStyles.textButton(context),
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              "Cancel",
+              localizations.cancel,
               style: AppTextStyles.body(context),
             ),
           ),
@@ -387,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: AppButtonStyles.textButton(context),
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              "Delete",
+              localizations.delete,
               style: AppTextStyles.body(context).copyWith(
                 color: Theme.of(context).colorScheme.error,
               ),
@@ -408,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Failed to delete transaction: $e',
+                '${localizations.deleteTransactionFailed}: $e',
                 style: AppTextStyles.body(context),
               ),
               backgroundColor: Theme.of(context).colorScheme.error,
@@ -421,13 +426,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDrawer() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context);
     return Drawer(
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       child: FutureBuilder<Map<String, String>>(
         future: _userDataFuture,
         builder: (context, snapshot) {
-          final nickname = snapshot.data?['nickname'] ?? 'User';
-          final email = snapshot.data?['email'] ?? 'user@example.com';
+          final nickname = snapshot.data?['nickname'] ?? localizations.defaultNickname;
+          final email = snapshot.data?['email'] ?? localizations.defaultEmail;
 
           return ListView(
             padding: EdgeInsets.zero,
@@ -490,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
                 title: Text(
-                  'Home',
+                  localizations.home,
                   style: AppTextStyles.body(context),
                 ),
                 onTap: () {
@@ -503,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
                 title: Text(
-                  'Transaction History',
+                  localizations.transactionHistory,
                   style: AppTextStyles.body(context),
                 ),
                 onTap: () {
@@ -517,7 +523,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
                 title: Text(
-                  'Reports',
+                  localizations.reports,
                   style: AppTextStyles.body(context),
                 ),
                 onTap: () {
@@ -531,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
                 title: Text(
-                  'Settings',
+                  localizations.settings,
                   style: AppTextStyles.body(context),
                 ),
                 onTap: () {
@@ -545,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 ),
                 title: Text(
-                  'Logout',
+                  localizations.logout,
                   style: AppTextStyles.body(context),
                 ),
                 onTap: _showLogoutDialog,
