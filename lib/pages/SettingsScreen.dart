@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
+import 'package:personal_finance/services/notification_service.dart'; // Added NotificationService
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
 import 'package:personal_finance/generated/app_localizations.dart';
 import 'package:personal_finance/main.dart';
-
-import '../providers/theme_provider.dart';
+import 'package:personal_finance/providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -42,6 +42,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
     } catch (e) {
       print('Failed to load available currencies: $e');
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to load available currencies: $e',
+        isError: true,
+      );
       setState(() {
         _availableCurrencies = ['KGS']; // Fallback to KGS if there's an error
       });
@@ -65,18 +70,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _exchangeRate = rate;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.currencyChanged(value)),
-          backgroundColor: Colors.green,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.currencyChanged(value),
+        isError: false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.currencyChangeFailed(e.toString())),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.currencyChangeFailed(e.toString()),
+        isError: true,
       );
     } finally {
       setState(() {

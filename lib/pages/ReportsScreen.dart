@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/services/notification_service.dart'; // Added NotificationService
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart'; // Import CurrencyProvider
+import 'package:personal_finance/providers/currency_provider.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -163,8 +164,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         allCategories = categories;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load categories: $e')),
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to load categories: $e',
+        isError: true,
       );
     }
   }
@@ -325,32 +328,33 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         _isLoading = false;
         _showLoadingOverlay = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load data: $e')),
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to load data: $e',
+        isError: true,
       );
     }
   }
 
   Color _getChartColor(String category) {
     final Map<String, Color> categoryColors = {
-      'food': const Color(0xFFEF5350), // Red
-      'transport': const Color(0xFF66BB6A), // Green
-      'housing': const Color(0xFF42A5F5), // Blue
-      'utilities': const Color(0xFFFFCA28), // Yellow
-      'entertainment': const Color(0xFFAB47BC), // Purple
-      'healthcare': const Color(0xFF26C6DA), // Cyan
-      'education': const Color(0xFFFFA726), // Orange
-      'shopping': const Color(0xFFEC407A), // Pink
-      'other_expense': const Color(0xFF8D6E63), // Brown
-      'other_income': const Color(0xFF78909C), // Blue-Grey
-      'salary': const Color(0xFF4CAF50), // Dark Green
-      'gift': const Color(0xFFF06292), // Light Pink
-      'interest': const Color(0xFF29B6F6), // Light Blue
-      'unknown': const Color(0xFFB0BEC5), // Grey
+      'food': const Color(0xFFEF5350),
+      'transport': const Color(0xFF66BB6A),
+      'housing': const Color(0xFF42A5F5),
+      'utilities': const Color(0xFFFFCA28),
+      'entertainment': const Color(0xFFAB47BC),
+      'healthcare': const Color(0xFF26C6DA),
+      'education': const Color(0xFFFFA726),
+      'shopping': const Color(0xFFEC407A),
+      'other_expense': const Color(0xFF8D6E63),
+      'other_income': const Color(0xFF78909C),
+      'salary': const Color(0xFF4CAF50),
+      'gift': const Color(0xFFF06292),
+      'interest': const Color(0xFF29B6F6),
+      'unknown': const Color(0xFFB0BEC5),
     };
 
-    return categoryColors[category.toLowerCase()]?.withOpacity(0.8) ??
-        Colors.grey.withOpacity(0.8);
+    return categoryColors[category.toLowerCase()]?.withOpacity(0.8) ?? Colors.grey.withOpacity(0.8);
   }
 
   Color _getBarColor(String month) {
@@ -400,12 +404,26 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   String _getCurrencySymbol(String currency) {
     const symbols = {
-      'KGS': 'KGS ',
+      'KGS': 'Сом ',
       'USD': '\$',
       'EUR': '€',
       'INR': '₹',
     };
     return symbols[currency] ?? '$currency ';
+  }
+
+  bool _areFiltersApplied() {
+    return selectedType != 'expense' || selectedStartDate != null || selectedEndDate != null || selectedCategories.isNotEmpty;
+  }
+
+  void _clearFilters() {
+    setState(() {
+      selectedType = 'expense';
+      selectedStartDate = null;
+      selectedEndDate = null;
+      selectedCategories.clear();
+    });
+    _fetchData();
   }
 
   @override
@@ -525,8 +543,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
-                                              title:
-                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n$currencySymbol${animatedValue.toStringAsFixed(2)}",
+                                              title: _selectedCategory == category
+                                                  ? "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n$currencySymbol${animatedValue.toStringAsFixed(2)}"
+                                                  : "",
                                               radius: radius,
                                               color: _getChartColor(category),
                                               titleStyle: AppTextStyles.chartLabel(context).copyWith(
@@ -541,7 +560,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                 ]
                                                     : null,
                                               ),
-                                              showTitle: animatedValue > 0,
+                                              showTitle: animatedValue > 0 && _selectedCategory == category,
                                               titlePositionPercentageOffset: titlePositionOffset,
                                               badgeWidget: isSelected
                                                   ? Container(
@@ -594,8 +613,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
-                                              title:
-                                              "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n$currencySymbol${animatedValue.toStringAsFixed(2)}",
+                                              title: _selectedCategory == category
+                                                  ? "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n$currencySymbol${animatedValue.toStringAsFixed(2)}"
+                                                  : "",
                                               radius: radius,
                                               color: _getChartColor(category),
                                               titleStyle: AppTextStyles.chartLabel(context).copyWith(
@@ -610,7 +630,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                 ]
                                                     : null,
                                               ),
-                                              showTitle: animatedValue > 0,
+                                              showTitle: animatedValue > 0 && _selectedCategory == category,
                                               titlePositionPercentageOffset: titlePositionOffset,
                                               badgeWidget: isSelected
                                                   ? Container(
@@ -803,7 +823,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                           (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]),
                                       getTitlesWidget: (value, meta) {
                                         return Text(
-                                          "$currencySymbol${value.toInt()}",
+                                          "${value.toInt()}",
                                           style: AppTextStyles.chartLabel(context),
                                         );
                                       },
@@ -902,8 +922,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   Widget _buildSummaryCard(String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
-    return AppCardStyles.card(
-      context,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -948,8 +969,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   Widget _buildFilters() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return AppCardStyles.card(
-      context,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -975,6 +997,39 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             _buildDateRangeFilter(),
             const SizedBox(height: 16),
             _buildCategoryFilter(),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _areFiltersApplied() ? _clearFilters : null,
+                style: AppButtonStyles.outlinedButton(context).copyWith(
+                  padding: WidgetStateProperty.all(
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  ),
+                  side: WidgetStateProperty.all(
+                    BorderSide(
+                      color: _areFiltersApplied()
+                          ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
+                          : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.5),
+                    ),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.refresh,
+                  color: _areFiltersApplied()
+                      ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
+                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.5),
+                ),
+                label: Text(
+                  "Clear Filters",
+                  style: AppTextStyles.body(context).copyWith(
+                    color: _areFiltersApplied()
+                        ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
+                        : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.5),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1178,15 +1233,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   Widget _buildCategoryStats(String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final categorySpending =
-    (_isLoading ? _cachedReportsData : _reportsData)["categorySpending"] as Map<String, double>;
+    final categorySpending = (_isLoading ? _cachedReportsData : _reportsData)["categorySpending"] as Map<String, double>;
     final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
     final categoryAmount = categorySpending[_selectedCategory] ?? _disappearingValues[_selectedCategory] ?? 0.0;
     final percentage = total > 0 ? (categoryAmount / total) * 100 : 0.0;
 
     print("Rendering category stats for: $_selectedCategory");
-    return AppCardStyles.card(
-      context,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1285,8 +1340,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   Widget _buildChartCard({required String title, required Widget child}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return AppCardStyles.card(
-      context,
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(

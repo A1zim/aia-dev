@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
@@ -66,6 +67,11 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         _errorMessage = 'Failed to load currencies: $e';
         _isLoading = false;
       });
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to load currencies: $e',
+        isError: true,
+      );
     }
   }
 
@@ -88,9 +94,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
     final filtered = _allCurrencies.where((currency) {
       final country = _currencyToCountry[currency] ?? '';
-      return (currency.toUpperCase().contains(query) ||
-          country.toUpperCase().contains(query)) &&
-          !_currencies.contains(currency);
+      return (currency.toUpperCase().contains(query) || country.toUpperCase().contains(query)) && !_currencies.contains(currency);
     }).toList();
 
     final rates = <String, double>{};
@@ -119,14 +123,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     await currencyProvider.setCurrency(currency, rate);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Currency changed to $currency',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Colors.green,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: 'Currency changed to $currency',
       );
 
       // Close the drawer if it's open
@@ -146,9 +145,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     try {
       await _apiService.addUserCurrency(currency);
 
-      final rate = currency == 'KGS'
-          ? 1.0
-          : _currencyApiService.getConversionRate('KGS', currency);
+      final rate = currency == 'KGS' ? 1.0 : _currencyApiService.getConversionRate('KGS', currency);
 
       setState(() {
         _currencies.add(currency);
@@ -159,14 +156,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       await currencyProvider.refreshCurrencies();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$currency added successfully',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Colors.green,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: '$currency added successfully',
       );
 
       await _fetchCurrencies();
@@ -178,28 +170,20 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         errorMessage = 'KGS is included by default and cannot be added';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            errorMessage,
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: errorMessage,
+        isError: true,
       );
     }
   }
 
   void _deleteCurrency(String currency) async {
     if (currency == 'KGS') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Cannot delete KGS',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: 'Cannot delete KGS',
+        isError: true,
       );
       return;
     }
@@ -255,26 +239,17 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
         await currencyProvider.refreshCurrencies();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '$currency deleted successfully',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Colors.green,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: '$currency deleted successfully',
         );
 
         await _fetchCurrencies();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to delete currency: $e',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to delete currency: $e',
+          isError: true,
         );
       }
     }
@@ -314,7 +289,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       ),
       drawer: CustomDrawer(
         currentRoute: '/currency',
-        parentContext: context, // Pass the context as parentContext
+        parentContext: context,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -473,7 +448,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                 ),
                               ),
                               trailing: IconButton(
-                                icon: Icon(
+                                icon: const Icon(
                                   Icons.add,
                                   color: Colors.green,
                                 ),

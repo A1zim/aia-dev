@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
@@ -62,14 +63,10 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to load summary: $e',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to load summary: $e',
+          isError: true,
         );
       }
     }
@@ -80,14 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return await _apiService.getTransactions();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to load transactions: $e',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to load transactions: $e',
+          isError: true,
         );
       }
       return [];
@@ -133,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       drawer: CustomDrawer(
         currentRoute: '/main',
-        parentContext: context, // Pass the context as parentContext
+        parentContext: context,
       ),
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Column(
@@ -146,14 +139,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: 'Income',
                   amount: '$currencySymbol${currencyProvider.convertAmount(_totalIncome).toStringAsFixed(2)}',
                   color: Colors.green,
-                  icon: Icons.arrow_upward,
+                  icon: Icons.arrow_downward,
                 ),
                 const SizedBox(height: 12),
                 SummaryCard(
                   title: 'Expenses',
                   amount: '$currencySymbol${currencyProvider.convertAmount(_totalExpenses).toStringAsFixed(2)}',
                   color: Colors.red,
-                  icon: Icons.arrow_downward,
+                  icon: Icons.arrow_upward,
                 ),
                 const SizedBox(height: 12),
                 SummaryCard(
@@ -379,19 +372,19 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirmDelete) {
       try {
         await _apiService.deleteTransaction(transactionId);
+        NotificationService.showNotification(
+          context,
+          message: 'Transaction deleted successfully',
+        );
         setState(() {
           _loadData();
         });
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Failed to delete transaction: $e',
-                style: AppTextStyles.body(context),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+          NotificationService.showNotification(
+            context,
+            message: 'Failed to delete transaction: $e',
+            isError: true,
           );
         }
       }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'dart:io'; // For SocketException
-import 'package:personal_finance/theme/styles.dart'; // Import the styles file
+import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
 
@@ -115,16 +116,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                widget.transaction == null
-                    ? 'Transaction added successfully'
-                    : 'Transaction updated successfully',
-                style: AppTextStyles.body(context),
-              ),
-              backgroundColor: Colors.green,
-            ),
+          NotificationService.showNotification(
+            context,
+            message: widget.transaction == null
+                ? 'Transaction added successfully'
+                : 'Transaction updated successfully',
           );
 
           await Future.delayed(const Duration(seconds: 1));
@@ -137,14 +133,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             errorMessage = 'Network error. Please check your connection.';
           }
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                errorMessage,
-                style: AppTextStyles.body(context),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+          NotificationService.showNotification(
+            context,
+            message: errorMessage,
+            isError: true,
           );
         }
       } finally {
@@ -222,7 +214,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             _selectedCategory = _selectedType == 'expense' ? 'food' : 'salary';
                           });
                         },
-                        style: AppTextStyles.body(context), // Use AppTextStyles.body for visible text
+                        style: AppTextStyles.body(context),
                         dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
                         icon: AppInputStyles.dropdownProperties(context)['icon'],
                         menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
@@ -242,7 +234,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             _selectedCategory = value!;
                           });
                         },
-                        style: AppTextStyles.body(context), // Use AppTextStyles.body for visible text
+                        style: AppTextStyles.body(context),
                         dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
                         icon: AppInputStyles.dropdownProperties(context)['icon'],
                         menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
@@ -271,7 +263,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           return null;
                         },
                         onChanged: (value) {
-                          setState(() {}); // Update the converted amount display
+                          setState(() {});
                         },
                       ),
                       const SizedBox(height: 16),
