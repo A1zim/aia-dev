@@ -5,7 +5,7 @@ import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:personal_finance/providers/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,13 +39,24 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final userData = await _apiService.getUserData();
       return {
-        'nickname': userData['nickname'] ?? 'User',
-        'email': userData['email'] ?? 'user@example.com',
+        'username': userData['username'] ?? 'User',
+        'email': userData['email'] ?? 'No email provided',
       };
     } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to load user data: $e',
+              style: AppTextStyles.body(context),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
       return {
-        'nickname': 'User',
-        'email': 'user@example.com',
+        'username': 'User',
+        'email': 'No email provided',
       };
     }
   }
@@ -97,22 +108,13 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(
-            'Logout',
-            style: AppTextStyles.subheading(context),
-          ),
-          content: Text(
-            'Are you sure you want to logout?',
-            style: AppTextStyles.body(context),
-          ),
+          title: Text('Logout', style: AppTextStyles.subheading(context)),
+          content: Text('Are you sure you want to logout?', style: AppTextStyles.body(context)),
           actions: [
             TextButton(
               style: AppButtonStyles.textButton(context),
               onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: AppTextStyles.body(context),
-              ),
+              child: Text('Cancel', style: AppTextStyles.body(context)),
             ),
             TextButton(
               style: AppButtonStyles.textButton(context),
@@ -122,9 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: Text(
                 'Logout',
-                style: AppTextStyles.body(context).copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error),
               ),
             ),
           ],
@@ -138,10 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Personal Finance',
-          style: AppTextStyles.heading(context),
-        ),
+        title: Text('Personal Finance', style: AppTextStyles.heading(context)),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -165,26 +162,11 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                SummaryCard(
-                  title: 'Income',
-                  amount: '\$${_totalIncome.toStringAsFixed(2)}',
-                  color: Colors.green,
-                  icon: Icons.arrow_upward,
-                ),
+                SummaryCard(title: 'Income', amount: '\$${_totalIncome.toStringAsFixed(2)}', color: Colors.green, icon: Icons.arrow_upward),
                 const SizedBox(height: 12),
-                SummaryCard(
-                  title: 'Expenses',
-                  amount: '\$${_totalExpenses.toStringAsFixed(2)}',
-                  color: Colors.red,
-                  icon: Icons.arrow_downward,
-                ),
+                SummaryCard(title: 'Expenses', amount: '\$${_totalExpenses.toStringAsFixed(2)}', color: Colors.red, icon: Icons.arrow_downward),
                 const SizedBox(height: 12),
-                SummaryCard(
-                  title: 'Balance',
-                  amount: '\$${_balance.toStringAsFixed(2)}',
-                  color: Colors.blue,
-                  icon: Icons.account_balance_wallet,
-                ),
+                SummaryCard(title: 'Balance', amount: '\$${_balance.toStringAsFixed(2)}', color: Colors.blue, icon: Icons.account_balance_wallet),
               ],
             ),
           ),
@@ -193,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onRefresh: () async {
                 setState(() {
                   _loadData();
+                  _userDataFuture = _fetchUserData(); // Обновляем данные пользователя при pull-to-refresh
                 });
               },
               color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
@@ -200,40 +183,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 future: _transactionsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                      ),
-                    );
+                    return Center(child: CircularProgressIndicator(color: isDark ? AppColors.darkAccent : AppColors.lightAccent));
                   } else if (snapshot.hasError) {
                     return Center(
-                      child: Text(
-                        'Error: ${snapshot.error}',
-                        style: AppTextStyles.body(context).copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
+                      child: Text('Error: ${snapshot.error}', style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error)),
                     );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
                       child: Text(
                         'No transactions yet.',
-                        style: AppTextStyles.body(context).copyWith(
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary,
-                        ),
+                        style: AppTextStyles.body(context).copyWith(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                       ),
                     );
                   }
-
                   final transactions = snapshot.data!;
                   return ListView.builder(
                     itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = transactions[index];
-                      return _buildTransactionTile(transaction);
-                    },
+                    itemBuilder: (context, index) => _buildTransactionTile(transactions[index]),
                   );
                 },
               ),
@@ -251,10 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
         backgroundColor: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-        child: Icon(
-          Icons.add,
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        ),
+        child: Icon(Icons.add, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
       ),
     );
   }
@@ -262,7 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTransactionTile(Transaction transaction) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isIncome = transaction.type == 'income';
-
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
@@ -272,31 +234,19 @@ class _HomeScreenState extends State<HomeScreen> {
         leading: CircleAvatar(
           radius: 24,
           backgroundColor: isIncome ? Colors.green[100] : Colors.red[100],
-          child: Icon(
-            isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-            color: isIncome ? Colors.green : Colors.red,
-          ),
+          child: Icon(isIncome ? Icons.arrow_downward : Icons.arrow_upward, color: isIncome ? Colors.green : Colors.red),
         ),
         title: Text(
           StringExtension(transaction.category).capitalize(),
-          style: AppTextStyles.body(context).copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.body(context).copyWith(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           '${transaction.description} - ${transaction.timestamp.split("T")[0]}',
-          style: AppTextStyles.body(context).copyWith(
-            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-            fontSize: 12,
-          ),
+          style: AppTextStyles.body(context).copyWith(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12),
         ),
         trailing: Text(
           '\$${transaction.amount.toStringAsFixed(2)}',
-          style: AppTextStyles.body(context).copyWith(
-            color: isIncome ? Colors.green : Colors.red,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: AppTextStyles.body(context).copyWith(color: isIncome ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         onTap: () => _showTransactionActions(context, transaction),
       ),
@@ -308,14 +258,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(
-            "Transaction Actions",
-            style: AppTextStyles.subheading(context),
-          ),
-          content: Text(
-            "What would you like to do?",
-            style: AppTextStyles.body(context),
-          ),
+          title: Text("Transaction Actions", style: AppTextStyles.subheading(context)),
+          content: Text("What would you like to do?", style: AppTextStyles.body(context)),
           actions: [
             TextButton(
               style: AppButtonStyles.textButton(context),
@@ -323,10 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
                 _editTransaction(transaction);
               },
-              child: Text(
-                "Edit",
-                style: AppTextStyles.body(context),
-              ),
+              child: Text("Edit", style: AppTextStyles.body(context)),
             ),
             TextButton(
               style: AppButtonStyles.textButton(context),
@@ -334,12 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
                 await _deleteTransaction(transaction.id);
               },
-              child: Text(
-                "Delete",
-                style: AppTextStyles.body(context).copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
+              child: Text("Delete", style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error)),
             ),
           ],
         );
@@ -350,11 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _editTransaction(Transaction transaction) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => AddTransactionScreen(transaction: transaction),
-      ),
+      MaterialPageRoute(builder: (context) => AddTransactionScreen(transaction: transaction)),
     );
-
     if (result == true) {
       setState(() {
         _loadData();
@@ -363,61 +296,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteTransaction(int transactionId) async {
-    bool confirmDelete = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          "Delete Transaction",
-          style: AppTextStyles.subheading(context),
+  bool? confirmDelete = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text("Delete Transaction", style: AppTextStyles.subheading(context)),
+      content: Text("Are you sure you want to delete this transaction?", style: AppTextStyles.body(context)),
+      actions: [
+        TextButton(
+          style: AppButtonStyles.textButton(context),
+          onPressed: () => Navigator.pop(context, false),
+          child: Text("Cancel", style: AppTextStyles.body(context)),
         ),
-        content: Text(
-          "Are you sure you want to delete this transaction?",
-          style: AppTextStyles.body(context),
+        TextButton(
+          style: AppButtonStyles.textButton(context),
+          onPressed: () => Navigator.pop(context, true), // Исправлено: onPressed вместо onPressedPup
+          child: Text(
+            "Delete",
+            style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error),
+          ),
         ),
-        actions: [
-          TextButton(
-            style: AppButtonStyles.textButton(context),
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              "Cancel",
-              style: AppTextStyles.body(context),
-            ),
-          ),
-          TextButton(
-            style: AppButtonStyles.textButton(context),
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              "Delete",
-              style: AppTextStyles.body(context).copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+      ],
+    ),
+  );
 
-    if (confirmDelete) {
-      try {
-        await _apiService.deleteTransaction(transactionId);
-        setState(() {
-          _loadData();
-        });
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Failed to delete transaction: $e',
-                style: AppTextStyles.body(context),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
+  if (confirmDelete == true) { // Исправлено: проверка confirmDelete
+    try {
+      await _apiService.deleteTransaction(transactionId);
+      setState(() {
+        _loadData();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete transaction: $e', style: AppTextStyles.body(context)),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     }
   }
+}
 
   Widget _buildDrawer() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -426,8 +345,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: FutureBuilder<Map<String, String>>(
         future: _userDataFuture,
         builder: (context, snapshot) {
-          final nickname = snapshot.data?['nickname'] ?? 'User';
-          final email = snapshot.data?['email'] ?? 'user@example.com';
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator(color: isDark ? AppColors.darkAccent : AppColors.lightAccent));
+          }
+          final username = snapshot.data?['username'] ?? 'User';
+          final email = snapshot.data?['email'] ?? 'No email provided';
 
           return ListView(
             padding: EdgeInsets.zero,
@@ -451,9 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Icon(
                           Icons.account_circle,
                           size: 50,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary,
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                         ),
                         IconButton(
                           icon: Icon(
@@ -462,92 +382,57 @@ class _HomeScreenState extends State<HomeScreen> {
                             size: 28,
                           ),
                           onPressed: () {
-                            Provider.of<ThemeProvider>(context, listen: false)
-                                .toggleTheme();
+                            Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
                           },
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      nickname,
+                      username, // Используем username вместо nickname
                       style: AppTextStyles.subheading(context),
                     ),
                     Text(
                       email,
                       style: AppTextStyles.body(context).copyWith(
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
               ListTile(
-                leading: Icon(
-                  Icons.home,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(
-                  'Home',
-                  style: AppTextStyles.body(context),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                },
+                leading: Icon(Icons.home, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                title: Text('Home', style: AppTextStyles.body(context)),
+                onTap: () => Navigator.pop(context),
               ),
               ListTile(
-                leading: Icon(
-                  Icons.history,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(
-                  'Transaction History',
-                  style: AppTextStyles.body(context),
-                ),
+                leading: Icon(Icons.history, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                title: Text('Transaction History', style: AppTextStyles.body(context)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/history');
                 },
               ),
               ListTile(
-                leading: Icon(
-                  Icons.bar_chart,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(
-                  'Reports',
-                  style: AppTextStyles.body(context),
-                ),
+                leading: Icon(Icons.bar_chart, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                title: Text('Reports', style: AppTextStyles.body(context)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/reports');
                 },
               ),
               ListTile(
-                leading: Icon(
-                  Icons.settings,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(
-                  'Settings',
-                  style: AppTextStyles.body(context),
-                ),
+                leading: Icon(Icons.settings, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                title: Text('Settings', style: AppTextStyles.body(context)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/settings');
                 },
               ),
               ListTile(
-                leading: Icon(
-                  Icons.logout,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(
-                  'Logout',
-                  style: AppTextStyles.body(context),
-                ),
+                leading: Icon(Icons.logout, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                title: Text('Logout', style: AppTextStyles.body(context)),
                 onTap: _showLogoutDialog,
               ),
             ],

@@ -265,43 +265,29 @@ class _LoginRegisterState extends State<LoginRegister> {
                           TextFormField(
                             controller: _emailController,
                             decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              labelText: 'Email (optional)',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              labelText: 'Email',
                               labelStyle: AppTextStyles.body(context).copyWith(
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary,
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                               ),
-                              prefixIcon: Icon(
-                                Icons.email,
-                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                              ),
+                              prefixIcon: Icon(Icons.email, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
                               filled: true,
-                              fillColor: isDark
-                                  ? AppColors.darkBackground.withOpacity(0.3)
-                                  : Colors.grey[100],
+                              fillColor: isDark ? AppColors.darkBackground.withOpacity(0.3) : Colors.grey[100],
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
-                                ),
+                                borderSide: BorderSide(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                                ),
+                                borderSide: BorderSide(color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
                               ),
                             ),
                             style: AppTextStyles.body(context),
                             validator: (value) {
-                              if (value != null &&
-                                  value.isNotEmpty &&
-                                  !value.contains('@')) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your email'; // Делаем email обязательным
+                              }
+                              if (!value.contains('@')) {
                                 return 'Please enter a valid email';
                               }
                               return null;

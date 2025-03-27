@@ -4,14 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:personal_finance/models/transaction.dart'; // Import the Transaction model
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8001/api"; // Adjust to your backend URL
+  static const String baseUrl = "http://localhost:8000/api"; // Adjust to your backend URL
+  // static const String baseUrl = "http://10.0.2.2:8001/api"; // Adjust to your backend URL
   String? _accessToken;
   String? _refreshToken;
 
   // Singleton instance
   static final ApiService _instance = ApiService._internal();
 
-  factory ApiService() => _instance;
+factory ApiService() => _instance;
 
   ApiService._internal();
 
@@ -65,12 +66,14 @@ class ApiService {
 
   Future<Map<String, dynamic>> getUserData() async {
     final token = await getAccessToken();
+  
+  
     if (token == null) {
       throw Exception('No access token found');
     }
 
     final response = await http.get(
-      Uri.parse('$baseUrl/user/'), // Adjust the endpoint as needed
+      Uri.parse('$baseUrl/users/me/'), // Adjust the endpoint as needed
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
