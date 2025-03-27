@@ -130,6 +130,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.50.250:8000",  # Replace with your computer's IP
     "http://192.168.50.250:8080",
 ]
+FRONTEND_URL = 'http://localhost:8000'  # Или другой URL вашего фронтенда
 
 # Allow these HTTP methods for CORS
 CORS_ALLOW_METHODS = [
@@ -184,3 +185,11 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Example: Gmail SMTP
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'tynybekovjanyshbek@gmail.com'
+EMAIL_HOST_PASSWORD = 'icbvlisqskeunccq'
+DEFAULT_FROM_EMAIL = 'tynybekovjanyshbek@gmail.com'

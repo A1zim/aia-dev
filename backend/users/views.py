@@ -1,63 +1,125 @@
 from decimal import Decimal
 from django.shortcuts import get_object_or_404
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView  # Use APIView consistently
-from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Sum
 from datetime import datetime
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
 
 from .models import User, Transaction, CategoryAmount
 from .serializers import UserSerializer, TransactionSerializer, CategoryAmountSerializer
 from .utils import api_response
 from .pagination import StandardResultsSetPagination
 
-# Import generics for list and detail views
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
+from django.core.mail import send_mail
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.conf import settings
 
+class TokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        return str(user.pk) + str(timestamp) + str(user.email_verified)
 
-class RegisterView(APIView):  # Changed from ApiView to APIView
-    """Register a new user"""
-    permission_classes = [AllowAny]  # Allow unauthenticated access
+account_activation_token = TokenGenerator()
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request):
         try:
+            print(f"Received data: {request.data}")
             serializer = UserSerializer(data=request.data)
             if serializer.is_valid():
-                # Check if username already exists
                 username = serializer.validated_data['username']
                 if User.objects.filter(username__iexact=username).exists():
+                    print(f"Username {username} already exists")
                     return Response(
                         {"error": "Username already exists"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                # Create the user with hashed password
+                print("Creating user...")
                 user = User.objects.create_user(
                     username=username,
                     password=serializer.validated_data['password'],
                     email=serializer.validated_data['email'],
-                    is_active=True  # Ensure the user is active
+                    is_active=True,
+                    email_verified=False
                 )
+                print(f"User created: {user.username}")
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = account_activation_token.make_token(user)
+                print("Generating verification link...")
+                verification_link = f"{settings.FRONTEND_URL}/api/verify-email/{uid}/{token}/"
+                print(f"Sending email to {user.email} with link {verification_link}")
+                send_mail(
+                    subject='Verify Your Email',
+                    message=f'Click the link to verify your email: {verification_link}',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+                print("Email sent successfully")
                 return Response(
-                    {"id": user.id, "username": user.username},
+                    {"message": "Registration successful. Please check your email to verify your account."},
                     status=status.HTTP_201_CREATED
                 )
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            print(f"Serializer errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # Log the error for debugging
             print(f"Error in RegisterView: {str(e)}")
             return Response(
-                {"error": f"Internal server error: {str(e)}"},
+                {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
 
+    def get(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
 
+        if user is not None and account_activation_token.check_token(user, token):
+            if not user.email_verified:
+                user.email_verified = True
+                user.save()
+                return Response(
+                    {"message": "Email verified successfully. You can now log in."},
+                    status=status.HTTP_200_OK
+                )
+            return Response(
+                {"message": "Email already verified."},
+                status=status.HTTP_200_OK
+            )
+        return Response(
+            {"error": "Invalid verification link."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.user
+        if not user.email_verified:
+            raise AuthenticationFailed(
+                detail="Email not verified. Please verify your email before logging in.",
+                code="email_not_verified"
+            )
+        return super().post(request, *args, **kwargs)
+    
 class UserListCreate(generics.ListCreateAPIView):
     """List and create users - restricted to the authenticated user only"""
     serializer_class = UserSerializer

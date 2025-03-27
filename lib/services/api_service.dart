@@ -37,15 +37,16 @@ factory ApiService() => _instance;
       body: json.encode({
         'username': username,
         'password': password,
-        if (email != null && email.isNotEmpty) 'email': email,
+        'email': email,
       }),
     );
 
     if (response.statusCode == 201) {
-      // Registration successful, now log the user in
-      await login(username, password);
+      // Registration successful, but don't log in yet
+      return; // We'll handle the message in the UI
     } else {
-      throw Exception('Failed to register: ${response.body}');
+      print("Register response: ${response.statusCode} ${response.body}");
+      throw Exception(json.decode(response.body)['error'] ?? 'Failed to register');
     }
   }
 
@@ -60,7 +61,8 @@ factory ApiService() => _instance;
       final data = json.decode(response.body);
       await saveTokens(data['access'], data['refresh']);
     } else {
-      throw Exception('Failed to login: ${response.body}');
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['detail'] ?? 'Failed to login');
     }
   }
 

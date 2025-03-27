@@ -9,8 +9,8 @@ class User(AbstractUser):
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     income = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     expense = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-
-    # Override groups and user_permissions with unique related_name
+    email_verified = models.BooleanField(default=False)
+    
     groups = models.ManyToManyField(
         'auth.Group',
         related_name='custom_user_groups',  # Unique reverse accessor

@@ -4,10 +4,11 @@ from .models import User, Transaction, CategoryAmount
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password']
+        fields = ['id', 'username', 'email', 'password', 'email_verified']
         extra_kwargs = {
             'password': {'write_only': True},
-            'id': {'read_only': True}
+            'id': {'read_only': True},
+            'email_verified': {'read_only': True}
         }
 
 class TransactionSerializer(serializers.ModelSerializer):

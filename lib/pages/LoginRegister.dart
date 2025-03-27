@@ -28,7 +28,6 @@ class _LoginRegisterState extends State<LoginRegister> {
       setState(() => _isLoading = true);
       try {
         if (_isLogin) {
-          // Login
           await _apiService.login(
             _usernameController.text.trim(),
             _passwordController.text.trim(),
@@ -37,40 +36,53 @@ class _LoginRegisterState extends State<LoginRegister> {
             Navigator.pushReplacementNamed(context, '/main');
           }
         } else {
-          // Registration
           await _apiService.register(
             _usernameController.text.trim(),
             _passwordController.text.trim(),
-            email: _emailController.text.trim().isEmpty
-                ? null
-                : _emailController.text.trim(),
+            email: _emailController.text.trim(),
           );
-          // Note: The register method already logs the user in, so no need to call login again
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  "Registered successfully! Logging you in...",
+                  "Registration successful! Please verify your email.",
                   style: AppTextStyles.body(context),
                 ),
                 backgroundColor: Theme.of(context).colorScheme.primary,
               ),
             );
-            Navigator.pushReplacementNamed(context, '/main');
+            setState(() {
+              _isLogin = true; // Switch to login mode after registration
+              _usernameController.clear();
+              _passwordController.clear();
+              _emailController.clear();
+            });
           }
         }
       } catch (e) {
         if (mounted) {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                errorMessage,
-                style: AppTextStyles.body(context),
+          if (errorMessage == "Email not verified. Please verify your email before logging in.") {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  "Please verify your email before logging in.",
+                  style: AppTextStyles.body(context),
+                ),
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  errorMessage,
+                  style: AppTextStyles.body(context),
+                ),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
         }
       } finally {
         if (mounted) {
