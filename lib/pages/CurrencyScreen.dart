@@ -52,7 +52,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         if (currency == 'KGS') {
           rates[currency] = 1.0;
         } else {
-          final rate = _currencyApiService.getConversionRate('KGS', currency);
+          // Calculate the rate as 1 unit of the currency to KGS
+          final rate = _currencyApiService.getConversionRate(currency, 'KGS');
           rates[currency] = rate;
         }
       }
@@ -103,7 +104,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         rates[currency] = 1.0;
       } else {
         try {
-          final rate = _currencyApiService.getConversionRate('KGS', currency);
+          // Calculate the rate as 1 unit of the currency to KGS
+          final rate = _currencyApiService.getConversionRate(currency, 'KGS');
           rates[currency] = rate;
         } catch (e) {
           continue;
@@ -145,7 +147,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     try {
       await _apiService.addUserCurrency(currency);
 
-      final rate = currency == 'KGS' ? 1.0 : _currencyApiService.getConversionRate('KGS', currency);
+      final rate = currency == 'KGS' ? 1.0 : _currencyApiService.getConversionRate(currency, 'KGS');
 
       setState(() {
         _currencies.add(currency);

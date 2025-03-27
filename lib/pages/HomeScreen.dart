@@ -58,10 +58,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchSummaryData() async {
     try {
       final summary = await _apiService.getFinancialSummary();
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+      final currentCurrency = currencyProvider.currency;
+
+      // Convert summary amounts from KGS to the current currency
+      final totalIncomeInKGS = summary['total_income']?.toDouble() ?? 0.0;
+      final totalExpensesInKGS = summary['total_expense']?.toDouble() ?? 0.0;
+      final balanceInKGS = summary['balance']?.toDouble() ?? 0.0;
+
       setState(() {
-        _totalIncome = summary['total_income']?.toDouble() ?? 0.0;
-        _totalExpenses = summary['total_expense']?.toDouble() ?? 0.0;
-        _balance = summary['balance']?.toDouble() ?? 0.0;
+        _totalIncome = _convertAmount(totalIncomeInKGS, null, null, currentCurrency);
+        _totalExpenses = _convertAmount(totalExpensesInKGS, null, null, currentCurrency);
+        _balance = _convertAmount(balanceInKGS, null, null, currentCurrency);
       });
     } catch (e) {
       if (mounted) {
@@ -89,6 +97,22 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
       return [];
+    }
+  }
+
+  // Method to convert amounts to the current currency
+  double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
+    // If originalAmount and originalCurrency are provided and match the target currency, use originalAmount
+    if (originalAmount != null && originalCurrency != null && originalCurrency == targetCurrency) {
+      return originalAmount;
+    }
+    // Otherwise, convert from KGS to the target currency
+    try {
+      final rate = _currencyApiService.getConversionRate('KGS', targetCurrency);
+      return amountInKGS * rate;
+    } catch (e) {
+      print('Error converting amount: $e');
+      return amountInKGS; // Fallback to KGS if conversion fails
     }
   }
 
@@ -141,21 +165,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     SummaryCard(
                       title: 'Income',
-                      amount: '${currencyProvider.convertAmount(_totalIncome).toStringAsFixed(2)} $currencySymbol',
+                      amount: _totalIncome.toStringAsFixed(2),
+                      currencySymbol: currencySymbol,
                       color: Colors.green,
                       icon: Icons.arrow_downward,
                     ),
                     const SizedBox(height: 12),
                     SummaryCard(
                       title: 'Expenses',
-                      amount: '${currencyProvider.convertAmount(_totalExpenses).toStringAsFixed(2)} $currencySymbol',
+                      amount: _totalExpenses.toStringAsFixed(2),
+                      currencySymbol: currencySymbol,
                       color: Colors.red,
                       icon: Icons.arrow_upward,
                     ),
                     const SizedBox(height: 12),
                     SummaryCard(
                       title: 'Balance',
-                      amount: '${currencyProvider.convertAmount(_balance).toStringAsFixed(2)} $currencySymbol',
+                      amount: _balance.toStringAsFixed(2),
+                      currencySymbol: currencySymbol,
                       color: Colors.blue,
                       icon: Icons.account_balance_wallet,
                     ),
@@ -260,6 +287,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
     bool isIncome = transaction.type == 'income';
 
+    // Convert the transaction amount to the current currency
+    final convertedAmount = _convertAmount(
+      transaction.amount,
+      transaction.originalAmount,
+      transaction.originalCurrency,
+      currencyProvider.currency,
+    );
+
     return Card(
       elevation: 2,
       margin: EdgeInsets.fromLTRB(10, 6, 10, isLast ? 16 : 6),
@@ -288,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         trailing: Text(
-          '${currencyProvider.convertAmount(transaction.amount).toStringAsFixed(2)} $currencySymbol',
+          '${convertedAmount.toStringAsFixed(2)} $currencySymbol',
           style: AppTextStyles.body(context).copyWith(
             color: isIncome ? Colors.green : Colors.red,
             fontWeight: FontWeight.bold,

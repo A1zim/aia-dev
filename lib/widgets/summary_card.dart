@@ -4,6 +4,7 @@ import 'package:personal_finance/theme/styles.dart';
 class SummaryCard extends StatelessWidget {
   final String title;
   final String amount;
+  final String currencySymbol; // Add this parameter
   final Color color;
   final IconData icon;
 
@@ -11,6 +12,7 @@ class SummaryCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.amount,
+    required this.currencySymbol,
     required this.color,
     required this.icon,
   });
@@ -47,7 +49,7 @@ class SummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  amount,
+                  '$amount $currencySymbol', // Display amount with currency symbol
                   style: AppTextStyles.body(context).copyWith(
                     color: color,
                     fontWeight: FontWeight.bold,

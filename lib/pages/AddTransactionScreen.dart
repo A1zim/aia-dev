@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/services/currency_api_service.dart';
 import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'dart:io'; // For SocketException
@@ -27,6 +28,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _displayCurrency = 'KGS'; // Currency for the amount displayed in the TextFormField
 
   final ApiService _apiService = ApiService();
+  final CurrencyApiService _currencyApiService = CurrencyApiService();
 
   List<String> _expenseCategories = [
     'food',
@@ -50,6 +52,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   void initState() {
     super.initState();
+    final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+
     if (widget.transaction != null) {
       // Edit mode: Populate fields with transaction data
       _descriptionController.text = widget.transaction!.description;
@@ -58,7 +62,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _selectedDate = DateTime.parse(widget.transaction!.timestamp);
 
       // Determine the amount to display in the TextFormField
-      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
         // Use originalAmount and originalCurrency if available
         _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
@@ -67,11 +70,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         // Fallback to amount in KGS and convert to current currency
         double amountInCurrentCurrency = widget.transaction!.amount;
         if (currencyProvider.currency != 'KGS') {
-          amountInCurrentCurrency = widget.transaction!.amount * currencyProvider.exchangeRate;
+          try {
+            double conversionRate = _currencyApiService.getConversionRate('KGS', currencyProvider.currency);
+            amountInCurrentCurrency = widget.transaction!.amount * conversionRate;
+          } catch (e) {
+            print('Error converting amount for edit: $e');
+            // Fallback to KGS if conversion fails
+            _displayCurrency = 'KGS';
+          }
         }
         _amountController.text = amountInCurrentCurrency.toStringAsFixed(2);
         _displayCurrency = currencyProvider.currency;
       }
+    } else {
+      // Add mode: Set _displayCurrency to the app's selected currency
+      _displayCurrency = currencyProvider.currency;
     }
   }
 
@@ -102,27 +115,34 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         _isLoading = true;
       });
 
+      // Define transactionCurrency at a higher scope
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+      final String transactionCurrency = widget.transaction != null ? _displayCurrency : currencyProvider.currency;
+
       try {
-        final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
         final double enteredAmount = double.parse(_amountController.text);
 
-        // Determine the currency of the entered amount
-        String transactionCurrency = widget.transaction != null ? _displayCurrency : currencyProvider.currency;
-
-        // Convert the entered amount to KGS
+        // Convert the entered amount to KGS using CurrencyApiService
         double amountInKGS;
+        double conversionRate;
         if (transactionCurrency == 'KGS') {
           amountInKGS = enteredAmount;
+          conversionRate = 1.0;
         } else {
-          // Find the exchange rate for the transaction's currency
-          double exchangeRate = currencyProvider.exchangeRate;
-          if (widget.transaction != null && _displayCurrency != currencyProvider.currency) {
-            // If editing and the display currency isn't the current currency,
-            // we need the exchange rate from the display currency to KGS.
-            exchangeRate = currencyProvider.getExchangeRateForCurrency(_displayCurrency);
+          // Fetch the conversion rate for the transaction's currency to KGS
+          conversionRate = _currencyApiService.getConversionRate(transactionCurrency, 'KGS');
+          amountInKGS = enteredAmount * conversionRate;
+
+          // Verify that the conversion rate matches CurrencyProvider
+          if (transactionCurrency == currencyProvider.currency && conversionRate != currencyProvider.exchangeRate) {
+            print('Warning: CurrencyProvider exchange rate (${currencyProvider.exchangeRate}) does not match CurrencyApiService rate ($conversionRate) for $transactionCurrency');
           }
-          amountInKGS = enteredAmount / exchangeRate;
         }
+
+        // Log the values for debugging
+        print('Entered Amount: $enteredAmount $transactionCurrency');
+        print('Conversion Rate ($transactionCurrency to KGS): $conversionRate');
+        print('Converted Amount in KGS: $amountInKGS KGS');
 
         final transaction = Transaction(
           id: widget.transaction?.id ?? 0,
@@ -136,6 +156,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           originalCurrency: transactionCurrency,
           originalAmount: enteredAmount,
         );
+
+        // Log the transaction object
+        print('Transaction to Save: ${transaction.toString()}');
 
         if (widget.transaction == null) {
           await _apiService.addTransaction(transaction);
@@ -159,6 +182,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           if (e is SocketException) {
             errorMessage = 'Network error. Please check your connection.';
+          } else if (e.toString().contains('Unsupported currency')) {
+            final currencySymbol = _currencyApiService.getCurrencySymbol(transactionCurrency);
+            errorMessage = 'The selected currency ($currencySymbol) is not supported.';
           }
 
           NotificationService.showNotification(
@@ -213,13 +239,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     List<String> _categories =
     _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
-    // Calculate the amount in KGS for display
     double enteredAmount = double.tryParse(_amountController.text) ?? 0.0;
-    double amountInKGS = enteredAmount;
-    if (_displayCurrency != 'KGS') {
-      double exchangeRate = currencyProvider.getExchangeRateForCurrency(_displayCurrency);
-      amountInKGS = enteredAmount / exchangeRate;
-    }
+    final displayCurrencySymbol = _currencyApiService.getCurrencySymbol(_displayCurrency);
+    final kgsSymbol = _currencyApiService.getCurrencySymbol('KGS');
 
     return Scaffold(
       appBar: AppBar(
@@ -261,44 +283,81 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      DropdownButtonFormField<String>(
-                        value: _selectedType,
-                        decoration: AppInputStyles.dropdown(context, labelText: 'Type'),
-                        items: ['expense', 'income'].map((type) {
-                          final typeColor = _getTypeColor(type);
-                          return DropdownMenuItem<String>(
-                            value: type,
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: typeColor,
-                                    shape: BoxShape.circle,
+                      // Type Toggle Buttons (Expense <-> Income)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: widget.transaction != null
+                                  ? null // Disable in edit mode
+                                  : () {
+                                setState(() {
+                                  _selectedType = 'expense';
+                                  _selectedCategory = 'food';
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _selectedType == 'expense'
+                                    ? _getTypeColor('expense')
+                                    : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.horizontal(
+                                    left: Radius.circular(12),
+                                    right: Radius.zero,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(type.capitalize()),
-                              ],
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: Text(
+                                'Expense',
+                                style: AppTextStyles.body(context).copyWith(
+                                  color: _selectedType == 'expense'
+                                      ? Colors.white
+                                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedType = value!;
-                            _selectedCategory = _selectedType == 'expense' ? 'food' : 'salary';
-                          });
-                        },
-                        style: AppTextStyles.body(context),
-                        dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
-                        icon: AppInputStyles.dropdownProperties(context)['icon'],
-                        menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
-                        borderRadius: AppInputStyles.dropdownProperties(context)['borderRadius'],
-                        elevation: AppInputStyles.dropdownProperties(context)['elevation'],
+                          ),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: widget.transaction != null
+                                  ? null // Disable in edit mode
+                                  : () {
+                                setState(() {
+                                  _selectedType = 'income';
+                                  _selectedCategory = 'salary';
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _selectedType == 'income'
+                                    ? _getTypeColor('income')
+                                    : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.horizontal(
+                                    left: Radius.zero,
+                                    right: Radius.circular(12),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: Text(
+                                'Income',
+                                style: AppTextStyles.body(context).copyWith(
+                                  color: _selectedType == 'income'
+                                      ? Colors.white
+                                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
+                      // Category Dropdown
                       DropdownButtonFormField<String>(
                         value: _selectedCategory,
                         decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
@@ -336,10 +395,30 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      // Description Field
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: AppInputStyles.textField(context).copyWith(
+                          labelText: 'Description',
+                          prefixIcon: const Icon(
+                            Icons.description,
+                            size: 24,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a description';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Amount Field with Currency Symbol
                       TextFormField(
                         controller: _amountController,
                         decoration: AppInputStyles.textField(context).copyWith(
-                          labelText: 'Amount',
+                          labelText: 'Amount ($displayCurrencySymbol)',
                           prefixIcon: const Icon(
                             Icons.attach_money,
                             size: 24,
@@ -362,34 +441,50 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       const SizedBox(height: 16),
 
                       if (_displayCurrency != 'KGS')
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: Text(
-                            'Amount in KGS: ${amountInKGS.toStringAsFixed(2)} KGS',
-                            style: AppTextStyles.body(context).copyWith(
-                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                            ),
+
+                        // Auto-converted Amount in KGS
+                        FutureBuilder<double>(
+                          future: Future.value(
+                            _displayCurrency != 'KGS'
+                                ? _currencyApiService.getConversionRate(_displayCurrency, 'KGS')
+                                : 1.0,
                           ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.only(bottom: 16.0),
+                                child: Text(
+                                  'Calculating amount in KGS...',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: Text(
+                                  'Error calculating amount in KGS: ${snapshot.error}',
+                                  style: AppTextStyles.body(context).copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                ),
+                              );
+                            }
+                            double conversionRate = snapshot.data ?? 1.0;
+                            double amountInKGS = enteredAmount * conversionRate;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: Text(
+                                'Amount in KGS: ${amountInKGS.toStringAsFixed(2)} $kgsSymbol',
+                                style: AppTextStyles.body(context).copyWith(
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                ),
+                              ),
+                            );
+                          },
                         ),
 
-                      TextFormField(
-                        controller: _descriptionController,
-                        decoration: AppInputStyles.textField(context).copyWith(
-                          labelText: 'Description',
-                          prefixIcon: const Icon(
-                            Icons.description,
-                            size: 24,
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a description';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
+                      // Date Picker
                       ListTile(
                         title: Text(
                           "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}",
@@ -458,12 +553,4 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
-}
-
-extension CurrencyProviderExtension on CurrencyProvider {
-  double getExchangeRateForCurrency(String currency) {
-    // In a real app, this might fetch the exchange rate for the specific currency
-    // For now, we assume the exchangeRate in CurrencyProvider is always relative to KGS
-    return currency == this.currency ? this.exchangeRate : 1.0;
-  }
 }

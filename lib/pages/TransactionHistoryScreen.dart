@@ -230,6 +230,19 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return filterTypeColors[filterType] ?? Colors.grey.withOpacity(0.8);
   }
 
+  double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
+    if (originalAmount != null && originalCurrency != null && originalCurrency == targetCurrency) {
+      return originalAmount;
+    }
+    try {
+      final rate = _currencyApiService.getConversionRate('KGS', targetCurrency);
+      return amountInKGS * rate;
+    } catch (e) {
+      print('Error converting amount: $e');
+      return amountInKGS; // Fallback to KGS if conversion fails
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -390,7 +403,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isExpanded = _expandedIndex == index;
     final isIncome = transaction.type == 'income';
-    final convertedAmount = currencyProvider.convertAmount(transaction.amount);
+    final convertedAmount = _convertAmount(
+      transaction.amount,
+      transaction.originalAmount,
+      transaction.originalCurrency,
+      currencyProvider.currency,
+    );
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -207,22 +207,25 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       );
 
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+      final currentCurrency = currencyProvider.currency;
 
       final Map<String, double> categorySpending = {};
       if (selectedType == 'income') {
         final incomeSpending = Map<String, dynamic>.from(reports['income_by_category']);
         incomeSpending.forEach((key, value) {
           if (key != null && value != null) {
-            final amount = (value is double) ? value : double.parse(value.toString());
-            categorySpending[key] = currencyProvider.convertAmount(amount);
+            final amountInKGS = (value is double) ? value : double.parse(value.toString());
+            final convertedAmount = _convertAmount(amountInKGS, null, null, currentCurrency);
+            categorySpending[key] = convertedAmount;
           }
         });
       } else {
         final expenseSpending = Map<String, dynamic>.from(reports['expense_by_category']);
         expenseSpending.forEach((key, value) {
           if (key != null && value != null) {
-            final amount = (value is double) ? value : double.parse(value.toString());
-            categorySpending[key] = currencyProvider.convertAmount(amount);
+            final amountInKGS = (value is double) ? value : double.parse(value.toString());
+            final convertedAmount = _convertAmount(amountInKGS, null, null, currentCurrency);
+            categorySpending[key] = convertedAmount;
           }
         });
       }
@@ -232,8 +235,12 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       for (var transaction in transactions) {
         if (transaction['type'] == selectedType) {
           final date = transaction['timestamp'].substring(0, 7);
-          final amount = double.parse(transaction['amount'].toString());
-          final convertedAmount = currencyProvider.convertAmount(amount);
+          final amountInKGS = double.parse(transaction['amount'].toString());
+          final originalAmount = transaction['original_amount'] != null
+              ? double.parse(transaction['original_amount'].toString())
+              : null;
+          final originalCurrency = transaction['original_currency'] as String?;
+          final convertedAmount = _convertAmount(amountInKGS, originalAmount, originalCurrency, currentCurrency);
           monthlySpending[date] = (monthlySpending[date] ?? 0) + convertedAmount;
         }
       }
@@ -343,6 +350,19 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         message: 'Failed to load data: $e',
         isError: true,
       );
+    }
+  }
+
+  double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
+    if (originalAmount != null && originalCurrency != null && originalCurrency == targetCurrency) {
+      return originalAmount;
+    }
+    try {
+      final rate = _currencyApiService.getConversionRate('KGS', targetCurrency);
+      return amountInKGS * rate;
+    } catch (e) {
+      print('Error converting amount: $e');
+      return amountInKGS; // Fallback to KGS if conversion fails
     }
   }
 
