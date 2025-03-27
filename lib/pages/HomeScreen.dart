@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/notification_service.dart';
+import 'package:personal_finance/services/currency_api_service.dart';
 import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
+  final CurrencyApiService _currencyApiService = CurrencyApiService();
   late Future<List<Transaction>> _transactionsFuture;
   late Future<Map<String, String>> _userDataFuture;
 
@@ -74,7 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Transaction>> _fetchTransactions() async {
     try {
-      return await _apiService.getTransactions();
+      final transactions = await _apiService.getTransactions();
+      // Sort transactions by timestamp (newest first) and take the 10 most recent
+      transactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return transactions.take(10).toList();
     } catch (e) {
       if (mounted) {
         NotificationService.showNotification(
@@ -87,21 +92,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String _getCurrencySymbol(String currency) {
-    const symbols = {
-      'KGS': 'KGS ',
-      'USD': '\$',
-      'EUR': '€',
-      'INR': '₹',
-    };
-    return symbols[currency] ?? '$currency ';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final currencySymbol = _getCurrencySymbol(currencyProvider.currency);
+    final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
 
     return Scaffold(
       appBar: AppBar(
@@ -129,115 +124,145 @@ class _HomeScreenState extends State<HomeScreen> {
         parentContext: context,
       ),
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                SummaryCard(
-                  title: 'Income',
-                  amount: '$currencySymbol${currencyProvider.convertAmount(_totalIncome).toStringAsFixed(2)}',
-                  color: Colors.green,
-                  icon: Icons.arrow_downward,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {
+            _loadData();
+          });
+        },
+        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    SummaryCard(
+                      title: 'Income',
+                      amount: '${currencyProvider.convertAmount(_totalIncome).toStringAsFixed(2)} $currencySymbol',
+                      color: Colors.green,
+                      icon: Icons.arrow_downward,
+                    ),
+                    const SizedBox(height: 12),
+                    SummaryCard(
+                      title: 'Expenses',
+                      amount: '${currencyProvider.convertAmount(_totalExpenses).toStringAsFixed(2)} $currencySymbol',
+                      color: Colors.red,
+                      icon: Icons.arrow_upward,
+                    ),
+                    const SizedBox(height: 12),
+                    SummaryCard(
+                      title: 'Balance',
+                      amount: '${currencyProvider.convertAmount(_balance).toStringAsFixed(2)} $currencySymbol',
+                      color: Colors.blue,
+                      icon: Icons.account_balance_wallet,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final result = await Navigator.pushNamed(context, '/add_transaction');
+                          if (result == true) {
+                            setState(() {
+                              _loadData();
+                            });
+                          }
+                        },
+                        style: AppButtonStyles.elevatedButton(context).copyWith(
+                          padding: WidgetStateProperty.all(
+                            const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                        child: Text(
+                          'Add Transaction',
+                          style: AppTextStyles.body(context).copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                SummaryCard(
-                  title: 'Expenses',
-                  amount: '$currencySymbol${currencyProvider.convertAmount(_totalExpenses).toStringAsFixed(2)}',
-                  color: Colors.red,
-                  icon: Icons.arrow_upward,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Recents',
+                    style: AppTextStyles.subheading(context),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                SummaryCard(
-                  title: 'Balance',
-                  amount: '$currencySymbol${currencyProvider.convertAmount(_balance).toStringAsFixed(2)}',
-                  color: Colors.blue,
-                  icon: Icons.account_balance_wallet,
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                setState(() {
-                  _loadData();
-                });
-              },
-              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-              child: FutureBuilder<List<Transaction>>(
+              ),
+              FutureBuilder<List<Transaction>>(
                 future: _transactionsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(
+                        child: CircularProgressIndicator(),
                       ),
                     );
                   } else if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        'Error: ${snapshot.error}',
-                        style: AppTextStyles.body(context).copyWith(
-                          color: Theme.of(context).colorScheme.error,
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: Text(
+                          'Error: ${snapshot.error}',
+                          style: AppTextStyles.body(context).copyWith(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                     );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No transactions yet.',
-                        style: AppTextStyles.body(context).copyWith(
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary,
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Center(
+                        child: Text(
+                          'No transactions yet.',
+                          style: AppTextStyles.body(context).copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary,
+                          ),
                         ),
                       ),
                     );
                   }
 
                   final transactions = snapshot.data!;
-                  return ListView.builder(
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = transactions[index];
-                      return _buildTransactionTile(transaction);
-                    },
+                  return Column(
+                    children: transactions.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final transaction = entry.value;
+                      return _buildTransactionTile(transaction, index == transactions.length - 1);
+                    }).toList(),
                   );
                 },
               ),
-            ),
+              // Add extra padding at the bottom to ensure the last transaction is fully visible
+              const SizedBox(height: 16),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.pushNamed(context, '/add_transaction');
-          if (result == true) {
-            setState(() {
-              _loadData();
-            });
-          }
-        },
-        backgroundColor: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-        child: Icon(
-          Icons.add,
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
         ),
       ),
     );
   }
 
-  Widget _buildTransactionTile(Transaction transaction) {
+  Widget _buildTransactionTile(Transaction transaction, bool isLast) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final currencySymbol = _getCurrencySymbol(currencyProvider.currency);
+    final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
     bool isIncome = transaction.type == 'income';
 
     return Card(
       elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      margin: EdgeInsets.fromLTRB(10, 6, 10, isLast ? 16 : 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       child: ListTile(
@@ -263,132 +288,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         trailing: Text(
-          '$currencySymbol${currencyProvider.convertAmount(transaction.amount).toStringAsFixed(2)}',
+          '${currencyProvider.convertAmount(transaction.amount).toStringAsFixed(2)} $currencySymbol',
           style: AppTextStyles.body(context).copyWith(
             color: isIncome ? Colors.green : Colors.red,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
         ),
-        onTap: () => _showTransactionActions(context, transaction),
       ),
     );
-  }
-
-  void _showTransactionActions(BuildContext context, Transaction transaction) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            "Transaction Actions",
-            style: AppTextStyles.subheading(context),
-          ),
-          content: Text(
-            "What would you like to do?",
-            style: AppTextStyles.body(context),
-          ),
-          actions: [
-            TextButton(
-              style: AppButtonStyles.textButton(context),
-              onPressed: () {
-                Navigator.pop(context);
-                _editTransaction(transaction);
-              },
-              child: Text(
-                "Edit",
-                style: AppTextStyles.body(context),
-              ),
-            ),
-            TextButton(
-              style: AppButtonStyles.textButton(context),
-              onPressed: () async {
-                Navigator.pop(context);
-                await _deleteTransaction(transaction.id);
-              },
-              child: Text(
-                "Delete",
-                style: AppTextStyles.body(context).copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _editTransaction(Transaction transaction) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddTransactionScreen(transaction: transaction),
-      ),
-    );
-
-    if (result == true) {
-      setState(() {
-        _loadData();
-      });
-    }
-  }
-
-  Future<void> _deleteTransaction(int transactionId) async {
-    bool confirmDelete = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          "Delete Transaction",
-          style: AppTextStyles.subheading(context),
-        ),
-        content: Text(
-          "Are you sure you want to delete this transaction?",
-          style: AppTextStyles.body(context),
-        ),
-        actions: [
-          TextButton(
-            style: AppButtonStyles.textButton(context),
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              "Cancel",
-              style: AppTextStyles.body(context),
-            ),
-          ),
-          TextButton(
-            style: AppButtonStyles.textButton(context),
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              "Delete",
-              style: AppTextStyles.body(context).copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmDelete) {
-      try {
-        await _apiService.deleteTransaction(transactionId);
-        NotificationService.showNotification(
-          context,
-          message: 'Transaction deleted successfully',
-        );
-        setState(() {
-          _loadData();
-        });
-      } catch (e) {
-        if (mounted) {
-          NotificationService.showNotification(
-            context,
-            message: 'Failed to delete transaction: $e',
-            isError: true,
-          );
-        }
-      }
-    }
   }
 }
 

@@ -119,10 +119,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           if (widget.transaction != null && _displayCurrency != currencyProvider.currency) {
             // If editing and the display currency isn't the current currency,
             // we need the exchange rate from the display currency to KGS.
-            // For simplicity, we assume the exchange rate in CurrencyProvider
-            // is always relative to KGS, so we can use it.
-            // If the backend provided historical rates, we'd need to fetch the rate
-            // for _displayCurrency at the time of the transaction.
             exchangeRate = currencyProvider.getExchangeRateForCurrency(_displayCurrency);
           }
           amountInKGS = enteredAmount / exchangeRate;
@@ -179,6 +175,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         }
       }
     }
+  }
+
+  // Add a method to get a color for each category based on its name
+  Color _getCategoryColor(String category) {
+    final Map<String, Color> categoryColors = {
+      'food': const Color(0xFFEF5350), // Red for food
+      'transport': const Color(0xFF42A5F5), // Blue for transport
+      'housing': const Color(0xFFAB47BC), // Purple for housing
+      'utilities': const Color(0xFF26C6DA), // Cyan for utilities
+      'entertainment': const Color(0xFFFFCA28), // Yellow for entertainment
+      'healthcare': const Color(0xFF4CAF50), // Green for healthcare
+      'education': const Color(0xFFFF8A65), // Orange for education
+      'shopping': const Color(0xFFD4E157), // Lime for shopping
+      'other_expense': const Color(0xFF90A4AE), // Grey for other_expense
+      'salary': const Color(0xFF66BB6A), // Light Green for salary
+      'gift': const Color(0xFFF06292), // Pink for gift
+      'interest': const Color(0xFF29B6F6), // Light Blue for interest
+      'other_income': const Color(0xFF78909C), // Blue Grey for other_income
+    };
+    return categoryColors[category] ?? Colors.grey.withOpacity(0.8);
+  }
+
+  // Add a method to get a color for each transaction type
+  Color _getTypeColor(String type) {
+    final Map<String, Color> typeColors = {
+      'expense': const Color(0xFFEF5350), // Red for expense
+      'income': const Color(0xFF4CAF50), // Green for income
+    };
+    return typeColors[type] ?? Colors.grey.withOpacity(0.8);
   }
 
   @override
@@ -239,9 +264,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       DropdownButtonFormField<String>(
                         value: _selectedType,
                         decoration: AppInputStyles.dropdown(context, labelText: 'Type'),
-                        items: ['expense', 'income']
-                            .map((type) => AppInputStyles.dropdownMenuItem(context, type, type.capitalize()))
-                            .toList(),
+                        items: ['expense', 'income'].map((type) {
+                          final typeColor = _getTypeColor(type);
+                          return DropdownMenuItem<String>(
+                            value: type,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: typeColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(type.capitalize()),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                         onChanged: (value) {
                           setState(() {
                             _selectedType = value!;
@@ -260,9 +302,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       DropdownButtonFormField<String>(
                         value: _selectedCategory,
                         decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
-                        items: _categories
-                            .map((category) => AppInputStyles.dropdownMenuItem(context, category, category.capitalize()))
-                            .toList(),
+                        items: _categories.map((category) {
+                          final categoryColor = _getCategoryColor(category);
+                          return DropdownMenuItem<String>(
+                            value: category,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: categoryColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(category.capitalize()),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                         onChanged: (value) {
                           setState(() {
                             _selectedCategory = value!;
@@ -280,7 +339,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       TextFormField(
                         controller: _amountController,
                         decoration: AppInputStyles.textField(context).copyWith(
-                          labelText: 'Amount ($_displayCurrency)',
+                          labelText: 'Amount',
                           prefixIcon: const Icon(
                             Icons.attach_money,
                             size: 24,

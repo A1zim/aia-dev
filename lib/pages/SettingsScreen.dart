@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
-import 'package:personal_finance/services/notification_service.dart'; // Added NotificationService
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
@@ -129,6 +129,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Add a method to get a color for each currency based on its code
+  Color _getCurrencyColor(String currency) {
+    final Map<String, Color> currencyColors = {
+      'KGS': const Color(0xFFEF5350), // Red for KGS
+      'USD': const Color(0xFF4CAF50), // Green for USD
+      'EUR': const Color(0xFF42A5F5), // Blue for EUR
+      'JPY': const Color(0xFFFFCA28), // Yellow for JPY
+      'GBP': const Color(0xFFAB47BC), // Purple for GBP
+      'AED': const Color(0xFF26C6DA), // Cyan for AED
+    };
+    return currencyColors[currency] ?? Colors.grey.withOpacity(0.8);
+  }
+
+  // Add a method to get a color for each language
+  Color _getLanguageColor(String language) {
+    final Map<String, Color> languageColors = {
+      'en': const Color(0xFFEF5350), // Red for English
+      'ky': const Color(0xFF4CAF50), // Green for Kyrgyz
+      'ru': const Color(0xFF42A5F5), // Blue for Russian
+    };
+    return languageColors[language] ?? Colors.grey.withOpacity(0.8);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -206,26 +229,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 title: Text(AppLocalizations.of(context)!.selectCurrency,
                     style: AppTextStyles.body(context).copyWith(fontSize: 16)),
-                subtitle: DropdownButtonFormField<String>(
-                  value: _availableCurrencies.contains(_selectedCurrency) ? _selectedCurrency : 'KGS',
-                  onChanged: _isLoading ? null : _selectCurrency,
-                  decoration: AppInputStyles.dropdown(context, labelText: 'Currency'),
-                  items: _availableCurrencies.map((currency) {
-                    final country = _currencyApiService.getCountryForCurrency(currency);
-                    return DropdownMenuItem<String>(
-                      value: currency,
-                      child: Text('$currency - $country'),
-                    );
-                  }).toList(),
-                  itemHeight: 50,
-                  style: AppTextStyles.body(context).copyWith(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                  ),
-                  dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                  icon: AppInputStyles.dropdownIcon(context),
-                  menuMaxHeight: 300.0,
-                  borderRadius: BorderRadius.circular(16),
-                  elevation: 8,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: _availableCurrencies.contains(_selectedCurrency) ? _selectedCurrency : 'KGS',
+                      onChanged: _isLoading ? null : _selectCurrency,
+                      decoration: AppInputStyles.dropdown(context, labelText: 'Currency'),
+                      items: _availableCurrencies.map((currency) {
+                        final country = _currencyApiService.getCountryForCurrency(currency);
+                        final currencyColor = _getCurrencyColor(currency);
+                        return DropdownMenuItem<String>(
+                          value: currency,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: currencyColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text('$currency - $country'),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      itemHeight: 50,
+                      style: AppTextStyles.body(context).copyWith(
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                      dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                      icon: AppInputStyles.dropdownIcon(context),
+                      menuMaxHeight: 300.0,
+                      borderRadius: BorderRadius.circular(16),
+                      elevation: 8,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 56.0, top: 8.0), // Align with the dropdown
+                      child: Text(
+                        '1 KGS = ${_exchangeRate.toStringAsFixed(3)} $_selectedCurrency',
+                        style: AppTextStyles.body(context).copyWith(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 trailing: _isLoading
                     ? SizedBox(
@@ -258,7 +309,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     DropdownMenuItem(value: 'en', child: Text('English')),
                     DropdownMenuItem(value: 'ky', child: Text('Kyrgyz')),
                     DropdownMenuItem(value: 'ru', child: Text('Russian')),
-                  ],
+                  ].map((item) {
+                    final languageColor = _getLanguageColor(item.value!);
+                    return DropdownMenuItem<String>(
+                      value: item.value,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: languageColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(item.child.toString().replaceAll('Text("', '').replaceAll('")', '')),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                   itemHeight: 50,
                 ),
               ),

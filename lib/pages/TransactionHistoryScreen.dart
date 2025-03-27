@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/pages/AddTransactionScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/services/currency_api_service.dart';
 import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart'; // Import CurrencyProvider
+import 'package:personal_finance/providers/currency_provider.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -15,6 +16,7 @@ class TransactionHistoryScreen extends StatefulWidget {
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   final ApiService _apiService = ApiService();
+  final CurrencyApiService _currencyApiService = CurrencyApiService();
   List<Transaction> _transactions = [];
   String _searchQuery = "";
   String _filterType = "All";
@@ -205,21 +207,34 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return confirmed ?? false;
   }
 
-  String _getCurrencySymbol(String currency) {
-    const symbols = {
-      'KGS': 'KGS ',
-      'USD': '\$',
-      'EUR': '€',
-      'INR': '₹',
+  // Method to cycle through filter types
+  void _cycleFilterType() {
+    setState(() {
+      if (_filterType == "All") {
+        _filterType = "Expense";
+      } else if (_filterType == "Expense") {
+        _filterType = "Income";
+      } else {
+        _filterType = "All";
+      }
+    });
+  }
+
+  // Add a method to get a color for each filter type
+  Color _getFilterTypeColor(String filterType) {
+    final Map<String, Color> filterTypeColors = {
+      'All': const Color(0xFF78909C), // Blue Grey for All
+      'Income': const Color(0xFF4CAF50), // Green for Income
+      'Expense': const Color(0xFFEF5350), // Red for Expense
     };
-    return symbols[currency] ?? '$currency ';
+    return filterTypeColors[filterType] ?? Colors.grey.withOpacity(0.8);
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final currencySymbol = _getCurrencySymbol(currencyProvider.currency);
+    final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
 
     List<Transaction> filteredTransactions = _transactions.where((transaction) {
       final matchesSearch =
@@ -235,15 +250,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           "Transaction History",
           style: AppTextStyles.heading(context),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.filter_list,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-            ),
-            onPressed: () => _showFilterModal(),
-          ),
-        ],
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -271,7 +277,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         child: Column(
           children: [
-            _buildSearchBar(),
+            _buildSearchAndFilterRow(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadTransactions,
@@ -291,7 +297,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   itemCount: filteredTransactions.length,
                   itemBuilder: (context, index) {
                     final transaction = filteredTransactions[index];
-                    return _buildTransactionCard(transaction, index, currencyProvider, currencySymbol);
+                    return _buildTransactionCard(
+                        transaction, index, currencyProvider, currencySymbol);
                   },
                 ),
               ),
@@ -302,54 +309,84 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchAndFilterRow() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: TextField(
-        decoration: AppInputStyles.textField(context).copyWith(
-          labelText: 'Search Transactions',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-            icon: Icon(
-              Icons.clear,
-              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-            ),
-            onPressed: () {
-              setState(() {
-                _searchQuery = "";
-              });
-            },
-          )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+      child: Row(
+        children: [
+          // Filter button (25% width)
+          Expanded(
+            flex: 25,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton(
+                onPressed: _cycleFilterType,
+                style: AppButtonStyles.elevatedButton(context).copyWith(
+                  backgroundColor: WidgetStateProperty.all(_getFilterTypeColor(_filterType)),
+                  padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 12)),
+                ),
+                child: Text(
+                  _filterType,
+                  style: AppTextStyles.body(context).copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-              width: 2,
+          // Search bar (75% width)
+          Expanded(
+            flex: 75,
+            child: TextField(
+              decoration: AppInputStyles.textField(context).copyWith(
+                labelText: 'Search Transactions',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = "";
+                    });
+                  },
+                )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
             ),
           ),
-        ),
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-          });
-        },
+        ],
       ),
     );
   }
 
-  Widget _buildTransactionCard(Transaction transaction, int index, CurrencyProvider currencyProvider, String currencySymbol) {
+  Widget _buildTransactionCard(Transaction transaction, int index,
+      CurrencyProvider currencyProvider, String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isExpanded = _expandedIndex == index;
     final isIncome = transaction.type == 'income';
@@ -360,121 +397,150 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       elevation: 3,
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      child: Dismissible(
-        key: Key(transaction.id.toString()),
-        direction: DismissDirection.horizontal,
-        background: Container(
-          padding: const EdgeInsets.only(left: 20),
-          color: Colors.green,
-          alignment: Alignment.centerLeft,
-          child: const Icon(Icons.edit, color: Colors.white),
-        ),
-        secondaryBackground: Container(
-          padding: const EdgeInsets.only(right: 20),
-          color: Colors.red,
-          alignment: Alignment.centerRight,
-          child: const Icon(Icons.delete, color: Colors.white),
-        ),
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.endToStart) {
-            final confirmed = await _confirmDeleteTransaction(transaction.id, index);
-            if (confirmed) {
-              await _deleteTransaction(transaction.id, index);
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Dismissible(
+          key: Key(transaction.id.toString()),
+          direction: DismissDirection.horizontal,
+          background: Container(
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            padding: const EdgeInsets.only(left: 20),
+            alignment: Alignment.centerLeft,
+            child: const Icon(Icons.edit, color: Colors.green, size: 30),
+          ),
+          secondaryBackground: Container(
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            padding: const EdgeInsets.only(right: 20),
+            alignment: Alignment.centerRight,
+            child: const Icon(Icons.delete, color: Colors.red, size: 30),
+          ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.endToStart) {
+              final confirmed = await _confirmDeleteTransaction(transaction.id, index);
+              if (confirmed) {
+                await _deleteTransaction(transaction.id, index);
+              }
+              return false;
+            } else if (direction == DismissDirection.startToEnd) {
+              _editTransaction(transaction);
+              return false;
             }
             return false;
-          } else if (direction == DismissDirection.startToEnd) {
-            _editTransaction(transaction);
-            return false;
-          }
-          return false;
-        },
-        child: ExpansionTile(
-          onExpansionChanged: (expanded) {
-            setState(() {
-              if (expanded) {
-                _expandedIndex = index;
-              } else {
-                _expandedIndex = null;
-              }
-            });
           },
-          title: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: isIncome ? Colors.green[100] : Colors.red[100],
-                child: Icon(
-                  isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                  color: isIncome ? Colors.green : Colors.red,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  transaction.description,
-                  style: AppTextStyles.body(context).copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "$currencySymbol${convertedAmount.toStringAsFixed(2)}",
-                style: AppTextStyles.body(context).copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isIncome ? Colors.green : Colors.red,
-                ),
-              ),
-            ],
-          ),
-          subtitle: Text(
-            "${StringExtension(transaction.category).capitalize()} - ${transaction.timestamp.split("T")[0]}",
-            style: AppTextStyles.body(context).copyWith(
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-            ),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedIndex = null;
+                } else {
+                  _expandedIndex = index;
+                }
+              });
+            },
+            child: Container(
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow(
-                    "Description",
-                    transaction.description,
-                    context,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: isIncome ? Colors.green[100] : Colors.red[100],
+                          child: Icon(
+                            isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                            color: isIncome ? Colors.green : Colors.red,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                transaction.description,
+                                style: AppTextStyles.body(context).copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                "${StringExtension(transaction.category).capitalize()} - ${transaction.timestamp.split("T")[0]}",
+                                style: AppTextStyles.body(context).copyWith(
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "${convertedAmount.toStringAsFixed(2)} $currencySymbol",
+                          style: AppTextStyles.body(context).copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isIncome ? Colors.green : Colors.red,
+                          ),
+                        ),
+                        Icon(
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  _buildDetailRow(
-                    "Category",
-                    StringExtension(transaction.category).capitalize(),
-                    context,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDetailRow(
-                    "Amount",
-                    "$currencySymbol${convertedAmount.toStringAsFixed(2)}",
-                    context,
-                    valueColor: isIncome ? Colors.green : Colors.red,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDetailRow(
-                    "Type",
-                    StringExtension(transaction.type).capitalize(),
-                    context,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDetailRow(
-                    "Date",
-                    transaction.timestamp.split("T")[0],
-                    context,
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: isExpanded ? null : 0,
+                    child: isExpanded
+                        ? Container(
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDetailRow(
+                              "Description",
+                              transaction.description,
+                              context,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(
+                              "Category",
+                              StringExtension(transaction.category).capitalize(),
+                              context,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(
+                              "Amount",
+                              "${convertedAmount.toStringAsFixed(2)} $currencySymbol",
+                              context,
+                              valueColor: isIncome ? Colors.green : Colors.red,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(
+                              "Type",
+                              StringExtension(transaction.type).capitalize(),
+                              context,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(
+                              "Date",
+                              transaction.timestamp.split("T")[0],
+                              context,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                        : const SizedBox.shrink(),
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -503,49 +569,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  void _showFilterModal() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Container(
-          padding: const EdgeInsets.all(16.0),
-          height: 200,
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Filter Transactions",
-                style: AppTextStyles.subheading(context),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _filterType,
-                decoration: AppInputStyles.dropdown(context, labelText: 'Filter by Type'),
-                items: ["All", "Income", "Expense"]
-                    .map((type) => AppInputStyles.dropdownMenuItem(context, type, type))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _filterType = value!;
-                  });
-                  Navigator.pop(context);
-                },
-                style: AppInputStyles.dropdownProperties(context)['style'],
-                dropdownColor: AppInputStyles.dropdownProperties(context)['dropdownColor'],
-                icon: AppInputStyles.dropdownProperties(context)['icon'],
-                menuMaxHeight: AppInputStyles.dropdownProperties(context)['menuMaxHeight'],
-                borderRadius: AppInputStyles.dropdownProperties(context)['borderRadius'],
-                elevation: AppInputStyles.dropdownProperties(context)['elevation'],
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

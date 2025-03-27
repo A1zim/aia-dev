@@ -255,6 +255,20 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     }
   }
 
+  // Add a method to get a color for each currency based on its code
+  Color _getCurrencyColor(String currency) {
+    final Map<String, Color> currencyColors = {
+      'KGS': const Color(0xFFEF5350), // Red for KGS
+      'USD': const Color(0xFF4CAF50), // Green for USD
+      'EUR': const Color(0xFF42A5F5), // Blue for EUR
+      'JPY': const Color(0xFFFFCA28), // Yellow for JPY
+      'GBP': const Color(0xFFAB47BC), // Purple for GBP
+      'AED': const Color(0xFF26C6DA), // Cyan for AED
+    };
+
+    return currencyColors[currency] ?? Colors.grey.withOpacity(0.8);
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -343,6 +357,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                   final country = _currencyToCountry[currency] ?? 'Unknown';
                   final rate = _exchangeRates[currency] ?? 1.0;
                   final isSelected = currencyProvider.currency == currency;
+                  final currencyColor = _getCurrencyColor(currency);
 
                   return Card(
                     elevation: 2,
@@ -354,8 +369,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: isSelected
-                            ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                            ? currencyColor
+                            : currencyColor.withOpacity(0.3),
                         child: Text(
                           currency,
                           style: TextStyle(
@@ -428,6 +443,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                           final currency = _filteredCurrencies[index];
                           final country = _currencyToCountry[currency] ?? 'Unknown';
                           final rate = _filteredExchangeRates[currency] ?? 1.0;
+                          final currencyColor = _getCurrencyColor(currency);
 
                           return Card(
                             elevation: 1,
@@ -437,6 +453,16 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                             ),
                             color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                             child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: currencyColor.withOpacity(0.3),
+                                child: Text(
+                                  currency,
+                                  style: TextStyle(
+                                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                               title: Text(
                                 '$currency - $country',
                                 style: AppTextStyles.body(context),
