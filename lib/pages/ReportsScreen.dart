@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/services/notification_service.dart'; // Added NotificationService
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
@@ -413,12 +413,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   bool _areFiltersApplied() {
-    return selectedType != 'expense' || selectedStartDate != null || selectedEndDate != null || selectedCategories.isNotEmpty;
+    // Only consider date range and category filters, not the selectedType
+    return selectedStartDate != null || selectedEndDate != null || selectedCategories.isNotEmpty;
   }
 
   void _clearFilters() {
     setState(() {
-      selectedType = 'expense';
+      // Do not reset selectedType, keep it as is (either 'income' or 'expense')
       selectedStartDate = null;
       selectedEndDate = null;
       selectedCategories.clear();
