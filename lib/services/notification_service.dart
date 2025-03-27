@@ -8,11 +8,8 @@ class NotificationService {
       BuildContext context, {
         required String message,
         bool isError = false,
-        Duration duration = const Duration(seconds: 3),
-        String? actionLabel, // Optional action label
-        VoidCallback? onAction, // Optional action callback
+        Duration duration = const Duration(seconds: 2),
       }) {
-    // Remove any existing notification
     _overlayEntry?.remove();
     _overlayEntry = null;
 
@@ -20,20 +17,18 @@ class NotificationService {
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: 50.0, // Position at the top
+        top: 50.0,
         left: 16.0,
         right: 16.0,
-        child: _AnimatedNotification(
+        child: _CuteAnimatedNotification(
           message: message,
           isError: isError,
           isDark: isDark,
+          duration: duration,
           onDismiss: () {
             _overlayEntry?.remove();
             _overlayEntry = null;
           },
-          duration: duration,
-          actionLabel: actionLabel,
-          onAction: onAction,
         ),
       ),
     );
@@ -42,63 +37,59 @@ class NotificationService {
   }
 }
 
-class _AnimatedNotification extends StatefulWidget {
+class _CuteAnimatedNotification extends StatefulWidget {
   final String message;
   final bool isError;
   final bool isDark;
-  final VoidCallback onDismiss;
   final Duration duration;
-  final String? actionLabel;
-  final VoidCallback? onAction;
+  final VoidCallback onDismiss;
 
-  const _AnimatedNotification({
+  const _CuteAnimatedNotification({
     required this.message,
     required this.isError,
     required this.isDark,
-    required this.onDismiss,
     required this.duration,
-    this.actionLabel,
-    this.onAction,
+    required this.onDismiss,
   });
 
   @override
-  __AnimatedNotificationState createState() => __AnimatedNotificationState();
+  __CuteAnimatedNotificationState createState() => __CuteAnimatedNotificationState();
 }
 
-class __AnimatedNotificationState extends State<_AnimatedNotification>
+class __CuteAnimatedNotificationState extends State<_CuteAnimatedNotification>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
 
     _controller.forward();
 
-    // Auto-dismiss after the specified duration
     Future.delayed(widget.duration, () {
       if (mounted) {
-        _controller.reverse().then((_) {
-          widget.onDismiss();
-        });
+        _dismiss();
       }
+    });
+  }
+
+  void _dismiss() {
+    _controller.reverse().then((_) {
+      widget.onDismiss();
     });
   }
 
@@ -112,76 +103,58 @@ class __AnimatedNotificationState extends State<_AnimatedNotification>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: widget.isError
-                    ? [Colors.redAccent, Colors.red]
-                    : [Colors.green, Colors.greenAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: widget.isDark ? AppColors.darkShadow : AppColors.lightShadow,
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  widget.isError ? Icons.error : Icons.check_circle,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.message,
-                    style: AppTextStyles.body(context).copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: GestureDetector(
+          onTap: _dismiss,
+          child: Material(
+            elevation: 12,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              height: 100,
+              decoration: BoxDecoration(
+                color: widget.isError
+                    ? Colors.redAccent // Solid red for errors
+                    : const Color(0xFF009E60), // Shamrock green for success
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.isDark ? AppColors.darkShadow : AppColors.lightShadow,
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
-                ),
-                if (widget.actionLabel != null && widget.onAction != null)
-                  TextButton(
-                    onPressed: () {
-                      widget.onAction!();
-                      _controller.reverse().then((_) {
-                        widget.onDismiss();
-                      });
-                    },
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    widget.isError ? Icons.favorite_border : Icons.check,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
                     child: Text(
-                      widget.actionLabel!,
-                      style: const TextStyle(
+                      widget.message,
+                      style: AppTextStyles.body(context).copyWith(
                         color: Colors.white,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        fontFamily: 'Comic Sans MS',
+                        shadows: [
+                          Shadow(
+                            color: Colors.black26,
+                            offset: Offset(1, 1),
+                            blurRadius: 2,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    _controller.reverse().then((_) {
-                      widget.onDismiss();
-                    });
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
