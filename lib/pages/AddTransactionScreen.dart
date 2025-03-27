@@ -24,6 +24,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _selectedCategory = 'food';
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
+  String _displayCurrency = 'KGS'; // Currency for the amount displayed in the TextFormField
 
   final ApiService _apiService = ApiService();
 
@@ -50,11 +51,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void initState() {
     super.initState();
     if (widget.transaction != null) {
+      // Edit mode: Populate fields with transaction data
       _descriptionController.text = widget.transaction!.description;
-      _amountController.text = widget.transaction!.originalAmount?.toString() ?? widget.transaction!.amount.toString();
       _selectedType = widget.transaction!.type;
       _selectedCategory = widget.transaction!.category;
       _selectedDate = DateTime.parse(widget.transaction!.timestamp);
+
+      // Determine the amount to display in the TextFormField
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+      if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
+        // Use originalAmount and originalCurrency if available
+        _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
+        _displayCurrency = widget.transaction!.originalCurrency!;
+      } else {
+        // Fallback to amount in KGS and convert to current currency
+        double amountInCurrentCurrency = widget.transaction!.amount;
+        if (currencyProvider.currency != 'KGS') {
+          amountInCurrentCurrency = widget.transaction!.amount * currencyProvider.exchangeRate;
+        }
+        _amountController.text = amountInCurrentCurrency.toStringAsFixed(2);
+        _displayCurrency = currencyProvider.currency;
+      }
     }
   }
 
@@ -89,11 +106,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
         final double enteredAmount = double.parse(_amountController.text);
 
+        // Determine the currency of the entered amount
+        String transactionCurrency = widget.transaction != null ? _displayCurrency : currencyProvider.currency;
+
+        // Convert the entered amount to KGS
         double amountInKGS;
-        if (currencyProvider.currency == 'KGS') {
+        if (transactionCurrency == 'KGS') {
           amountInKGS = enteredAmount;
         } else {
-          amountInKGS = enteredAmount / currencyProvider.exchangeRate;
+          // Find the exchange rate for the transaction's currency
+          double exchangeRate = currencyProvider.exchangeRate;
+          if (widget.transaction != null && _displayCurrency != currencyProvider.currency) {
+            // If editing and the display currency isn't the current currency,
+            // we need the exchange rate from the display currency to KGS.
+            // For simplicity, we assume the exchange rate in CurrencyProvider
+            // is always relative to KGS, so we can use it.
+            // If the backend provided historical rates, we'd need to fetch the rate
+            // for _displayCurrency at the time of the transaction.
+            exchangeRate = currencyProvider.getExchangeRateForCurrency(_displayCurrency);
+          }
+          amountInKGS = enteredAmount / exchangeRate;
         }
 
         final transaction = Transaction(
@@ -105,7 +137,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           description: _descriptionController.text,
           timestamp: _selectedDate.toIso8601String(),
           username: widget.transaction?.username ?? '',
-          originalCurrency: currencyProvider.currency,
+          originalCurrency: transactionCurrency,
           originalAmount: enteredAmount,
         );
 
@@ -156,10 +188,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     List<String> _categories =
     _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
+    // Calculate the amount in KGS for display
     double enteredAmount = double.tryParse(_amountController.text) ?? 0.0;
     double amountInKGS = enteredAmount;
-    if (currencyProvider.currency != 'KGS') {
-      amountInKGS = enteredAmount / currencyProvider.exchangeRate;
+    if (_displayCurrency != 'KGS') {
+      double exchangeRate = currencyProvider.getExchangeRateForCurrency(_displayCurrency);
+      amountInKGS = enteredAmount / exchangeRate;
     }
 
     return Scaffold(
@@ -246,7 +280,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       TextFormField(
                         controller: _amountController,
                         decoration: AppInputStyles.textField(context).copyWith(
-                          labelText: 'Amount (${currencyProvider.currency})',
+                          labelText: 'Amount ($_displayCurrency)',
                           prefixIcon: const Icon(
                             Icons.attach_money,
                             size: 24,
@@ -268,7 +302,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      if (currencyProvider.currency != 'KGS')
+                      if (_displayCurrency != 'KGS')
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: Text(
@@ -365,4 +399,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
+}
+
+extension CurrencyProviderExtension on CurrencyProvider {
+  double getExchangeRateForCurrency(String currency) {
+    // In a real app, this might fetch the exchange rate for the specific currency
+    // For now, we assume the exchangeRate in CurrencyProvider is always relative to KGS
+    return currency == this.currency ? this.exchangeRate : 1.0;
+  }
 }
