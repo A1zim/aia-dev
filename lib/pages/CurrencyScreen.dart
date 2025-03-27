@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
@@ -51,7 +52,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         if (currency == 'KGS') {
           rates[currency] = 1.0;
         } else {
-          final rate = _currencyApiService.getConversionRate('KGS', currency);
+          // Calculate the rate as 1 unit of the currency to KGS
+          final rate = _currencyApiService.getConversionRate(currency, 'KGS');
           rates[currency] = rate;
         }
       }
@@ -66,6 +68,11 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         _errorMessage = 'Failed to load currencies: $e';
         _isLoading = false;
       });
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to load currencies: $e',
+        isError: true,
+      );
     }
   }
 
@@ -88,9 +95,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
     final filtered = _allCurrencies.where((currency) {
       final country = _currencyToCountry[currency] ?? '';
-      return (currency.toUpperCase().contains(query) ||
-          country.toUpperCase().contains(query)) &&
-          !_currencies.contains(currency);
+      return (currency.toUpperCase().contains(query) || country.toUpperCase().contains(query)) && !_currencies.contains(currency);
     }).toList();
 
     final rates = <String, double>{};
@@ -99,7 +104,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         rates[currency] = 1.0;
       } else {
         try {
-          final rate = _currencyApiService.getConversionRate('KGS', currency);
+          // Calculate the rate as 1 unit of the currency to KGS
+          final rate = _currencyApiService.getConversionRate(currency, 'KGS');
           rates[currency] = rate;
         } catch (e) {
           continue;
@@ -119,14 +125,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     await currencyProvider.setCurrency(currency, rate);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Currency changed to $currency',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Colors.green,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: 'Currency changed to $currency',
       );
 
       // Close the drawer if it's open
@@ -146,9 +147,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     try {
       await _apiService.addUserCurrency(currency);
 
-      final rate = currency == 'KGS'
-          ? 1.0
-          : _currencyApiService.getConversionRate('KGS', currency);
+      final rate = currency == 'KGS' ? 1.0 : _currencyApiService.getConversionRate(currency, 'KGS');
 
       setState(() {
         _currencies.add(currency);
@@ -159,14 +158,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       await currencyProvider.refreshCurrencies();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$currency added successfully',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Colors.green,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: '$currency added successfully',
       );
 
       await _fetchCurrencies();
@@ -178,28 +172,20 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         errorMessage = 'KGS is included by default and cannot be added';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            errorMessage,
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: errorMessage,
+        isError: true,
       );
     }
   }
 
   void _deleteCurrency(String currency) async {
     if (currency == 'KGS') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Cannot delete KGS',
-            style: AppTextStyles.body(context),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      NotificationService.showNotification(
+        context,
+        message: 'Cannot delete KGS',
+        isError: true,
       );
       return;
     }
@@ -255,29 +241,34 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
         await currencyProvider.refreshCurrencies();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '$currency deleted successfully',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Colors.green,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: '$currency deleted successfully',
         );
 
         await _fetchCurrencies();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to delete currency: $e',
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: 'Failed to delete currency: $e',
+          isError: true,
         );
       }
     }
+  }
+
+  // Add a method to get a color for each currency based on its code
+  Color _getCurrencyColor(String currency) {
+    final Map<String, Color> currencyColors = {
+      'KGS': const Color(0xFFEF5350), // Red for KGS
+      'USD': const Color(0xFF4CAF50), // Green for USD
+      'EUR': const Color(0xFF42A5F5), // Blue for EUR
+      'JPY': const Color(0xFFFFCA28), // Yellow for JPY
+      'GBP': const Color(0xFFAB47BC), // Purple for GBP
+      'AED': const Color(0xFF26C6DA), // Cyan for AED
+    };
+
+    return currencyColors[currency] ?? Colors.grey.withOpacity(0.8);
   }
 
   @override
@@ -314,7 +305,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       ),
       drawer: CustomDrawer(
         currentRoute: '/currency',
-        parentContext: context, // Pass the context as parentContext
+        parentContext: context,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -368,6 +359,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                   final country = _currencyToCountry[currency] ?? 'Unknown';
                   final rate = _exchangeRates[currency] ?? 1.0;
                   final isSelected = currencyProvider.currency == currency;
+                  final currencyColor = _getCurrencyColor(currency);
 
                   return Card(
                     elevation: 2,
@@ -379,8 +371,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: isSelected
-                            ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                            ? currencyColor
+                            : currencyColor.withOpacity(0.3),
                         child: Text(
                           currency,
                           style: TextStyle(
@@ -453,6 +445,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                           final currency = _filteredCurrencies[index];
                           final country = _currencyToCountry[currency] ?? 'Unknown';
                           final rate = _filteredExchangeRates[currency] ?? 1.0;
+                          final currencyColor = _getCurrencyColor(currency);
 
                           return Card(
                             elevation: 1,
@@ -462,6 +455,16 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                             ),
                             color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                             child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: currencyColor.withOpacity(0.3),
+                                child: Text(
+                                  currency,
+                                  style: TextStyle(
+                                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                               title: Text(
                                 '$currency - $country',
                                 style: AppTextStyles.body(context),
@@ -473,7 +476,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                 ),
                               ),
                               trailing: IconButton(
-                                icon: Icon(
+                                icon: const Icon(
                                   Icons.add,
                                   color: Colors.green,
                                 ),

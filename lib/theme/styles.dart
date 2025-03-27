@@ -154,6 +154,22 @@ class AppButtonStyles {
       ),
     );
   }
+
+  // Add outlinedButton style
+  static ButtonStyle outlinedButton(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return OutlinedButton.styleFrom(
+      foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      side: BorderSide(
+        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+        width: 1.5,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
 }
 
 // Define input decoration styles (for dropdowns, text fields, etc.)
@@ -343,6 +359,15 @@ class AppTheme {
           ),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.lightTextPrimary,
+          side: const BorderSide(color: AppColors.lightAccent, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
       cardTheme: CardTheme(
         elevation: 8,
         shape: RoundedRectangleBorder(
@@ -388,6 +413,15 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.darkAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.darkTextPrimary,
+          side: const BorderSide(color: AppColors.darkAccent, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

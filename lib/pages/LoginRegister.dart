@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
@@ -45,16 +46,10 @@ class _LoginRegisterState extends State<LoginRegister> {
                 ? null
                 : _emailController.text.trim(),
           );
-          // Note: The register method already logs the user in, so no need to call login again
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  "Registered successfully! Logging you in...",
-                  style: AppTextStyles.body(context),
-                ),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-              ),
+            NotificationService.showNotification(
+              context,
+              message: "Registered successfully! Logging you in...",
             );
             Navigator.pushReplacementNamed(context, '/main');
           }
@@ -62,14 +57,10 @@ class _LoginRegisterState extends State<LoginRegister> {
       } catch (e) {
         if (mounted) {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                errorMessage,
-                style: AppTextStyles.body(context),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+          NotificationService.showNotification(
+            context,
+            message: errorMessage,
+            isError: true,
           );
         }
       } finally {
@@ -126,7 +117,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                             const Icon(
                               Icons.account_circle,
                               size: 80,
-                              color: AppColors.lightAccent, // Kept as lightAccent for visibility
+                              color: AppColors.lightAccent,
                             ),
                             IconButton(
                               icon: Icon(
