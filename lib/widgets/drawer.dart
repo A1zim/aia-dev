@@ -6,12 +6,12 @@ import 'package:personal_finance/providers/theme_provider.dart';
 
 class CustomDrawer extends StatefulWidget {
   final String currentRoute;
-  final BuildContext parentContext; // Add parentContext parameter
+  final BuildContext parentContext;
 
   const CustomDrawer({
     super.key,
     required this.currentRoute,
-    required this.parentContext, // Require parentContext
+    required this.parentContext,
   });
 
   @override
@@ -49,13 +49,32 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
       return {
         'username': userData['username'] ?? 'Unknown',
         'email': userData['email'] ?? 'user@example.com',
+        'nickname': userData['nickname'] ?? '', // Fetch nickname
       };
     } catch (e) {
       return {
         'username': 'Unknown',
         'email': 'user@example.com',
+        'nickname': '',
       };
     }
+  }
+
+  // Helper function to truncate email to 18 characters
+  String _truncateEmail(String email) {
+    final parts = email.split('@');
+    if (parts.length != 2) return email; // Invalid email format
+
+    final localPart = parts[0];
+    final domainPart = parts[1];
+
+    // Show first 7 characters of local part, then "...", then domain
+    const maxLocalLength = 7;
+    if (localPart.length <= maxLocalLength) {
+      return email; // If local part is short, return as is
+    }
+
+    return '${localPart.substring(0, maxLocalLength)}...@$domainPart';
   }
 
   void _showLogoutDialog(BuildContext context) {
@@ -86,10 +105,9 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                 final apiService = ApiService();
                 await apiService.clearTokens();
                 Navigator.pop(context); // Close the dialog
-                // Wait for the dialog to close before navigating
                 await Future.delayed(const Duration(milliseconds: 300));
                 Navigator.pushNamedAndRemoveUntil(
-                  widget.parentContext, // Use parentContext for navigation
+                  widget.parentContext,
                   '/',
                       (route) => false,
                 );
@@ -107,13 +125,10 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
     );
   }
 
-  // Helper method to close the drawer and navigate after the animation
   void _navigateAfterDrawerClose(String route) {
-    // Close the drawer using the drawer's context
     Navigator.pop(context);
-    // Navigate to the new route using the parentContext
     Navigator.pushNamedAndRemoveUntil(
-      widget.parentContext, // Use parentContext instead of the drawer's context
+      widget.parentContext,
       route,
           (route) => false,
     );
@@ -183,6 +198,10 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
 
             final username = snapshot.data?['username'] ?? 'Unknown';
             final email = snapshot.data?['email'] ?? 'user@example.com';
+            final nickname = snapshot.data?['nickname'] ?? '';
+
+            // Use nickname if available, otherwise fall back to username
+            final displayName = nickname.isNotEmpty ? nickname : username;
 
             return ListView(
               padding: EdgeInsets.zero,
@@ -203,13 +222,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            Icons.account_circle,
-                            size: 50,
-                            color: isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary,
-                          ),
+                          const SizedBox(width: 50), // Placeholder to maintain layout
                           IconButton(
                             icon: Icon(
                               isDark ? Icons.wb_sunny : Icons.nightlight_round,
@@ -225,11 +238,11 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        username,
+                        displayName,
                         style: AppTextStyles.subheading(context),
                       ),
                       Text(
-                        email,
+                        _truncateEmail(email),
                         style: AppTextStyles.body(context).copyWith(
                           color: isDark
                               ? AppColors.darkTextSecondary
@@ -253,7 +266,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                     if (widget.currentRoute != '/main') {
                       _navigateAfterDrawerClose('/main');
                     } else {
-                      Navigator.pop(context); // Just close the drawer if already on the page
+                      Navigator.pop(context);
                     }
                   },
                 ),
@@ -304,7 +317,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                   ),
                   onTap: () {
                     Navigator.pop(context);
-                    _showLogoutDialog(widget.parentContext); // Use parentContext for the dialog
+                    _showLogoutDialog(widget.parentContext);
                   },
                 ),
               ],

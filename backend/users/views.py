@@ -1,4 +1,8 @@
+import random
+import string
 from decimal import Decimal
+from django.core.mail import send_mail
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -8,7 +12,7 @@ from django.db import transaction
 from django.db.models import Sum
 from datetime import datetime
 
-from .models import User, Transaction, CategoryAmount, UserCurrency
+from .models import User, Transaction, CategoryAmount, UserCurrency, VerificationCode
 from .serializers import UserSerializer, TransactionSerializer, CategoryAmountSerializer, UserCurrencySerializer
 from .utils import api_response
 from .pagination import StandardResultsSetPagination
@@ -17,31 +21,65 @@ from .pagination import StandardResultsSetPagination
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
+from django.contrib.auth.hashers import check_password
+from django.contrib.auth import authenticate, login
+from rest_framework_simplejwt.tokens import RefreshToken
 
-class RegisterView(APIView):  # Changed from ApiView to APIView
-    """Register a new user"""
-    permission_classes = [AllowAny]  # Allow unauthenticated access
+class RegisterView(APIView):
+    """Register a new user and send a verification email"""
+    permission_classes = [AllowAny]
 
     def post(self, request):
         try:
             serializer = UserSerializer(data=request.data)
             if serializer.is_valid():
-                # Check if username already exists
                 username = serializer.validated_data['username']
+                email = serializer.validated_data['email']
+
+                # Check if username or email already exists
                 if User.objects.filter(username__iexact=username).exists():
                     return Response(
                         {"error": "Username already exists"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                # Create the user with hashed password
+                if User.objects.filter(email__iexact=email).exists():
+                    return Response(
+                        {"error": "Email already exists"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Create user with is_active=False and is_verified=False
                 user = User.objects.create_user(
                     username=username,
                     password=serializer.validated_data['password'],
-                    email=serializer.validated_data['email'],
-                    is_active=True  # Ensure the user is active
+                    email=email,
+                    is_active=False,  # User can't log in until verified
+                    is_verified=False
                 )
+
+                # Create and save verification code
+                verification_code = VerificationCode(user=user)
+                verification_code.save()
+
+                # Send verification email
+                subject = "Verify Your Email Address"
+                message = (
+                    f"Hi {username},\n\n"
+                    f"Please use the following 6-digit code to verify your email:\n\n"
+                    f"{verification_code.code}\n\n"
+                    f"This code expires in 15 minutes.\n\n"
+                    f"Regards,\nYour App Team"
+                )
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+
                 return Response(
-                    {"id": user.id, "username": user.username},
+                    {"id": user.id, "username": user.username, "message": "Verification code sent to your email"},
                     status=status.HTTP_201_CREATED
                 )
             return Response(
@@ -49,13 +87,194 @@ class RegisterView(APIView):  # Changed from ApiView to APIView
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
-            # Log the error for debugging
             print(f"Error in RegisterView: {str(e)}")
             return Response(
                 {"error": f"Internal server error: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class VerifyEmailView(APIView):
+    """Verify user's email with the 6-digit code"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            email = request.data.get('email')
+            code = request.data.get('code')
+
+            if not email or not code:
+                return Response(
+                    {"error": "Email and code are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user = User.objects.filter(email=email).first()
+            if not user:
+                return Response(
+                    {"error": "User with this email does not exist"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            verification_code = VerificationCode.objects.filter(user=user).first()
+            if not verification_code:
+                return Response(
+                    {"error": "No verification code found for this user"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if verification_code.is_expired():
+                verification_code.delete()
+                return Response(
+                    {"error": "Verification code has expired. Please register again."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if verification_code.code != code:
+                return Response(
+                    {"error": "Invalid verification code"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Activate the user
+            user.is_verified = True
+            user.is_active = True
+            user.save()
+            verification_code.delete()  # Clean up the code after verification
+
+            return Response(
+                {"message": "Email verified successfully"},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Error in VerifyEmailView: {str(e)}")
+            return Response(
+                {"error": f"Internal server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                {"error": "Email is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User with this email does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Generate a 6-digit code
+        code = ''.join(random.choices(string.digits, k=6))
+        user.temporary_code = code  # Assuming you add a `temporary_code` field to your User model
+        user.save()
+
+        # Send email
+        send_mail(
+            subject='Your Temporary Password',
+            message=f'Here is your password: {code}. Don’t forget to change it!',
+            from_email='azimiwenbaev@gmail.com',
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        return Response(
+            {"message": "A 6-digit code has been sent to your email"},
+            status=status.HTTP_200_OK
+        )
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]  # Allow unauthenticated users to access this endpoint
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # First, try to authenticate with the actual password
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            # If authentication fails, check the temporary code
+            try:
+                user = User.objects.get(username=username)
+                if user.temporary_code and user.temporary_code == password:
+                    # Update the user's password to the temporary code
+                    user.set_password(password)
+                    user.temporary_code = None  # Clear the temporary code
+                    user.save()
+                    # Log the user in by generating tokens
+                    refresh = RefreshToken.for_user(user)
+                    return Response(
+                        {
+                            "message": "Login successful with temporary code. Password updated.",
+                            "access": str(refresh.access_token),
+                            "refresh": str(refresh),
+                        },
+                        status=status.HTTP_200_OK
+                    )
+            except User.DoesNotExist:
+                pass
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # If authentication succeeds with the password, generate tokens
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "message": "Login successful",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_200_OK
+        )
+
+class ChangePasswordView(APIView):
+    """Change the authenticated user's password"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            old_password = request.data.get('old_password')
+            new_password = request.data.get('new_password')
+
+            if not old_password or not new_password:
+                return Response(
+                    {"error": "Old password and new password are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user = request.user
+            if not check_password(old_password, user.password):
+                return Response(
+                    {"error": "Old password is incorrect"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.set_password(new_password)
+            user.save()
+
+            return Response(
+                {"message": "Password changed successfully"},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Internal server error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class UserListCreate(generics.ListCreateAPIView):
     """List and create users - restricted to the authenticated user only"""
