@@ -6,6 +6,7 @@ import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -176,7 +177,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     } catch (e) {
       NotificationService.showNotification(
         context,
-        message: 'Failed to load categories: $e',
+        message: AppLocalizations.of(context)!.failedToLoadCategories(e.toString()),
         isError: true,
       );
     }
@@ -347,7 +348,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       });
       NotificationService.showNotification(
         context,
-        message: 'Failed to load data: $e',
+        message: AppLocalizations.of(context)!.failedToLoadData(e.toString()),
         isError: true,
       );
     }
@@ -407,6 +408,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   String _getMonthLabel(int month) {
+    // Using localized month abbreviations could be added here if desired
     const months = [
       'Jan',
       'Feb',
@@ -454,7 +456,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Reports & Insights",
+          AppLocalizations.of(context)!.reportsAndInsights,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -498,7 +500,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                     _buildFilters(),
                     const SizedBox(height: 20),
                     _buildChartCard(
-                      title: "Category-wise Spending",
+                      title: AppLocalizations.of(context)!.categoryWiseSpending,
                       child: _shouldShowNoDataForCategorySpending
                           ? _buildNoDataWidget()
                           : AnimatedBuilder(
@@ -563,7 +565,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
                                               title: _selectedCategory == category
-                                                  ? "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n${animatedValue.toStringAsFixed(2)} $currencySymbol"
+                                                  ? "${AppLocalizations.of(context)!.getCategoryName(category)}\n${animatedValue.toStringAsFixed(2)} $currencySymbol"
                                                   : "",
                                               radius: radius,
                                               color: _getChartColor(category),
@@ -633,7 +635,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             return PieChartSectionData(
                                               value: animatedValue > 0 ? animatedValue : 0.001,
                                               title: _selectedCategory == category
-                                                  ? "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}\n${animatedValue.toStringAsFixed(2)} $currencySymbol"
+                                                  ? "${AppLocalizations.of(context)!.getCategoryName(category)}\n${animatedValue.toStringAsFixed(2)} $currencySymbol"
                                                   : "",
                                               radius: radius,
                                               color: _getChartColor(category),
@@ -771,7 +773,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                     ),
                     const SizedBox(height: 20),
                     _buildChartCard(
-                      title: "Monthly Spending Trends",
+                      title: AppLocalizations.of(context)!.monthlySpendingTrends,
                       child: _shouldShowNoDataForMonthlySpending
                           ? _buildNoDataWidget()
                           : AnimatedBuilder(
@@ -963,7 +965,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Total ${selectedType.isEmpty ? 'Unknown' : '${selectedType[0].toUpperCase()}${selectedType.substring(1).replaceAll('_', ' ')}'}",
+                  "${AppLocalizations.of(context)!.total} ${selectedType.isEmpty ? AppLocalizations.of(context)!.unknown : selectedType == 'expense' ? AppLocalizations.of(context)!.expense : AppLocalizations.of(context)!.income}",
                   style: AppTextStyles.subheading(context),
                 ),
                 const SizedBox(height: 8),
@@ -1007,7 +1009,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Filters",
+              AppLocalizations.of(context)!.filters,
               style: AppTextStyles.subheading(context),
             ),
             const SizedBox(height: 12),
@@ -1040,7 +1042,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                       : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.5),
                 ),
                 label: Text(
-                  "Clear Filters",
+                  AppLocalizations.of(context)!.clearFilters,
                   style: AppTextStyles.body(context).copyWith(
                     color: _areFiltersApplied()
                         ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
@@ -1059,15 +1061,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     return DropdownButtonFormField<String>(
       value: selectedType,
       decoration: AppInputStyles.dropdown(context).copyWith(
-        labelText: "Type",
+        labelText: AppLocalizations.of(context)!.type,
         prefixIcon: Icon(
           Icons.filter_list,
           color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkAccent : AppColors.lightAccent,
         ),
       ),
-      items: const [
-        DropdownMenuItem(value: 'expense', child: Text("Expense")),
-        DropdownMenuItem(value: 'income', child: Text("Income")),
+      items: [
+        DropdownMenuItem(value: 'expense', child: Text(AppLocalizations.of(context)!.expense)),
+        DropdownMenuItem(value: 'income', child: Text(AppLocalizations.of(context)!.income)),
       ],
       onChanged: (value) {
         setState(() {
@@ -1115,7 +1117,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ),
               child: Text(
                 selectedStartDate == null
-                    ? "Start Date"
+                    ? AppLocalizations.of(context)!.startDate
                     : "${selectedStartDate!.toLocal()}".split(' ')[0],
                 style: AppTextStyles.body(context).copyWith(
                   color: selectedStartDate == null
@@ -1153,7 +1155,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ),
               child: Text(
                 selectedEndDate == null
-                    ? "End Date"
+                    ? AppLocalizations.of(context)!.endDate
                     : "${selectedEndDate!.toLocal()}".split(' ')[0],
                 style: AppTextStyles.body(context).copyWith(
                   color: selectedEndDate == null
@@ -1178,7 +1180,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         final categoryColor = _getChartColor(category);
         return FilterChip(
           label: Text(
-            category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}',
+            AppLocalizations.of(context)!.getCategoryName(category),
             style: AppTextStyles.body(context).copyWith(
               color: isSelected
                   ? Colors.white
@@ -1259,7 +1261,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           ),
           const SizedBox(height: 10),
           Text(
-            "No data available",
+            AppLocalizations.of(context)!.noDataAvailable,
             style: AppTextStyles.body(context).copyWith(
               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
             ),
@@ -1320,7 +1322,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  "${category.isEmpty ? 'Unknown' : '${category[0].toUpperCase()}${category.substring(1).replaceAll('_', ' ')}'}: ${value.toStringAsFixed(2)} $currencySymbol",
+                  "${AppLocalizations.of(context)!.getCategoryName(category)}: ${value.toStringAsFixed(2)} $currencySymbol",
                   style: AppTextStyles.body(context).copyWith(
                     color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                   ),
@@ -1359,7 +1361,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "${_selectedCategory!.isEmpty ? 'Unknown' : '${_selectedCategory![0].toUpperCase()}${_selectedCategory!.substring(1).replaceAll('_', ' ')}'} Details",
+              "${AppLocalizations.of(context)!.getCategoryName(_selectedCategory!)} ${AppLocalizations.of(context)!.details}",
               style: AppTextStyles.subheading(context),
             ),
             const SizedBox(height: 12),
@@ -1367,7 +1369,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Amount",
+                  AppLocalizations.of(context)!.amount,
                   style: AppTextStyles.body(context).copyWith(
                     color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),
@@ -1386,7 +1388,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Percentage",
+                  AppLocalizations.of(context)!.percentage,
                   style: AppTextStyles.body(context).copyWith(
                     color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                   ),

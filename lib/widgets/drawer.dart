@@ -3,6 +3,7 @@ import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class CustomDrawer extends StatefulWidget {
   final String currentRoute;
@@ -49,7 +50,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
       return {
         'username': userData['username'] ?? 'Unknown',
         'email': userData['email'] ?? 'user@example.com',
-        'nickname': userData['nickname'] ?? '', // Fetch nickname
+        'nickname': userData['nickname'] ?? '',
       };
     } catch (e) {
       return {
@@ -60,18 +61,15 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
     }
   }
 
-  // Helper function to truncate email to 18 characters
   String _truncateEmail(String email) {
     final parts = email.split('@');
-    if (parts.length != 2) return email; // Invalid email format
+    if (parts.length != 2) return email;
 
     final localPart = parts[0];
     final domainPart = parts[1];
-
-    // Show first 7 characters of local part, then "...", then domain
     const maxLocalLength = 7;
     if (localPart.length <= maxLocalLength) {
-      return email; // If local part is short, return as is
+      return email;
     }
 
     return '${localPart.substring(0, maxLocalLength)}...@$domainPart';
@@ -83,11 +81,11 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
-            'Logout',
+            AppLocalizations.of(context)!.logout,
             style: AppTextStyles.subheading(context),
           ),
           content: Text(
-            'Are you sure you want to logout?',
+            AppLocalizations.of(context)!.logoutConfirm,
             style: AppTextStyles.body(context),
           ),
           actions: [
@@ -95,7 +93,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
               style: AppButtonStyles.textButton(context),
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'Cancel',
+                AppLocalizations.of(context)!.cancel,
                 style: AppTextStyles.body(context),
               ),
             ),
@@ -104,7 +102,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
               onPressed: () async {
                 final apiService = ApiService();
                 await apiService.clearTokens();
-                Navigator.pop(context); // Close the dialog
+                Navigator.pop(context);
                 await Future.delayed(const Duration(milliseconds: 300));
                 Navigator.pushNamedAndRemoveUntil(
                   widget.parentContext,
@@ -113,7 +111,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                 );
               },
               child: Text(
-                'Logout',
+                AppLocalizations.of(context)!.confirmLogout,
                 style: AppTextStyles.body(context).copyWith(
                   color: Theme.of(context).colorScheme.error,
                 ),
@@ -185,7 +183,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                     ),
                     child: Center(
                       child: Text(
-                        'Error loading user data',
+                        AppLocalizations.of(context)!.errorLoadingUserData,
                         style: AppTextStyles.body(context).copyWith(
                           color: Theme.of(context).colorScheme.error,
                         ),
@@ -199,8 +197,6 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
             final username = snapshot.data?['username'] ?? 'Unknown';
             final email = snapshot.data?['email'] ?? 'user@example.com';
             final nickname = snapshot.data?['nickname'] ?? '';
-
-            // Use nickname if available, otherwise fall back to username
             final displayName = nickname.isNotEmpty ? nickname : username;
 
             return ListView(
@@ -222,7 +218,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const SizedBox(width: 50), // Placeholder to maintain layout
+                          const SizedBox(width: 50),
                           IconButton(
                             icon: Icon(
                               isDark ? Icons.wb_sunny : Icons.nightlight_round,
@@ -230,8 +226,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                               size: 28,
                             ),
                             onPressed: () {
-                              Provider.of<ThemeProvider>(context, listen: false)
-                                  .toggleTheme();
+                              Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
                             },
                           ),
                         ],
@@ -258,7 +253,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                   title: Text(
-                    'Home',
+                    AppLocalizations.of(context)!.home,
                     style: AppTextStyles.body(context),
                   ),
                   selected: widget.currentRoute == '/main',
@@ -276,7 +271,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                   title: Text(
-                    'Profile',
+                    AppLocalizations.of(context)!.profile,
                     style: AppTextStyles.body(context),
                   ),
                   selected: widget.currentRoute == '/profile',
@@ -294,7 +289,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                   title: Text(
-                    'Currency',
+                    AppLocalizations.of(context)!.currency,
                     style: AppTextStyles.body(context),
                   ),
                   selected: widget.currentRoute == '/currency',
@@ -312,7 +307,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                   title: Text(
-                    'Logout',
+                    AppLocalizations.of(context)!.logout,
                     style: AppTextStyles.body(context),
                   ),
                   onTap: () {

@@ -53,7 +53,7 @@ void main() async {
 
   // Load saved preferences
   final prefs = await SharedPreferences.getInstance();
-  final savedLocale = prefs.getString('locale') ?? 'en';
+  final savedLocale = prefs.getString('locale') ?? 'ky';
   final savedTheme = prefs.getString('themeMode') ?? 'system';
 
   // Initialize providers

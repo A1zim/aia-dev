@@ -5,6 +5,7 @@ import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class LoginRegister extends StatefulWidget {
   const LoginRegister({super.key});
@@ -38,7 +39,7 @@ class _LoginRegisterState extends State<LoginRegister> {
           if (mounted) {
             NotificationService.showNotification(
               context,
-              message: "Login successful! 🎉",
+              message: AppLocalizations.of(context)!.loginSuccessful,
             );
             Navigator.pushReplacementNamed(context, '/main');
           }
@@ -55,7 +56,7 @@ class _LoginRegisterState extends State<LoginRegister> {
             });
             NotificationService.showNotification(
               context,
-              message: "A 6-digit code has been sent to your email. 📧",
+              message: AppLocalizations.of(context)!.codeSentToEmail,
             );
           }
         }
@@ -89,7 +90,7 @@ class _LoginRegisterState extends State<LoginRegister> {
         if (mounted) {
           NotificationService.showNotification(
             context,
-            message: "Email verified successfully! Logging you in... 🎉",
+            message: AppLocalizations.of(context)!.emailVerified,
           );
           Navigator.pushReplacementNamed(context, '/main');
         }
@@ -115,7 +116,7 @@ class _LoginRegisterState extends State<LoginRegister> {
     if (email.isEmpty || !email.contains('@')) {
       NotificationService.showNotification(
         context,
-        message: "Please enter a valid email! 📧",
+        message: AppLocalizations.of(context)!.emailInvalid,
         isError: true,
       );
       return;
@@ -127,7 +128,7 @@ class _LoginRegisterState extends State<LoginRegister> {
       if (mounted) {
         NotificationService.showNotification(
           context,
-          message: "A 6-digit code has been sent to your email. Use it to log in! 📧",
+          message: AppLocalizations.of(context)!.codeSentForLogin,
         );
       }
     } catch (e) {
@@ -153,19 +154,20 @@ class _LoginRegisterState extends State<LoginRegister> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
           backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          title: Text('Forgot Password', style: AppTextStyles.subheading(context)),
+          title: Text(AppLocalizations.of(context)!.forgotPasswordTitle,
+              style: AppTextStyles.subheading(context)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Enter your email to receive a 6-digit code.',
+                AppLocalizations.of(context)!.forgotPasswordPrompt,
                 style: AppTextStyles.body(context),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 decoration: AppInputStyles.textField(context).copyWith(
-                  labelText: 'Email',
+                  labelText: AppLocalizations.of(context)!.email,
                   prefixIcon: Icon(
                     Icons.email,
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
@@ -173,27 +175,31 @@ class _LoginRegisterState extends State<LoginRegister> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter an email';
+                    return AppLocalizations.of(context)!.emailRequired;
                   }
                   if (!value.contains('@')) {
-                    return 'Please enter a valid email';
+                    return AppLocalizations.of(context)!.emailInvalid;
                   }
                   return null;
                 },
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: AppTextStyles.body(context)),
+              child: Text(AppLocalizations.of(context)!.cancel,
+                  style: AppTextStyles.body(context)),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 _handleForgotPassword();
               },
-              child: Text('Send Code', style: AppTextStyles.body(context)),
+              child: Text(AppLocalizations.of(context)!.sendCode,
+                  style: AppTextStyles.body(context)),
             ),
           ],
         );
@@ -266,10 +272,10 @@ class _LoginRegisterState extends State<LoginRegister> {
                         const SizedBox(height: 16),
                         Text(
                           _isVerificationStep
-                              ? "Verify Your Email"
+                              ? AppLocalizations.of(context)!.verifyYourEmail
                               : _isLogin
-                              ? "Welcome Back!"
-                              : "Create Account",
+                              ? AppLocalizations.of(context)!.welcomeBack
+                              : AppLocalizations.of(context)!.createAccount,
                           style: AppTextStyles.heading(context).copyWith(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -284,7 +290,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              labelText: 'Username',
+                              labelText: AppLocalizations.of(context)!.username,
                               labelStyle: AppTextStyles.body(context).copyWith(
                                 color: isDark
                                     ? AppColors.darkTextSecondary
@@ -316,13 +322,15 @@ class _LoginRegisterState extends State<LoginRegister> {
                             style: AppTextStyles.body(context),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter a username';
+                                return AppLocalizations.of(context)!.usernameRequired;
                               }
                               if (value.length < 3) {
-                                return 'Username must be at least 3 characters';
+                                return AppLocalizations.of(context)!.usernameTooShort;
                               }
                               return null;
                             },
+                            keyboardType: TextInputType.text,
+                            textInputAction: TextInputAction.next,
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
@@ -332,7 +340,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              labelText: 'Password',
+                              labelText: AppLocalizations.of(context)!.password,
                               labelStyle: AppTextStyles.body(context).copyWith(
                                 color: isDark
                                     ? AppColors.darkTextSecondary
@@ -379,13 +387,14 @@ class _LoginRegisterState extends State<LoginRegister> {
                             style: AppTextStyles.body(context),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter a password';
+                                return AppLocalizations.of(context)!.passwordRequired;
                               }
                               if (value.length < 6) {
-                                return 'Password must be at least 6 characters';
+                                return AppLocalizations.of(context)!.passwordTooShort;
                               }
                               return null;
                             },
+                            textInputAction: TextInputAction.next,
                           ),
                           const SizedBox(height: 8),
                           if (_isLogin)
@@ -394,7 +403,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                               child: TextButton(
                                 onPressed: _showForgotPasswordDialog,
                                 child: Text(
-                                  'Forgot Password?',
+                                  AppLocalizations.of(context)!.forgotPassword,
                                   style: AppTextStyles.body(context).copyWith(
                                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                                   ),
@@ -409,7 +418,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                labelText: 'Email',
+                                labelText: AppLocalizations.of(context)!.email,
                                 labelStyle: AppTextStyles.body(context).copyWith(
                                   color: isDark
                                       ? AppColors.darkTextSecondary
@@ -441,20 +450,22 @@ class _LoginRegisterState extends State<LoginRegister> {
                               style: AppTextStyles.body(context),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter an email';
+                                  return AppLocalizations.of(context)!.emailRequired;
                                 }
                                 if (!value.contains('@')) {
-                                  return 'Please enter a valid email';
+                                  return AppLocalizations.of(context)!.emailInvalid;
                                 }
                                 return null;
                               },
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.done,
                             ),
                           ],
                           const SizedBox(height: 16),
                         ],
                         if (_isVerificationStep) ...[
                           Text(
-                            'Enter the 6-digit code sent to ${_emailController.text}',
+                            AppLocalizations.of(context)!.enterCodePrompt(_emailController.text),
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                             ),
@@ -553,10 +564,10 @@ class _LoginRegisterState extends State<LoginRegister> {
                             )
                                 : Text(
                               _isVerificationStep
-                                  ? "Verify"
+                                  ? AppLocalizations.of(context)!.verify
                                   : _isLogin
-                                  ? "Login"
-                                  : "Register",
+                                  ? AppLocalizations.of(context)!.login
+                                  : AppLocalizations.of(context)!.register,
                               style: AppTextStyles.body(context).copyWith(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -580,8 +591,8 @@ class _LoginRegisterState extends State<LoginRegister> {
                             },
                             child: Text(
                               _isLogin
-                                  ? "Don't have an account? Register"
-                                  : "Already have an account? Login",
+                                  ? AppLocalizations.of(context)!.dontHaveAccount
+                                  : AppLocalizations.of(context)!.alreadyHaveAccount,
                               style: AppTextStyles.body(context).copyWith(
                                 color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                               ),
@@ -598,7 +609,7 @@ class _LoginRegisterState extends State<LoginRegister> {
                               });
                             },
                             child: Text(
-                              "Back to Registration",
+                              AppLocalizations.of(context)!.backToRegistration,
                               style: AppTextStyles.body(context).copyWith(
                                 color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                               ),

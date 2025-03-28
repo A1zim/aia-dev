@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/theme_provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
 import 'package:personal_finance/widgets/drawer.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -61,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       final currentCurrency = currencyProvider.currency;
 
-      // Convert summary amounts from KGS to the current currency
       final totalIncomeInKGS = summary['total_income']?.toDouble() ?? 0.0;
       final totalExpensesInKGS = summary['total_expense']?.toDouble() ?? 0.0;
       final balanceInKGS = summary['balance']?.toDouble() ?? 0.0;
@@ -75,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         NotificationService.showNotification(
           context,
-          message: 'Failed to load summary: $e',
+          message: AppLocalizations.of(context)!.summaryLoadFailed(e.toString()),
           isError: true,
         );
       }
@@ -84,15 +84,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Transaction>> _fetchTransactions() async {
     try {
-      final transactions = await _apiService.getTransactions();
-      // Sort transactions by timestamp (newest first) and take the 10 most recent
+      final paginatedResponse = await _apiService.getTransactions(pageSize: 20); // Changed from 10 to 20
+      final transactions = paginatedResponse.items;
       transactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return transactions.take(10).toList();
+      return transactions; // Return all 20 transactions
     } catch (e) {
       if (mounted) {
         NotificationService.showNotification(
           context,
-          message: 'Failed to load transactions: $e',
+          message: AppLocalizations.of(context)!.transactionsLoadFailed(e.toString()),
           isError: true,
         );
       }
@@ -100,19 +100,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Method to convert amounts to the current currency
   double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
-    // If originalAmount and originalCurrency are provided and match the target currency, use originalAmount
     if (originalAmount != null && originalCurrency != null && originalCurrency == targetCurrency) {
       return originalAmount;
     }
-    // Otherwise, convert from KGS to the target currency
     try {
       final rate = _currencyApiService.getConversionRate('KGS', targetCurrency);
       return amountInKGS * rate;
     } catch (e) {
       print('Error converting amount: $e');
-      return amountInKGS; // Fallback to KGS if conversion fails
+      return amountInKGS;
     }
   }
 
@@ -125,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Personal Finance',
+          AppLocalizations.of(context)!.appTitle,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -164,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     SummaryCard(
-                      title: 'Income',
+                      title: AppLocalizations.of(context)!.income,
                       amount: _totalIncome.toStringAsFixed(2),
                       currencySymbol: currencySymbol,
                       color: Colors.green,
@@ -172,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     SummaryCard(
-                      title: 'Expenses',
+                      title: AppLocalizations.of(context)!.expenses,
                       amount: _totalExpenses.toStringAsFixed(2),
                       currencySymbol: currencySymbol,
                       color: Colors.red,
@@ -180,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     SummaryCard(
-                      title: 'Balance',
+                      title: AppLocalizations.of(context)!.balance,
                       amount: _balance.toStringAsFixed(2),
                       currencySymbol: currencySymbol,
                       color: Colors.blue,
@@ -204,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         child: Text(
-                          'Add Transaction',
+                          AppLocalizations.of(context)!.addTransaction,
                           style: AppTextStyles.body(context).copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -219,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Recents',
+                    AppLocalizations.of(context)!.recents,
                     style: AppTextStyles.subheading(context),
                   ),
                 ),
@@ -251,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.all(16.0),
                       child: Center(
                         child: Text(
-                          'No transactions yet.',
+                          AppLocalizations.of(context)!.noTransactions,
                           style: AppTextStyles.body(context).copyWith(
                             color: isDark
                                 ? AppColors.darkTextSecondary
@@ -272,7 +269,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
-              // Add extra padding at the bottom to ensure the last transaction is fully visible
               const SizedBox(height: 16),
             ],
           ),
@@ -287,7 +283,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
     bool isIncome = transaction.type == 'income';
 
-    // Convert the transaction amount to the current currency
     final convertedAmount = _convertAmount(
       transaction.amount,
       transaction.originalAmount,
@@ -310,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         title: Text(
-          StringExtension(transaction.category).capitalize(),
+          StringExtension(AppLocalizations.of(context)!.getCategoryName(transaction.category)).capitalize(),
           style: AppTextStyles.body(context).copyWith(
             fontWeight: FontWeight.bold,
           ),

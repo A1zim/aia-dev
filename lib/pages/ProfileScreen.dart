@@ -7,6 +7,7 @@ import 'package:personal_finance/widgets/drawer.dart';
 import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nicknameController;
   late TextEditingController _oldPasswordController;
   late TextEditingController _newPasswordController;
+  late TextEditingController _confirmPasswordController; // For clear data confirmation
   String? _username;
   String? _email;
   String? _nickname;
@@ -37,6 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nicknameController = TextEditingController();
     _oldPasswordController = TextEditingController();
     _newPasswordController = TextEditingController();
+    _confirmPasswordController = TextEditingController(); // Initialize controller for clear data
     _loadData();
   }
 
@@ -82,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       NotificationService.showNotification(
         context,
-        message: 'Failed to load summary: $e',
+        message: AppLocalizations.of(context)!.summaryLoadFailed(e.toString()),
         isError: true,
       );
     }
@@ -112,13 +115,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       NotificationService.showNotification(
         context,
-        message: 'Nickname updated successfully! 🎉',
+        message: AppLocalizations.of(context)!.nicknameUpdated,
       );
     } catch (e) {
       setState(() => _isLoading = false);
       NotificationService.showNotification(
         context,
-        message: 'Failed to update nickname: $e 😓',
+        message: AppLocalizations.of(context)!.nicknameUpdateFailed(e.toString()),
         isError: true,
       );
     }
@@ -135,12 +138,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Navigator.pop(context);
       NotificationService.showNotification(
         context,
-        message: 'Password changed successfully! 🔒',
+        message: AppLocalizations.of(context)!.passwordChanged,
       );
     } catch (e) {
       NotificationService.showNotification(
         context,
-        message: 'Failed to change password: $e 😓',
+        message: AppLocalizations.of(context)!.passwordChangeFailed(e.toString()),
         isError: true,
       );
     }
@@ -153,7 +156,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
           backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          title: Text('Change Password', style: AppTextStyles.subheading(context)),
+          title: Text(AppLocalizations.of(context)!.changePassword, style: AppTextStyles.subheading(context)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -161,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: _oldPasswordController,
                 obscureText: true,
                 decoration: AppInputStyles.textField(context).copyWith(
-                  labelText: 'Old Password',
+                  labelText: AppLocalizations.of(context)!.oldPassword,
                 ),
               ),
               const SizedBox(height: 8),
@@ -169,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: _newPasswordController,
                 obscureText: true,
                 decoration: AppInputStyles.textField(context).copyWith(
-                  labelText: 'New Password',
+                  labelText: AppLocalizations.of(context)!.newPassword,
                 ),
               ),
             ],
@@ -177,11 +180,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: AppTextStyles.body(context)),
+              child: Text(AppLocalizations.of(context)!.cancel, style: AppTextStyles.body(context)),
             ),
             ElevatedButton(
               onPressed: _changePassword,
-              child: Text('Confirm', style: AppTextStyles.body(context)),
+              child: Text(AppLocalizations.of(context)!.confirm, style: AppTextStyles.body(context)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showClearDataDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          title: Text(
+            AppLocalizations.of(context)!.clearData,
+            style: AppTextStyles.subheading(context),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppLocalizations.of(context)!.clearDataConfirm,
+                style: AppTextStyles.body(context),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                decoration: AppInputStyles.textField(context).copyWith(
+                  labelText: AppLocalizations.of(context)!.enterPassword,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _confirmPasswordController.clear();
+                Navigator.pop(context);
+              },
+              child: Text(AppLocalizations.of(context)!.cancel, style: AppTextStyles.body(context)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  // First, attempt to change password with the provided password to verify it
+                  // This is a simple way to verify the password; adjust based on your backend
+                  await _apiService.changePassword(
+                    _confirmPasswordController.text,
+                    _confirmPasswordController.text, // Use the same password to "verify"
+                  );
+                  // If the above doesn't throw an error, the password is correct
+                  await _apiService.clearData();
+                  _confirmPasswordController.clear();
+                  Navigator.pop(context);
+                  setState(() {
+                    _totalIncome = 0.0;
+                    _totalExpenses = 0.0;
+                    _balance = 0.0;
+                    _expandedCards.remove(2); // Collapse the card
+                  });
+                  NotificationService.showNotification(
+                    context,
+                    message: AppLocalizations.of(context)!.dataCleared,
+                  );
+                } catch (e) {
+                  NotificationService.showNotification(
+                    context,
+                    message: AppLocalizations.of(context)!.clearDataFailed,
+                    isError: true,
+                  );
+                }
+              },
+              child: Text(AppLocalizations.of(context)!.confirm, style: AppTextStyles.body(context)),
             ),
           ],
         );
@@ -209,6 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nicknameController.dispose();
     _oldPasswordController.dispose();
     _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -220,7 +299,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile', style: AppTextStyles.heading(context)),
+        title: Text(AppLocalizations.of(context)!.profile, style: AppTextStyles.heading(context)),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -282,7 +361,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Nickname: ${_nickname!.isEmpty ? "Not set" : _nickname}',
+                    '${AppLocalizations.of(context)!.nickname}: ${_nickname!.isEmpty ? AppLocalizations.of(context)!.notSet : _nickname}',
                     style: AppTextStyles.subheading(context),
                   ),
                   Icon(
@@ -303,8 +382,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     TextField(
                       controller: _nicknameController,
                       decoration: AppInputStyles.textField(context).copyWith(
-                        labelText: 'Enter new nickname',
+                        labelText: AppLocalizations.of(context)!.enterNewNickname,
                       ),
+                      maxLength: 18,
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -312,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         ElevatedButton(
                           onPressed: _updateNickname,
-                          child: const Text('Save'),
+                          child: Text(AppLocalizations.of(context)!.save),
                         ),
                       ],
                     ),
@@ -359,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Username: $_username',
+                        '${AppLocalizations.of(context)!.username}: \n$_username',
                         style: AppTextStyles.subheading(context),
                       ),
                       const SizedBox(height: 8),
@@ -367,7 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Email: ',
+                            '${AppLocalizations.of(context)!.email}: ',
                             style: AppTextStyles.subheading(context),
                           ),
                           shouldShowHint
@@ -397,12 +477,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   top: -30,
                                   left: 0,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: isDark
-                                          ? AppColors.darkBackground
-                                          : AppColors.lightBackground,
+                                      color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
                                       borderRadius: BorderRadius.circular(4),
                                       boxShadow: [
                                         BoxShadow(
@@ -447,7 +524,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     TextButton(
                       onPressed: _showChangePasswordDialog,
                       child: Text(
-                        'Change Password',
+                        AppLocalizations.of(context)!.changePassword,
                         style: AppTextStyles.body(context).copyWith(
                           color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                         ),
@@ -487,7 +564,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SummaryCard(
-              title: 'Balance',
+              title: AppLocalizations.of(context)!.balance,
               amount: _balance.toStringAsFixed(2),
               currencySymbol: currencySymbol,
               color: Colors.blue,
@@ -500,26 +577,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               height: isExpanded ? null : 0,
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface, // Ensure consistent background
               child: isExpanded
-                  ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SummaryCard(
-                    title: 'Income',
-                    amount: _totalIncome.toStringAsFixed(2),
-                    currencySymbol: currencySymbol,
-                    color: Colors.green,
-                    icon: Icons.arrow_downward,
-                  ),
-                  const SizedBox(height: 12),
-                  SummaryCard(
-                    title: 'Expenses',
-                    amount: _totalExpenses.toStringAsFixed(2),
-                    currencySymbol: currencySymbol,
-                    color: Colors.red,
-                    icon: Icons.arrow_upward,
-                  ),
-                ],
+                  ? Padding(
+                padding: const EdgeInsets.only(top: 8.0), // Reduced padding for closer spacing
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SummaryCard(
+                      title: AppLocalizations.of(context)!.income,
+                      amount: _totalIncome.toStringAsFixed(2),
+                      currencySymbol: currencySymbol,
+                      color: Colors.green,
+                      icon: Icons.arrow_downward,
+                    ),
+                    const SizedBox(height: 8), // Same spacing between all cards
+                    SummaryCard(
+                      title: AppLocalizations.of(context)!.expenses,
+                      amount: _totalExpenses.toStringAsFixed(2),
+                      currencySymbol: currencySymbol,
+                      color: Colors.red,
+                      icon: Icons.arrow_upward,
+                    ),
+                    const SizedBox(height: 8), // Spacing before the button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: ElevatedButton(
+                        onPressed: _showClearDataDialog,
+                        style: AppButtonStyles.elevatedButton(context).copyWith(
+                          backgroundColor: WidgetStateProperty.all(Colors.red),
+                        ),
+                        child: Text(
+                          AppLocalizations.of(context)!.clear,
+                          style: AppTextStyles.body(context).copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               )
                   : const SizedBox.shrink(),
             ),

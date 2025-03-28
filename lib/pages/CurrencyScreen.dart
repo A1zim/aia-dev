@@ -3,9 +3,10 @@ import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
 import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:personal_finance/widgets/drawer.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/widgets/drawer.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class CurrencyScreen extends StatefulWidget {
   const CurrencyScreen({super.key});
@@ -52,7 +53,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         if (currency == 'KGS') {
           rates[currency] = 1.0;
         } else {
-          // Calculate the rate as 1 unit of the currency to KGS
           final rate = _currencyApiService.getConversionRate(currency, 'KGS');
           rates[currency] = rate;
         }
@@ -65,12 +65,12 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to load currencies: $e';
+        _errorMessage = AppLocalizations.of(context)!.currenciesLoadFailed(e.toString());
         _isLoading = false;
       });
       NotificationService.showNotification(
         context,
-        message: 'Failed to load currencies: $e',
+        message: AppLocalizations.of(context)!.currenciesLoadFailed(e.toString()),
         isError: true,
       );
     }
@@ -104,7 +104,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         rates[currency] = 1.0;
       } else {
         try {
-          // Calculate the rate as 1 unit of the currency to KGS
           final rate = _currencyApiService.getConversionRate(currency, 'KGS');
           rates[currency] = rate;
         } catch (e) {
@@ -127,12 +126,11 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     if (mounted) {
       NotificationService.showNotification(
         context,
-        message: 'Currency changed to $currency',
+        message: AppLocalizations.of(context)!.currencyChanged(currency),
       );
 
-      // Close the drawer if it's open
       if (Scaffold.of(context).isDrawerOpen) {
-        Navigator.pop(context); // Close the drawer
+        Navigator.pop(context);
       }
 
       Navigator.pushNamedAndRemoveUntil(
@@ -160,16 +158,16 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
       NotificationService.showNotification(
         context,
-        message: '$currency added successfully',
+        message: AppLocalizations.of(context)!.currencyAdded(currency),
       );
 
       await _fetchCurrencies();
     } catch (e) {
-      String errorMessage = 'Failed to add currency: $e';
+      String errorMessage = AppLocalizations.of(context)!.currenciesLoadFailed(e.toString());
       if (e.toString().contains('UNIQUE constraint failed')) {
-        errorMessage = '$currency already exists for this user';
+        errorMessage = AppLocalizations.of(context)!.currencyExists(currency);
       } else if (e.toString().contains('KGS is included by default')) {
-        errorMessage = 'KGS is included by default and cannot be added';
+        errorMessage = AppLocalizations.of(context)!.kgsDefault;
       }
 
       NotificationService.showNotification(
@@ -184,7 +182,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     if (currency == 'KGS') {
       NotificationService.showNotification(
         context,
-        message: 'Cannot delete KGS',
+        message: AppLocalizations.of(context)!.cannotDeleteKGS,
         isError: true,
       );
       return;
@@ -194,11 +192,11 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Delete Currency',
+          AppLocalizations.of(context)!.deleteCurrency,
           style: AppTextStyles.subheading(context),
         ),
         content: Text(
-          'Are you sure you want to delete $currency?',
+          AppLocalizations.of(context)!.deleteConfirm(currency),
           style: AppTextStyles.body(context),
         ),
         actions: [
@@ -206,7 +204,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
             style: AppButtonStyles.textButton(context),
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancel',
+              AppLocalizations.of(context)!.cancel,
               style: AppTextStyles.body(context),
             ),
           ),
@@ -214,7 +212,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
             style: AppButtonStyles.textButton(context),
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              'Delete',
+              AppLocalizations.of(context)!.delete,
               style: AppTextStyles.body(context).copyWith(
                 color: Theme.of(context).colorScheme.error,
               ),
@@ -243,29 +241,28 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
         NotificationService.showNotification(
           context,
-          message: '$currency deleted successfully',
+          message: AppLocalizations.of(context)!.currencyDeleted(currency),
         );
 
         await _fetchCurrencies();
       } catch (e) {
         NotificationService.showNotification(
           context,
-          message: 'Failed to delete currency: $e',
+          message: AppLocalizations.of(context)!.currenciesLoadFailed(e.toString()),
           isError: true,
         );
       }
     }
   }
 
-  // Add a method to get a color for each currency based on its code
   Color _getCurrencyColor(String currency) {
     final Map<String, Color> currencyColors = {
-      'KGS': const Color(0xFFEF5350), // Red for KGS
-      'USD': const Color(0xFF4CAF50), // Green for USD
-      'EUR': const Color(0xFF42A5F5), // Blue for EUR
-      'JPY': const Color(0xFFFFCA28), // Yellow for JPY
-      'GBP': const Color(0xFFAB47BC), // Purple for GBP
-      'AED': const Color(0xFF26C6DA), // Cyan for AED
+      'KGS': const Color(0xFFEF5350),
+      'USD': const Color(0xFF4CAF50),
+      'EUR': const Color(0xFF42A5F5),
+      'JPY': const Color(0xFFFFCA28),
+      'GBP': const Color(0xFFAB47BC),
+      'AED': const Color(0xFF26C6DA),
     };
 
     return currencyColors[currency] ?? Colors.grey.withOpacity(0.8);
@@ -285,7 +282,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Manage Currencies',
+          AppLocalizations.of(context)!.manageCurrencies,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -339,7 +336,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                 onPressed: _fetchCurrencies,
                 style: AppButtonStyles.elevatedButton(context),
                 child: Text(
-                  'Retry',
+                  AppLocalizations.of(context)!.retry,
                   style: AppTextStyles.body(context).copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -424,7 +421,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                   TextField(
                     controller: _searchController,
                     decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: 'Search by Currency or Country (e.g., JPY or Japan)',
+                      labelText: AppLocalizations.of(context)!.searchCurrencyOrCountry,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
