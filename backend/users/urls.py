@@ -3,7 +3,7 @@ from .views import (
     RegisterView, UserListCreate, UserDetail, AddTransaction, GetTransactionsByCategory,
     ClearHistory, ResetFinances, FinancialSummary, GetCategories, ExpenseDiagramByPercent,
     IncomeDiagramByPercent, TransactionListView, TransactionDetailView, ReportView, 
-    UserCurrencyViewSet, VerifyEmailView, ChangePasswordView
+    UserCurrencyViewSet, VerifyEmailView, ChangePasswordView, LoginView, ForgotPasswordView
 )
 # Import Simple JWT views for token authentication
 from rest_framework_simplejwt.views import (
@@ -14,13 +14,14 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     # Authentication endpoints
-    path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
     # User and transaction endpoints
-    path('register/', RegisterView.as_view(), name='register'),
-    path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),  # Add this
+    path('auth/register/', RegisterView.as_view(), name='register'),
+    path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+    path('auth/token/', LoginView.as_view(), name='login'),
+    path('auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('users/', UserListCreate.as_view(), name='user-list'),
     path('users/me/', UserDetail.as_view(), name='user-detail'),
     path('users/me/change-password/', ChangePasswordView.as_view(), name='change_password'),

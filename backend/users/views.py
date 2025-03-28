@@ -1,3 +1,5 @@
+import random
+import string
 from decimal import Decimal
 from django.core.mail import send_mail
 from django.conf import settings
@@ -20,6 +22,8 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.db.models import Q
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth import authenticate, login
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class RegisterView(APIView):
     """Register a new user and send a verification email"""
@@ -147,6 +151,95 @@ class VerifyEmailView(APIView):
                 {"error": f"Internal server error: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response(
+                {"error": "Email is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User with this email does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Generate a 6-digit code
+        code = ''.join(random.choices(string.digits, k=6))
+        user.temporary_code = code  # Assuming you add a `temporary_code` field to your User model
+        user.save()
+
+        # Send email
+        send_mail(
+            subject='Your Temporary Password',
+            message=f'Here is your password: {code}. Don’t forget to change it!',
+            from_email='azimiwenbaev@gmail.com',
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        return Response(
+            {"message": "A 6-digit code has been sent to your email"},
+            status=status.HTTP_200_OK
+        )
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]  # Allow unauthenticated users to access this endpoint
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # First, try to authenticate with the actual password
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            # If authentication fails, check the temporary code
+            try:
+                user = User.objects.get(username=username)
+                if user.temporary_code and user.temporary_code == password:
+                    # Update the user's password to the temporary code
+                    user.set_password(password)
+                    user.temporary_code = None  # Clear the temporary code
+                    user.save()
+                    # Log the user in by generating tokens
+                    refresh = RefreshToken.for_user(user)
+                    return Response(
+                        {
+                            "message": "Login successful with temporary code. Password updated.",
+                            "access": str(refresh.access_token),
+                            "refresh": str(refresh),
+                        },
+                        status=status.HTTP_200_OK
+                    )
+            except User.DoesNotExist:
+                pass
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # If authentication succeeds with the password, generate tokens
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "message": "Login successful",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_200_OK
+        )
 
 class ChangePasswordView(APIView):
     """Change the authenticated user's password"""

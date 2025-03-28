@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
-import 'package:personal_finance/services/notification_service.dart'; // Import NotificationService
+import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:personal_finance/widgets/drawer.dart';
 import 'package:personal_finance/widgets/summary_card.dart';
@@ -28,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   double _totalExpenses = 0.0;
   double _balance = 0.0;
   bool _isLoading = true;
+  bool _showEmailHint = false;
   final Set<int> _expandedCards = {};
 
   @override
@@ -188,6 +189,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _truncateEmail(String email) {
+    final parts = email.split('@');
+    if (parts.length != 2) return email;
+
+    final localPart = parts[0];
+    final domainPart = parts[1];
+
+    const maxLocalLength = 7;
+    if (localPart.length <= maxLocalLength) {
+      return email;
+    }
+
+    return '${localPart.substring(0, maxLocalLength)}...@$domainPart';
+  }
+
   @override
   void dispose() {
     _nicknameController.dispose();
@@ -247,7 +263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 3,
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      child: GestureDetector(
+      child: InkWell(
         onTap: () {
           setState(() {
             if (isExpanded) {
@@ -257,6 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           });
         },
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
             Padding(
@@ -313,12 +330,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildUsernameEmailCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isExpanded = _expandedCards.contains(1);
+    final truncatedEmail = _truncateEmail(_email!);
+    final shouldShowHint = _email!.length > 18;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 3,
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      child: GestureDetector(
+      child: InkWell(
         onTap: () {
           setState(() {
             if (isExpanded) {
@@ -328,6 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           });
         },
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
             Padding(
@@ -342,9 +362,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'Username: $_username',
                         style: AppTextStyles.subheading(context),
                       ),
-                      Text(
-                        'Email: $_email',
-                        style: AppTextStyles.subheading(context),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Email: ',
+                            style: AppTextStyles.subheading(context),
+                          ),
+                          shouldShowHint
+                              ? Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _showEmailHint = true;
+                                  });
+                                  Future.delayed(const Duration(seconds: 2), () {
+                                    if (mounted) {
+                                      setState(() {
+                                        _showEmailHint = false;
+                                      });
+                                    }
+                                  });
+                                },
+                                child: Text(
+                                  truncatedEmail,
+                                  style: AppTextStyles.subheading(context),
+                                ),
+                              ),
+                              if (_showEmailHint)
+                                Positioned(
+                                  top: -30,
+                                  left: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? AppColors.darkBackground
+                                          : AppColors.lightBackground,
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      _email!,
+                                      style: AppTextStyles.body(context),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                              : Text(
+                            truncatedEmail,
+                            style: AppTextStyles.subheading(context),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -392,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 3,
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      child: GestureDetector(
+      child: InkWell(
         onTap: () {
           setState(() {
             if (isExpanded) {
@@ -402,7 +482,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           });
         },
+        borderRadius: BorderRadius.circular(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SummaryCard(
               title: 'Balance',
@@ -419,39 +501,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               duration: const Duration(milliseconds: 300),
               height: isExpanded ? null : 0,
               child: isExpanded
-                  ? Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SummaryCard(
-                            title: 'Income',
-                            amount: _totalIncome.toStringAsFixed(2),
-                            currencySymbol: currencySymbol,
-                            color: Colors.green,
-                            icon: Icons.arrow_downward,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SummaryCard(
-                            title: 'Expenses',
-                            amount: _totalExpenses.toStringAsFixed(2),
-                            currencySymbol: currencySymbol,
-                            color: Colors.red,
-                            icon: Icons.arrow_upward,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SummaryCard(
+                    title: 'Income',
+                    amount: _totalIncome.toStringAsFixed(2),
+                    currencySymbol: currencySymbol,
+                    color: Colors.green,
+                    icon: Icons.arrow_downward,
+                  ),
+                  const SizedBox(height: 12),
+                  SummaryCard(
+                    title: 'Expenses',
+                    amount: _totalExpenses.toStringAsFixed(2),
+                    currencySymbol: currencySymbol,
+                    color: Colors.red,
+                    icon: Icons.arrow_upward,
+                  ),
+                ],
               )
                   : const SizedBox.shrink(),
             ),

@@ -15,7 +15,8 @@ class User(AbstractUser):
     income = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     expense = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_verified = models.BooleanField(default=False)
-    nickname = models.CharField(max_length=150, blank=True, null=True)  # Non-unique, optional
+    nickname = models.CharField(max_length=150, blank=True, null=True)
+    temporary_code = models.CharField(max_length=6, null=True, blank=True)
 
     groups = models.ManyToManyField(
         'auth.Group',

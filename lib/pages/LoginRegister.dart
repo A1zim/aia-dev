@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/notification_service.dart';
 import 'package:personal_finance/theme/styles.dart';
@@ -13,34 +14,35 @@ class LoginRegister extends StatefulWidget {
 }
 
 class _LoginRegisterState extends State<LoginRegister> {
-  bool _isLogin = true; // Switch between login and registration
+  bool _isLogin = true;
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _isVerificationStep = false; // Track if we're in the verification step
+  bool _isVerificationStep = false;
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _codeController = TextEditingController(); // For the 6-digit code
+  final List<TextEditingController> _codeControllers = List.generate(6, (_) => TextEditingController());
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
 
-  // Handle login/registration
   Future<void> _handleAuth() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
         if (_isLogin) {
-          // Login
           await _apiService.login(
             _usernameController.text.trim(),
             _passwordController.text.trim(),
           );
           if (mounted) {
+            NotificationService.showNotification(
+              context,
+              message: "Login successful! 🎉",
+            );
             Navigator.pushReplacementNamed(context, '/main');
           }
         } else {
-          // Registration
           await _apiService.register(
             _usernameController.text.trim(),
             _passwordController.text.trim(),
@@ -48,12 +50,12 @@ class _LoginRegisterState extends State<LoginRegister> {
           );
           if (mounted) {
             setState(() {
-              _isVerificationStep = true; // Switch to verification step
+              _isVerificationStep = true;
               _isLoading = false;
             });
             NotificationService.showNotification(
               context,
-              message: "A 6-digit code has been sent to your email.",
+              message: "A 6-digit code has been sent to your email. 📧",
             );
           }
         }
@@ -71,16 +73,15 @@ class _LoginRegisterState extends State<LoginRegister> {
     }
   }
 
-  // Handle email verification
   Future<void> _handleVerification() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
+        String code = _codeControllers.map((controller) => controller.text).join();
         await _apiService.verifyEmail(
           _emailController.text.trim(),
-          _codeController.text.trim(),
+          code,
         );
-        // After successful verification, log the user in
         await _apiService.login(
           _usernameController.text.trim(),
           _passwordController.text.trim(),
@@ -88,7 +89,7 @@ class _LoginRegisterState extends State<LoginRegister> {
         if (mounted) {
           NotificationService.showNotification(
             context,
-            message: "Email verified successfully! Logging you in...",
+            message: "Email verified successfully! Logging you in... 🎉",
           );
           Navigator.pushReplacementNamed(context, '/main');
         }
@@ -109,12 +110,105 @@ class _LoginRegisterState extends State<LoginRegister> {
     }
   }
 
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      NotificationService.showNotification(
+        context,
+        message: "Please enter a valid email! 📧",
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.forgotPassword(email);
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: "A 6-digit code has been sent to your email. Use it to log in! 📧",
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        NotificationService.showNotification(
+          context,
+          message: errorMessage,
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showForgotPasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          title: Text('Forgot Password', style: AppTextStyles.subheading(context)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Enter your email to receive a 6-digit code.',
+                style: AppTextStyles.body(context),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: AppInputStyles.textField(context).copyWith(
+                  labelText: 'Email',
+                  prefixIcon: Icon(
+                    Icons.email,
+                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter an email';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: AppTextStyles.body(context)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _handleForgotPassword();
+              },
+              child: Text('Send Code', style: AppTextStyles.body(context)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     _emailController.dispose();
-    _codeController.dispose();
+    for (var controller in _codeControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -149,7 +243,6 @@ class _LoginRegisterState extends State<LoginRegister> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Card Header with Icon and Theme Switch
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -294,8 +387,22 @@ class _LoginRegisterState extends State<LoginRegister> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
-                          if (!_isLogin)
+                          const SizedBox(height: 8),
+                          if (_isLogin)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _showForgotPasswordDialog,
+                                child: Text(
+                                  'Forgot Password?',
+                                  style: AppTextStyles.body(context).copyWith(
+                                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (!_isLogin) ...[
+                            const SizedBox(height: 8),
                             TextFormField(
                               controller: _emailController,
                               decoration: InputDecoration(
@@ -342,7 +449,8 @@ class _LoginRegisterState extends State<LoginRegister> {
                                 return null;
                               },
                             ),
-                          if (!_isLogin) const SizedBox(height: 16),
+                          ],
+                          const SizedBox(height: 16),
                         ],
                         if (_isVerificationStep) ...[
                           Text(
@@ -353,53 +461,67 @@ class _LoginRegisterState extends State<LoginRegister> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _codeController,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              labelText: 'Verification Code',
-                              labelStyle: AppTextStyles.body(context).copyWith(
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.code,
-                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                              ),
-                              filled: true,
-                              fillColor: isDark
-                                  ? AppColors.darkBackground.withOpacity(0.3)
-                                  : Colors.grey[100],
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(6, (index) {
+                              return SizedBox(
+                                width: 40,
+                                child: TextFormField(
+                                  controller: _codeControllers[index],
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    filled: true,
+                                    fillColor: isDark
+                                        ? AppColors.darkBackground.withOpacity(0.3)
+                                        : Colors.grey[100],
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide(
+                                        color: isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.lightTextSecondary,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide(
+                                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                      ),
+                                    ),
+                                    counterText: '',
+                                  ),
+                                  style: AppTextStyles.body(context).copyWith(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    textBaseline: TextBaseline.alphabetic,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 1,
+                                  onChanged: (value) {
+                                    if (value.length == 1 && index < 5) {
+                                      FocusScope.of(context).nextFocus();
+                                    } else if (value.isEmpty && index > 0) {
+                                      FocusScope.of(context).previousFocus();
+                                    }
+                                  },
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return '';
+                                    }
+                                    if (!RegExp(r'^\d$').hasMatch(value)) {
+                                      return '';
+                                    }
+                                    return null;
+                                  },
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
                                 ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                                ),
-                              ),
-                            ),
-                            style: AppTextStyles.body(context),
-                            keyboardType: TextInputType.number,
-                            maxLength: 6,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter the verification code';
-                              }
-                              if (value.length != 6) {
-                                return 'Code must be 6 digits';
-                              }
-                              return null;
-                            },
+                              );
+                            }),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -470,7 +592,9 @@ class _LoginRegisterState extends State<LoginRegister> {
                             onPressed: () {
                               setState(() {
                                 _isVerificationStep = false;
-                                _codeController.clear();
+                                for (var controller in _codeControllers) {
+                                  controller.clear();
+                                }
                               });
                             },
                             child: Text(
