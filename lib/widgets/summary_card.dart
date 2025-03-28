@@ -4,9 +4,10 @@ import 'package:personal_finance/theme/styles.dart';
 class SummaryCard extends StatelessWidget {
   final String title;
   final String amount;
-  final String currencySymbol; // Add this parameter
+  final String currencySymbol;
   final Color color;
   final IconData icon;
+  final Widget? trailing; // Add optional trailing widget
 
   const SummaryCard({
     super.key,
@@ -15,6 +16,7 @@ class SummaryCard extends StatelessWidget {
     required this.currencySymbol,
     required this.color,
     required this.icon,
+    this.trailing,
   });
 
   @override
@@ -40,24 +42,27 @@ class SummaryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.subheading(context),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$amount $currencySymbol', // Display amount with currency symbol
-                  style: AppTextStyles.body(context).copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+            Expanded( // Use Expanded to push trailing to the right
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.subheading(context),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    '$amount $currencySymbol',
+                    style: AppTextStyles.body(context).copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            if (trailing != null) trailing!, // Add trailing widget if provided
           ],
         ),
       ),

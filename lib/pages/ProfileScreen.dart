@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/services/currency_api_service.dart';
+import 'package:personal_finance/services/notification_service.dart'; // Import NotificationService
 import 'package:personal_finance/theme/styles.dart';
 import 'package:personal_finance/widgets/drawer.dart';
+import 'package:personal_finance/widgets/summary_card.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
 
@@ -26,7 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   double _totalExpenses = 0.0;
   double _balance = 0.0;
   bool _isLoading = true;
-  int? _expandedIndex; // For card expansion
+  final Set<int> _expandedCards = {};
 
   @override
   void initState() {
@@ -77,8 +79,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _balance = _totalIncome - _totalExpenses;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load summary: $e')),
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to load summary: $e',
+        isError: true,
       );
     }
   }
@@ -102,16 +106,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _apiService.updateUserProfile(nickname: _nicknameController.text);
       setState(() {
         _nickname = _nicknameController.text;
-        _expandedIndex = null; // Collapse after saving
+        _expandedCards.remove(0);
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nickname updated successfully')),
+      NotificationService.showNotification(
+        context,
+        message: 'Nickname updated successfully! 🎉',
       );
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update nickname: $e')),
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to update nickname: $e 😓',
+        isError: true,
       );
     }
   }
@@ -124,13 +131,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       _oldPasswordController.clear();
       _newPasswordController.clear();
-      Navigator.pop(context); // Close dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password changed successfully')),
+      Navigator.pop(context);
+      NotificationService.showNotification(
+        context,
+        message: 'Password changed successfully! 🔒',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to change password: $e')),
+      NotificationService.showNotification(
+        context,
+        message: 'Failed to change password: $e 😓',
+        isError: true,
       );
     }
   }
@@ -231,7 +241,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildNicknameCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isExpanded = _expandedIndex == 0;
+    final isExpanded = _expandedCards.contains(0);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -240,7 +250,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _expandedIndex = isExpanded ? null : 0;
+            if (isExpanded) {
+              _expandedCards.remove(0);
+            } else {
+              _expandedCards.add(0);
+            }
           });
         },
         child: Column(
@@ -298,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildUsernameEmailCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isExpanded = _expandedIndex == 1;
+    final isExpanded = _expandedCards.contains(1);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -307,7 +321,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _expandedIndex = isExpanded ? null : 1;
+            if (isExpanded) {
+              _expandedCards.remove(1);
+            } else {
+              _expandedCards.add(1);
+            }
           });
         },
         child: Column(
@@ -326,7 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       Text(
                         'Email: $_email',
-                        style: AppTextStyles.body(context),
+                        style: AppTextStyles.subheading(context),
                       ),
                     ],
                   ),
@@ -368,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildBalanceCard(String currencySymbol) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isExpanded = _expandedIndex == 2;
+    final isExpanded = _expandedCards.contains(2);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -377,27 +395,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _expandedIndex = isExpanded ? null : 2;
+            if (isExpanded) {
+              _expandedCards.remove(2);
+            } else {
+              _expandedCards.add(2);
+            }
           });
         },
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Balance: ${_balance.toStringAsFixed(2)} $currencySymbol',
-                    style: AppTextStyles.subheading(context).copyWith(
-                      color: _balance >= 0 ? Colors.green : Colors.red,
-                    ),
-                  ),
-                  Icon(
-                    isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  ),
-                ],
+            SummaryCard(
+              title: 'Balance',
+              amount: _balance.toStringAsFixed(2),
+              currencySymbol: currencySymbol,
+              color: Colors.blue,
+              icon: Icons.account_balance_wallet,
+              trailing: Icon(
+                isExpanded ? Icons.expand_less : Icons.expand_more,
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
             ),
             AnimatedContainer(
@@ -405,22 +420,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: isExpanded ? null : 0,
               child: isExpanded
                   ? Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Income: ${_totalIncome.toStringAsFixed(2)} $currencySymbol',
-                      style: AppTextStyles.body(context).copyWith(
-                        color: Colors.green,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SummaryCard(
+                            title: 'Income',
+                            amount: _totalIncome.toStringAsFixed(2),
+                            currencySymbol: currencySymbol,
+                            color: Colors.green,
+                            icon: Icons.arrow_downward,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Expenses: ${_totalExpenses.toStringAsFixed(2)} $currencySymbol',
-                      style: AppTextStyles.body(context).copyWith(
-                        color: Colors.red,
-                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SummaryCard(
+                            title: 'Expenses',
+                            amount: _totalExpenses.toStringAsFixed(2),
+                            currencySymbol: currencySymbol,
+                            color: Colors.red,
+                            icon: Icons.arrow_upward,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
