@@ -217,13 +217,14 @@ class ApiService {
     }
   }
 
-  Future<void> clearData() async {
+  Future<void> clearData(String password) async {
     final response = await makeAuthenticatedRequest((token) => http.delete(
       Uri.parse('$baseUrl/transactions/clear/'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
+      body: json.encode({'password': password}),
     ));
 
     if (response.statusCode != 204) {

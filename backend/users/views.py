@@ -627,25 +627,47 @@ class GetTransactionsByCategory(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class ClearHistory(APIView):  # Changed from ApiView to APIView
-    """Clear all transaction history for a user"""
+class ClearHistory(APIView):
+    """Clear all transaction history and financial data for a user"""
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
-    def post(self, request):
+    def delete(self, request):
         try:
             user = request.user
-            print(f"Clearing transaction history for user: {user.username}")
+            password = request.data.get('password')
+            if not password:
+                return Response(
+                    {'error': 'Password is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Verify the password
+            if not user.check_password(password):
+                return Response(
+                    {'error': 'Invalid password'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            print(f"Clearing all financial data for user: {user.username}")
+            
+            # Clear transactions and category amounts
             Transaction.objects.filter(user=user).delete()
             CategoryAmount.objects.filter(user=user).delete()
-            print(f"Transaction history cleared for user: {user.username}")
-            return Response({'message': 'Transaction history cleared'})
+            
+            # Reset user's financial fields
+            user.balance = 0
+            user.income = 0
+            user.expense = 0
+            user.save()
+            
+            print(f"All financial data cleared for user: {user.username}")
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 class ResetFinances(APIView):  # Changed from ApiView to APIView
     """Reset all financial data for a user"""

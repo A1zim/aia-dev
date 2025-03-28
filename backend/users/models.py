@@ -11,11 +11,19 @@ import random
 
 class User(AbstractUser):
     """Extended user model with financial tracking and verification capabilities"""
+    username = models.CharField(
+        max_length=18,  # Set max length to 18
+        unique=True,
+        help_text='Required. 18 characters or fewer. Letters, digits and @/./+/-/_ only.',
+        error_messages={
+            'unique': "A user with that username already exists.",
+        },
+    )
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     income = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     expense = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_verified = models.BooleanField(default=False)
-    nickname = models.CharField(max_length=150, blank=True, null=True)
+    nickname = models.CharField(max_length=18, blank=True, null=True)
     temporary_code = models.CharField(max_length=6, null=True, blank=True)
 
     groups = models.ManyToManyField(

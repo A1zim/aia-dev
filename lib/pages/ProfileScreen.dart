@@ -231,14 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  // First, attempt to change password with the provided password to verify it
-                  // This is a simple way to verify the password; adjust based on your backend
-                  await _apiService.changePassword(
-                    _confirmPasswordController.text,
-                    _confirmPasswordController.text, // Use the same password to "verify"
-                  );
-                  // If the above doesn't throw an error, the password is correct
-                  await _apiService.clearData();
+                  await _apiService.clearData(_confirmPasswordController.text);
                   _confirmPasswordController.clear();
                   Navigator.pop(context);
                   setState(() {
