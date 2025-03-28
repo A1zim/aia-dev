@@ -1,3 +1,4 @@
+import string
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
@@ -6,30 +7,53 @@ from decimal import Decimal
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+import random
+
 class User(AbstractUser):
-    """Extended user model with financial tracking capabilities"""
+    """Extended user model with financial tracking and verification capabilities"""
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     income = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     expense = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_verified = models.BooleanField(default=False)
+    nickname = models.CharField(max_length=150, blank=True, null=True)  # Non-unique, optional
 
-    # Override groups and user_permissions with unique related_name
     groups = models.ManyToManyField(
         'auth.Group',
-        related_name='custom_user_groups',  # Unique reverse accessor
+        related_name='custom_user_groups',
         blank=True,
         help_text='The groups this user belongs to.',
         verbose_name='groups',
     )
     user_permissions = models.ManyToManyField(
         'auth.Permission',
-        related_name='custom_user_permissions',  # Unique reverse accessor
+        related_name='custom_user_permissions',
         blank=True,
         help_text='Specific permissions for this user.',
         verbose_name='user permissions',
     )
-    
+
     def __str__(self):
         return self.username
+
+class VerificationCode(models.Model):
+    """Model to store email verification codes"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='verification_code')
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = ''.join(random.choices(string.digits, k=6))
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(minutes=15)  # Code expires in 15 minutes
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"{self.user.username} - {self.code}"
 
 class UserCurrency(models.Model):
     """Model to store currencies selected by each user"""

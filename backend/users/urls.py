@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     RegisterView, UserListCreate, UserDetail, AddTransaction, GetTransactionsByCategory,
     ClearHistory, ResetFinances, FinancialSummary, GetCategories, ExpenseDiagramByPercent,
-    IncomeDiagramByPercent, TransactionListView, TransactionDetailView, ReportView, UserCurrency, UserCurrencyViewSet
+    IncomeDiagramByPercent, TransactionListView, TransactionDetailView, ReportView, 
+    UserCurrencyViewSet, VerifyEmailView, ChangePasswordView
 )
 # Import Simple JWT views for token authentication
 from rest_framework_simplejwt.views import (
@@ -19,8 +20,10 @@ urlpatterns = [
     
     # User and transaction endpoints
     path('register/', RegisterView.as_view(), name='register'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),  # Add this
     path('users/', UserListCreate.as_view(), name='user-list'),
     path('users/me/', UserDetail.as_view(), name='user-detail'),
+    path('users/me/change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('transactions/add/', AddTransaction.as_view(), name='add-transaction'),
     path('transactions/by-category/<str:category>/<str:trans_type>/', GetTransactionsByCategory.as_view(), name='transactions-by-category'),
     path('transactions/clear/', ClearHistory.as_view(), name='clear-history'),

@@ -40,11 +40,10 @@ class ApiService {
       }),
     );
 
-    if (response.statusCode == 201) {
-      await login(username, password);
-    } else {
+    if (response.statusCode != 201) {
       throw Exception('Failed to register: ${response.body}');
     }
+    // Do not log in here; wait for email verification
   }
 
   Future<void> login(String username, String password) async {
@@ -62,6 +61,21 @@ class ApiService {
     }
   }
 
+  Future<void> verifyEmail(String email, String code) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/verify-email/'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'email': email,
+        'code': code,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to verify email: ${response.body}');
+    }
+  }
+
   Future<Map<String, dynamic>> getUserData() async {
     final token = await getAccessToken();
     if (token == null) {
@@ -69,7 +83,7 @@ class ApiService {
     }
 
     final response = await http.get(
-      Uri.parse('$baseUrl/user/'),
+      Uri.parse('$baseUrl/users/me'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -80,6 +94,51 @@ class ApiService {
       return json.decode(response.body);
     } else {
       throw Exception('Failed to fetch user data: ${response.body}');
+    }
+  }
+
+  Future<void> updateUserProfile({String? nickname}) async {
+    final token = await getAccessToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await makeAuthenticatedRequest((token) async {
+      return await http.patch(
+        Uri.parse('$baseUrl/users/me/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          if (nickname != null) 'nickname': nickname,
+        }),
+      );
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update profile: ${response.body}');
+    }
+  }
+
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    final token = await getAccessToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await makeAuthenticatedRequest((token) async {
+      return await http.post(
+        Uri.parse('$baseUrl/users/me/change-password/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        }),
+      );
+    });
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to change password: ${response.body}');
     }
   }
 
@@ -267,8 +326,6 @@ class ApiService {
     }
     throw Exception('Failed to fetch categories: ${response.body}');
   }
-
-  // New methods for currency management
 
   Future<List<String>> getUserCurrencies() async {
     final response = await makeAuthenticatedRequest((token) =>

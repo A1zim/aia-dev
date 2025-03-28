@@ -16,10 +16,12 @@ class _LoginRegisterState extends State<LoginRegister> {
   bool _isLogin = true; // Switch between login and registration
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isVerificationStep = false; // Track if we're in the verification step
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController(); // For the 6-digit code
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
 
@@ -42,17 +44,53 @@ class _LoginRegisterState extends State<LoginRegister> {
           await _apiService.register(
             _usernameController.text.trim(),
             _passwordController.text.trim(),
-            email: _emailController.text.trim().isEmpty
-                ? null
-                : _emailController.text.trim(),
+            email: _emailController.text.trim(),
           );
           if (mounted) {
+            setState(() {
+              _isVerificationStep = true; // Switch to verification step
+              _isLoading = false;
+            });
             NotificationService.showNotification(
               context,
-              message: "Registered successfully! Logging you in...",
+              message: "A 6-digit code has been sent to your email.",
             );
-            Navigator.pushReplacementNamed(context, '/main');
           }
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage = e.toString().replaceFirst('Exception: ', '');
+          NotificationService.showNotification(
+            context,
+            message: errorMessage,
+            isError: true,
+          );
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
+  // Handle email verification
+  Future<void> _handleVerification() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        await _apiService.verifyEmail(
+          _emailController.text.trim(),
+          _codeController.text.trim(),
+        );
+        // After successful verification, log the user in
+        await _apiService.login(
+          _usernameController.text.trim(),
+          _passwordController.text.trim(),
+        );
+        if (mounted) {
+          NotificationService.showNotification(
+            context,
+            message: "Email verified successfully! Logging you in...",
+          );
+          Navigator.pushReplacementNamed(context, '/main');
         }
       } catch (e) {
         if (mounted) {
@@ -76,6 +114,7 @@ class _LoginRegisterState extends State<LoginRegister> {
     _usernameController.dispose();
     _passwordController.dispose();
     _emailController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
@@ -133,7 +172,11 @@ class _LoginRegisterState extends State<LoginRegister> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _isLogin ? "Welcome Back!" : "Create Account",
+                          _isVerificationStep
+                              ? "Verify Your Email"
+                              : _isLogin
+                              ? "Welcome Back!"
+                              : "Create Account",
                           style: AppTextStyles.heading(context).copyWith(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -141,131 +184,21 @@ class _LoginRegisterState extends State<LoginRegister> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        TextFormField(
-                          controller: _usernameController,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            labelText: 'Username',
-                            labelStyle: AppTextStyles.body(context).copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.person,
-                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                            ),
-                            filled: true,
-                            fillColor: isDark
-                                ? AppColors.darkBackground.withOpacity(0.3)
-                                : Colors.grey[100],
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                              ),
-                            ),
-                          ),
-                          style: AppTextStyles.body(context),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a username';
-                            }
-                            if (value.length < 3) {
-                              return 'Username must be at least 3 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: !_isPasswordVisible,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            labelText: 'Password',
-                            labelStyle: AppTextStyles.body(context).copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.lock,
-                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _isPasswordVisible = !_isPasswordVisible;
-                                });
-                              },
-                            ),
-                            filled: true,
-                            fillColor: isDark
-                                ? AppColors.darkBackground.withOpacity(0.3)
-                                : Colors.grey[100],
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                              ),
-                            ),
-                          ),
-                          style: AppTextStyles.body(context),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a password';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        if (!_isLogin)
+                        if (!_isVerificationStep) ...[
                           TextFormField(
-                            controller: _emailController,
+                            controller: _usernameController,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              labelText: 'Email (optional)',
+                              labelText: 'Username',
                               labelStyle: AppTextStyles.body(context).copyWith(
                                 color: isDark
                                     ? AppColors.darkTextSecondary
                                     : AppColors.lightTextSecondary,
                               ),
                               prefixIcon: Icon(
-                                Icons.email,
+                                Icons.person,
                                 color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                               ),
                               filled: true,
@@ -289,19 +222,193 @@ class _LoginRegisterState extends State<LoginRegister> {
                             ),
                             style: AppTextStyles.body(context),
                             validator: (value) {
-                              if (value != null &&
-                                  value.isNotEmpty &&
-                                  !value.contains('@')) {
-                                return 'Please enter a valid email';
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a username';
+                              }
+                              if (value.length < 3) {
+                                return 'Username must be at least 3 characters';
                               }
                               return null;
                             },
                           ),
-                        if (!_isLogin) const SizedBox(height: 16),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: !_isPasswordVisible,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              labelText: 'Password',
+                              labelStyle: AppTextStyles.body(context).copyWith(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.lock,
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isPasswordVisible
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _isPasswordVisible = !_isPasswordVisible;
+                                  });
+                                },
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? AppColors.darkBackground.withOpacity(0.3)
+                                  : Colors.grey[100],
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                ),
+                              ),
+                            ),
+                            style: AppTextStyles.body(context),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a password';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          if (!_isLogin)
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                labelText: 'Email',
+                                labelStyle: AppTextStyles.body(context).copyWith(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.email,
+                                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                ),
+                                filled: true,
+                                fillColor: isDark
+                                    ? AppColors.darkBackground.withOpacity(0.3)
+                                    : Colors.grey[100],
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.lightTextSecondary,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                  ),
+                                ),
+                              ),
+                              style: AppTextStyles.body(context),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter an email';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Please enter a valid email';
+                                }
+                                return null;
+                              },
+                            ),
+                          if (!_isLogin) const SizedBox(height: 16),
+                        ],
+                        if (_isVerificationStep) ...[
+                          Text(
+                            'Enter the 6-digit code sent to ${_emailController.text}',
+                            style: AppTextStyles.body(context).copyWith(
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _codeController,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              labelText: 'Verification Code',
+                              labelStyle: AppTextStyles.body(context).copyWith(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.code,
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
+                              filled: true,
+                              fillColor: isDark
+                                  ? AppColors.darkBackground.withOpacity(0.3)
+                                  : Colors.grey[100],
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.lightTextSecondary,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                ),
+                              ),
+                            ),
+                            style: AppTextStyles.body(context),
+                            keyboardType: TextInputType.number,
+                            maxLength: 6,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the verification code';
+                              }
+                              if (value.length != 6) {
+                                return 'Code must be 6 digits';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleAuth,
+                            onPressed: _isLoading
+                                ? null
+                                : (_isVerificationStep ? _handleVerification : _handleAuth),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -323,7 +430,11 @@ class _LoginRegisterState extends State<LoginRegister> {
                               ),
                             )
                                 : Text(
-                              _isLogin ? "Login" : "Register",
+                              _isVerificationStep
+                                  ? "Verify"
+                                  : _isLogin
+                                  ? "Login"
+                                  : "Register",
                               style: AppTextStyles.body(context).copyWith(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -335,24 +446,40 @@ class _LoginRegisterState extends State<LoginRegister> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _isLogin = !_isLogin;
-                              _usernameController.clear();
-                              _passwordController.clear();
-                              _emailController.clear();
-                            });
-                          },
-                          child: Text(
-                            _isLogin
-                                ? "Don't have an account? Register"
-                                : "Already have an account? Login",
-                            style: AppTextStyles.body(context).copyWith(
-                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                        if (!_isVerificationStep)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isLogin = !_isLogin;
+                                _usernameController.clear();
+                                _passwordController.clear();
+                                _emailController.clear();
+                              });
+                            },
+                            child: Text(
+                              _isLogin
+                                  ? "Don't have an account? Register"
+                                  : "Already have an account? Login",
+                              style: AppTextStyles.body(context).copyWith(
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
                             ),
                           ),
-                        ),
+                        if (_isVerificationStep)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isVerificationStep = false;
+                                _codeController.clear();
+                              });
+                            },
+                            child: Text(
+                              "Back to Registration",
+                              style: AppTextStyles.body(context).copyWith(
+                                color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
