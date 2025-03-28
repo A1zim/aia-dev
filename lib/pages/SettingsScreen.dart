@@ -20,8 +20,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
   String _selectedCurrency = 'KGS'; // Default to KGS
-  double _exchangeRate = 1.0;       // Default rate (KGS to KGS)
-  String _selectedLanguage = 'en';  // Default to English
+  double _exchangeRate = 1.0; // Default rate (KGS to KGS)
+  String _selectedLanguage = 'ky'; // Default to Kyrgyz
   bool _isLoading = false;
 
   List<String> _availableCurrencies = [];
@@ -129,7 +129,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Add a method to get a color for each currency based on its code
   Color _getCurrencyColor(String currency) {
     final Map<String, Color> currencyColors = {
       'KGS': const Color(0xFFEF5350), // Red for KGS
@@ -142,7 +141,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return currencyColors[currency] ?? Colors.grey.withOpacity(0.8);
   }
 
-  // Add a method to get a color for each language
   Color _getLanguageColor(String language) {
     final Map<String, Color> languageColors = {
       'en': const Color(0xFFEF5350), // Red for English
@@ -191,7 +189,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Theme Toggle
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -220,8 +217,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 16),
               Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-
-              // Currency Selection
               ListTile(
                 leading: Icon(
                   Icons.attach_money,
@@ -268,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       elevation: 8,
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(left: 56.0, top: 8.0), // Align with the dropdown
+                      padding: const EdgeInsets.only(left: 56.0, top: 8.0),
                       child: Text(
                         '1 KGS = ${_exchangeRate.toStringAsFixed(3)} $_selectedCurrency',
                         style: AppTextStyles.body(context).copyWith(
@@ -290,8 +285,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 16),
               Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-
-              // Language Selection
               ListTile(
                 leading: Icon(
                   Icons.language,
@@ -305,10 +298,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   decoration: AppInputStyles.dropdown(context).copyWith(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                    DropdownMenuItem(value: 'ky', child: Text('Kyrgyz')),
-                    DropdownMenuItem(value: 'ru', child: Text('Russian')),
+                  items: [
+                    DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
+                    DropdownMenuItem(value: 'ky', child: Text(AppLocalizations.of(context)!.languageKyrgyz)),
+                    DropdownMenuItem(value: 'ru', child: Text(AppLocalizations.of(context)!.languageRussian)),
                   ].map((item) {
                     final languageColor = _getLanguageColor(item.value!);
                     return DropdownMenuItem<String>(
@@ -334,8 +327,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 16),
               Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-
-              // Logout Option
               ListTile(
                 leading: Icon(
                   Icons.logout,

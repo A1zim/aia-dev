@@ -5,6 +5,7 @@ import 'package:personal_finance/pages/SettingsScreen.dart';
 import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
 import 'package:personal_finance/services/api_service.dart';
 import 'package:personal_finance/theme/styles.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -133,7 +134,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'Home',
+                label: AppLocalizations.of(context)!.home,
               ),
               NavigationDestination(
                 icon: Container(
@@ -168,7 +169,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'History',
+                label: AppLocalizations.of(context)!.history,
               ),
               NavigationDestination(
                 icon: Container(
@@ -203,7 +204,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'Reports',
+                label: AppLocalizations.of(context)!.reports,
               ),
               NavigationDestination(
                 icon: Container(
@@ -238,7 +239,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                   ),
                 ),
-                label: 'Settings',
+                label: AppLocalizations.of(context)!.settingsTitle,
               ),
             ],
           ),

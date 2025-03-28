@@ -3,6 +3,18 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:personal_finance/models/transaction.dart';
 
+class PaginatedResponse<T> {
+  final List<T> items;
+  final bool hasMore;
+  final int? totalCount;
+
+  PaginatedResponse({
+    required this.items,
+    required this.hasMore,
+    this.totalCount,
+  });
+}
+
 class ApiService {
   static const String baseUrl = "http://10.0.2.2:8000/api"; // Adjust to your backend URL
   String? _accessToken;
@@ -205,10 +217,42 @@ class ApiService {
     }
   }
 
+  Future<void> clearData() async {
+    final response = await makeAuthenticatedRequest((token) => http.delete(
+      Uri.parse('$baseUrl/transactions/clear/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    if (response.statusCode != 204) {
+      throw Exception('Failed to clear data: ${json.decode(response.body)['error'] ?? response.body}');
+    }
+  }
+
   // Get list of transactions
-  Future<List<Transaction>> getTransactions() async {
+  Future<PaginatedResponse<Transaction>> getTransactions({
+    int page = 1,
+    int pageSize = 20,
+    String? type,
+    String? search,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'per_page': pageSize.toString(),
+    };
+    if (type != null && type != 'all') {
+      queryParams['type'] = type;
+    }
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
+    }
+
+    final uri = Uri.parse('$baseUrl/transactions/').replace(queryParameters: queryParams);
+
     final response = await makeAuthenticatedRequest((token) => http.get(
-      Uri.parse('$baseUrl/transactions/'),
+      uri,
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -217,8 +261,27 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final List<dynamic> results = data['results'];
-      return results.map((json) => Transaction.fromJson(json)).toList();
+      final List<dynamic> results = data['results'] ?? data; // Fallback to data if 'results' key is not present
+      final List<Transaction> transactions = results.map((json) => Transaction.fromJson(json)).toList();
+
+      // Determine if there are more transactions to fetch
+      bool hasMore;
+      if (data.containsKey('next') && data['next'] != null) {
+        hasMore = true; // If there's a 'next' URL, there are more transactions
+      } else if (data.containsKey('count')) {
+        // If the backend provides a total count, calculate if there are more
+        final int totalCount = data['count'];
+        hasMore = (page * pageSize) < totalCount;
+      } else {
+        // Fallback: Assume there are more transactions if the current page is full
+        hasMore = transactions.length == pageSize;
+      }
+
+      return PaginatedResponse<Transaction>(
+        items: transactions,
+        hasMore: hasMore,
+        totalCount: data.containsKey('count') ? data['count'] : null,
+      );
     }
     throw Exception('Failed to fetch transactions: ${json.decode(response.body)['error'] ?? response.body}');
   }

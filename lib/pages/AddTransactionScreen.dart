@@ -7,6 +7,7 @@ import 'dart:io'; // For SocketException
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -25,7 +26,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _selectedCategory = 'food';
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
-  String _displayCurrency = 'KGS'; // Currency for the amount displayed in the TextFormField
+  String _displayCurrency = 'KGS';
 
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
@@ -55,19 +56,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
 
     if (widget.transaction != null) {
-      // Edit mode: Populate fields with transaction data
       _descriptionController.text = widget.transaction!.description;
       _selectedType = widget.transaction!.type;
       _selectedCategory = widget.transaction!.category;
       _selectedDate = DateTime.parse(widget.transaction!.timestamp);
 
-      // Determine the amount to display in the TextFormField
       if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
-        // Use originalAmount and originalCurrency if available
         _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
         _displayCurrency = widget.transaction!.originalCurrency!;
       } else {
-        // Fallback to amount in KGS and convert to current currency
         double amountInCurrentCurrency = widget.transaction!.amount;
         if (currencyProvider.currency != 'KGS') {
           try {
@@ -75,7 +72,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             amountInCurrentCurrency = widget.transaction!.amount * conversionRate;
           } catch (e) {
             print('Error converting amount for edit: $e');
-            // Fallback to KGS if conversion fails
             _displayCurrency = 'KGS';
           }
         }
@@ -83,7 +79,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         _displayCurrency = currencyProvider.currency;
       }
     } else {
-      // Add mode: Set _displayCurrency to the app's selected currency
       _displayCurrency = currencyProvider.currency;
     }
   }
@@ -115,31 +110,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         _isLoading = true;
       });
 
-      // Define transactionCurrency at a higher scope
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       final String transactionCurrency = widget.transaction != null ? _displayCurrency : currencyProvider.currency;
 
       try {
         final double enteredAmount = double.parse(_amountController.text);
 
-        // Convert the entered amount to KGS using CurrencyApiService
         double amountInKGS;
         double conversionRate;
         if (transactionCurrency == 'KGS') {
           amountInKGS = enteredAmount;
           conversionRate = 1.0;
         } else {
-          // Fetch the conversion rate for the transaction's currency to KGS
           conversionRate = _currencyApiService.getConversionRate(transactionCurrency, 'KGS');
           amountInKGS = enteredAmount * conversionRate;
 
-          // Verify that the conversion rate matches CurrencyProvider
           if (transactionCurrency == currencyProvider.currency && conversionRate != currencyProvider.exchangeRate) {
             print('Warning: CurrencyProvider exchange rate (${currencyProvider.exchangeRate}) does not match CurrencyApiService rate ($conversionRate) for $transactionCurrency');
           }
         }
 
-        // Log the values for debugging
         print('Entered Amount: $enteredAmount $transactionCurrency');
         print('Conversion Rate ($transactionCurrency to KGS): $conversionRate');
         print('Converted Amount in KGS: $amountInKGS KGS');
@@ -157,7 +147,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           originalAmount: enteredAmount,
         );
 
-        // Log the transaction object
         print('Transaction to Save: ${transaction.toString()}');
 
         if (widget.transaction == null) {
@@ -170,8 +159,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           NotificationService.showNotification(
             context,
             message: widget.transaction == null
-                ? 'Transaction added successfully'
-                : 'Transaction updated successfully',
+                ? AppLocalizations.of(context)!.transactionAdded
+                : AppLocalizations.of(context)!.transactionUpdated,
           );
 
           await Future.delayed(const Duration(seconds: 1));
@@ -181,10 +170,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (mounted) {
           String errorMessage = e.toString().replaceFirst('Exception: ', '');
           if (e is SocketException) {
-            errorMessage = 'Network error. Please check your connection.';
+            errorMessage = AppLocalizations.of(context)!.networkError;
           } else if (e.toString().contains('Unsupported currency')) {
             final currencySymbol = _currencyApiService.getCurrencySymbol(transactionCurrency);
-            errorMessage = 'The selected currency ($currencySymbol) is not supported.';
+            errorMessage = 'The selected currency ($currencySymbol) is not supported.'; // Kept untranslated as it's dynamic
           }
 
           NotificationService.showNotification(
@@ -203,31 +192,29 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-  // Add a method to get a color for each category based on its name
   Color _getCategoryColor(String category) {
     final Map<String, Color> categoryColors = {
-      'food': const Color(0xFFEF5350), // Red for food
-      'transport': const Color(0xFF42A5F5), // Blue for transport
-      'housing': const Color(0xFFAB47BC), // Purple for housing
-      'utilities': const Color(0xFF26C6DA), // Cyan for utilities
-      'entertainment': const Color(0xFFFFCA28), // Yellow for entertainment
-      'healthcare': const Color(0xFF4CAF50), // Green for healthcare
-      'education': const Color(0xFFFF8A65), // Orange for education
-      'shopping': const Color(0xFFD4E157), // Lime for shopping
-      'other_expense': const Color(0xFF90A4AE), // Grey for other_expense
-      'salary': const Color(0xFF66BB6A), // Light Green for salary
-      'gift': const Color(0xFFF06292), // Pink for gift
-      'interest': const Color(0xFF29B6F6), // Light Blue for interest
-      'other_income': const Color(0xFF78909C), // Blue Grey for other_income
+      'food': const Color(0xFFEF5350),
+      'transport': const Color(0xFF42A5F5),
+      'housing': const Color(0xFFAB47BC),
+      'utilities': const Color(0xFF26C6DA),
+      'entertainment': const Color(0xFFFFCA28),
+      'healthcare': const Color(0xFF4CAF50),
+      'education': const Color(0xFFFF8A65),
+      'shopping': const Color(0xFFD4E157),
+      'other_expense': const Color(0xFF90A4AE),
+      'salary': const Color(0xFF66BB6A),
+      'gift': const Color(0xFFF06292),
+      'interest': const Color(0xFF29B6F6),
+      'other_income': const Color(0xFF78909C),
     };
     return categoryColors[category] ?? Colors.grey.withOpacity(0.8);
   }
 
-  // Add a method to get a color for each transaction type
   Color _getTypeColor(String type) {
     final Map<String, Color> typeColors = {
-      'expense': const Color(0xFFEF5350), // Red for expense
-      'income': const Color(0xFF4CAF50), // Green for income
+      'expense': const Color(0xFFEF5350),
+      'income': const Color(0xFF4CAF50),
     };
     return typeColors[type] ?? Colors.grey.withOpacity(0.8);
   }
@@ -246,7 +233,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.transaction == null ? 'Add Transaction' : 'Edit Transaction',
+          widget.transaction == null
+              ? AppLocalizations.of(context)!.addTransaction
+              : AppLocalizations.of(context)!.editTransaction,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -283,14 +272,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Type Toggle Buttons (Expense <-> Income)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Expanded(
                             child: ElevatedButton(
                               onPressed: widget.transaction != null
-                                  ? null // Disable in edit mode
+                                  ? null
                                   : () {
                                 setState(() {
                                   _selectedType = 'expense';
@@ -310,7 +298,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                               ),
                               child: Text(
-                                'Expense',
+                                AppLocalizations.of(context)!.expense,
                                 style: AppTextStyles.body(context).copyWith(
                                   color: _selectedType == 'expense'
                                       ? Colors.white
@@ -323,7 +311,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           Expanded(
                             child: ElevatedButton(
                               onPressed: widget.transaction != null
-                                  ? null // Disable in edit mode
+                                  ? null
                                   : () {
                                 setState(() {
                                   _selectedType = 'income';
@@ -343,7 +331,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                               ),
                               child: Text(
-                                'Income',
+                                AppLocalizations.of(context)!.income,
                                 style: AppTextStyles.body(context).copyWith(
                                   color: _selectedType == 'income'
                                       ? Colors.white
@@ -357,10 +345,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Category Dropdown
                       DropdownButtonFormField<String>(
                         value: _selectedCategory,
-                        decoration: AppInputStyles.dropdown(context, labelText: 'Category'),
+                        decoration: AppInputStyles.dropdown(context,
+                            labelText: AppLocalizations.of(context)!.category),
                         items: _categories.map((category) {
                           final categoryColor = _getCategoryColor(category);
                           return DropdownMenuItem<String>(
@@ -376,7 +364,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(category.capitalize()),
+                                Text(AppLocalizations.of(context)!.getCategoryName(category)),
                               ],
                             ),
                           );
@@ -395,11 +383,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Description Field
                       TextFormField(
                         controller: _descriptionController,
                         decoration: AppInputStyles.textField(context).copyWith(
-                          labelText: 'Description',
+                          labelText: AppLocalizations.of(context)!.description,
                           prefixIcon: const Icon(
                             Icons.description,
                             size: 24,
@@ -407,18 +394,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter a description';
+                            return AppLocalizations.of(context)!.descriptionRequired;
                           }
                           return null;
                         },
+                        textInputAction: TextInputAction.next,
+                        keyboardType: TextInputType.text,
+                        textCapitalization: TextCapitalization.sentences,
                       ),
                       const SizedBox(height: 16),
 
-                      // Amount Field with Currency Symbol
                       TextFormField(
                         controller: _amountController,
                         decoration: AppInputStyles.textField(context).copyWith(
-                          labelText: 'Amount ($displayCurrencySymbol)',
+                          labelText: '${AppLocalizations.of(context)!.amount} ($displayCurrencySymbol)',
                           prefixIcon: const Icon(
                             Icons.attach_money,
                             size: 24,
@@ -427,10 +416,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter an amount';
+                            return AppLocalizations.of(context)!.amountRequired;
                           }
                           if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                            return 'Please enter a valid amount';
+                            return AppLocalizations.of(context)!.amountInvalid;
                           }
                           return null;
                         },
@@ -441,8 +430,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       const SizedBox(height: 16),
 
                       if (_displayCurrency != 'KGS')
-
-                        // Auto-converted Amount in KGS
                         FutureBuilder<double>(
                           future: Future.value(
                             _displayCurrency != 'KGS'
@@ -452,18 +439,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
                               return const Padding(
-                                padding: EdgeInsets.only(bottom: 16.0),
-                                child: Text(
-                                  'Calculating amount in KGS...',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
+                                padding: EdgeInsets.only(top: 16.0),
+                                child: CircularProgressIndicator(),
                               );
                             }
                             if (snapshot.hasError) {
                               return Padding(
-                                padding: const EdgeInsets.only(bottom: 16.0),
+                                padding: const EdgeInsets.only(top: 16.0),
                                 child: Text(
-                                  'Error calculating amount in KGS: ${snapshot.error}',
+                                  AppLocalizations.of(context)!.currencyConversionError(snapshot.error.toString()),
                                   style: AppTextStyles.body(context).copyWith(
                                     color: Theme.of(context).colorScheme.error,
                                   ),
@@ -473,9 +457,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             double conversionRate = snapshot.data ?? 1.0;
                             double amountInKGS = enteredAmount * conversionRate;
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
+                              padding: const EdgeInsets.only(top: 16.0),
                               child: Text(
-                                'Amount in KGS: ${amountInKGS.toStringAsFixed(2)} $kgsSymbol',
+                                '${AppLocalizations.of(context)!.amountInKGS}: ${amountInKGS.toStringAsFixed(2)} $kgsSymbol',
                                 style: AppTextStyles.body(context).copyWith(
                                   color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                 ),
@@ -484,10 +468,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           },
                         ),
 
-                      // Date Picker
                       ListTile(
                         title: Text(
-                          "Date: ${_selectedDate.toLocal().toString().split(' ')[0]}",
+                          "${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}",
                           style: AppTextStyles.body(context),
                         ),
                         trailing: Icon(
@@ -536,7 +519,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     ),
                   )
                       : Text(
-                    widget.transaction == null ? 'Add' : 'Update',
+                    widget.transaction == null
+                        ? AppLocalizations.of(context)!.add
+                        : AppLocalizations.of(context)!.update,
                     style: AppTextStyles.body(context).copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -549,8 +534,4 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ),
     );
   }
-}
-
-extension StringExtension on String {
-  String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
 }

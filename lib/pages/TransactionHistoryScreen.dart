@@ -6,6 +6,7 @@ import 'package:personal_finance/models/transaction.dart';
 import 'package:personal_finance/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:personal_finance/generated/app_localizations.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -19,34 +20,104 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   final CurrencyApiService _currencyApiService = CurrencyApiService();
   List<Transaction> _transactions = [];
   String _searchQuery = "";
-  String _filterType = "All";
+  late String _filterType; // Use late initialization
   int? _expandedIndex;
+  final int _pageSize = 20; // Number of transactions to fetch per page
+  int _currentPage = 1; // Current page number
+  bool _isLoadingMore = false; // Flag to prevent multiple simultaneous fetches
+  bool _hasMoreTransactions = true; // Flag to check if there are more transactions to fetch
+  final ScrollController _scrollController = ScrollController(); // Scroll controller for pagination
 
   @override
   void initState() {
     super.initState();
-    _loadTransactions();
+    // Add scroll listener for pagination
+    _scrollController.addListener(_scrollListener);
   }
 
-  Future<void> _loadTransactions() async {
-    try {
-      final transactions = await _apiService.getTransactions();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Set the localized value of _filterType using the context
+    _filterType = AppLocalizations.of(context)!.all;
+    // Ensure this only runs once by checking if _transactions is empty
+    if (_transactions.isEmpty) {
+      _loadTransactions();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8 &&
+        !_isLoadingMore &&
+        _hasMoreTransactions) {
+      // When the user scrolls to 80% of the list, fetch more transactions
+      _loadMoreTransactions();
+    }
+  }
+
+  Future<void> _loadTransactions({bool reset = false}) async {
+    if (reset) {
       setState(() {
-        _transactions = transactions;
+        _transactions.clear();
+        _currentPage = 1;
+        _hasMoreTransactions = true;
+        _isLoadingMore = false;
+      });
+    }
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final filterValue = _getFilterTypeValue(_filterType);
+      final paginatedResponse = await _apiService.getTransactions(
+        page: _currentPage,
+        pageSize: _pageSize,
+        type: filterValue,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+      );
+
+      setState(() {
+        if (reset) {
+          _transactions = paginatedResponse.items;
+        } else {
+          _transactions.addAll(paginatedResponse.items);
+        }
+        _hasMoreTransactions = paginatedResponse.hasMore;
+        _isLoadingMore = false;
+        if (_hasMoreTransactions) {
+          _currentPage++;
+        }
       });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to load transactions: $e',
+              AppLocalizations.of(context)!.transactionsLoadFailed(e.toString()),
               style: AppTextStyles.body(context),
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
+      setState(() {
+        _isLoadingMore = false;
+      });
     }
+  }
+
+  Future<void> _loadMoreTransactions() async {
+    if (_isLoadingMore || !_hasMoreTransactions) return;
+    await _loadTransactions();
   }
 
   Future<void> _deleteTransaction(int id, int index) async {
@@ -65,12 +136,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     if (mounted) {
       final snackBar = SnackBar(
         content: Text(
-          'Transaction deleted',
+          AppLocalizations.of(context)!.transactionDeleted,
           style: AppTextStyles.body(context),
         ),
         backgroundColor: Theme.of(context).colorScheme.error,
         action: SnackBarAction(
-          label: 'Undo',
+          label: AppLocalizations.of(context)!.undo,
           textColor: Colors.white,
           onPressed: () {
             shouldDelete = false;
@@ -101,7 +172,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Failed to delete transaction: $e',
+                    AppLocalizations.of(context)!.deleteTransactionFailed(e.toString()),
                     style: AppTextStyles.body(context),
                   ),
                   backgroundColor: Theme.of(context).colorScheme.error,
@@ -123,7 +194,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
 
     if (result == true) {
-      _loadTransactions();
+      _loadTransactions(reset: true); // Reset and reload transactions after edit
     }
   }
 
@@ -154,12 +225,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Delete Transaction',
+                    AppLocalizations.of(context)!.deleteTransaction,
                     style: AppTextStyles.subheading(context),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Are you sure you want to delete this transaction?',
+                    AppLocalizations.of(context)!.deleteTransactionConfirm,
                     style: AppTextStyles.body(context),
                     textAlign: TextAlign.center,
                   ),
@@ -172,7 +243,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           style: AppButtonStyles.textButton(context),
                           onPressed: () => Navigator.pop(context, false),
                           child: Text(
-                            'Cancel',
+                            AppLocalizations.of(context)!.no,
                             style: AppTextStyles.body(context),
                           ),
                         ),
@@ -187,7 +258,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           ),
                           onPressed: () => Navigator.pop(context, true),
                           child: Text(
-                            'Confirm',
+                            AppLocalizations.of(context)!.yes,
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                             ),
@@ -207,27 +278,38 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return confirmed ?? false;
   }
 
-  // Method to cycle through filter types
   void _cycleFilterType() {
     setState(() {
-      if (_filterType == "All") {
-        _filterType = "Expense";
-      } else if (_filterType == "Expense") {
-        _filterType = "Income";
+      if (_filterType == AppLocalizations.of(context)!.all) {
+        _filterType = AppLocalizations.of(context)!.expense;
+      } else if (_filterType == AppLocalizations.of(context)!.expense) {
+        _filterType = AppLocalizations.of(context)!.incomeFilter;
       } else {
-        _filterType = "All";
+        _filterType = AppLocalizations.of(context)!.all;
       }
+      _loadTransactions(reset: true); // Reload transactions with the new filter
     });
   }
 
-  // Add a method to get a color for each filter type
   Color _getFilterTypeColor(String filterType) {
     final Map<String, Color> filterTypeColors = {
-      'All': const Color(0xFF78909C), // Blue Grey for All
-      'Income': const Color(0xFF4CAF50), // Green for Income
-      'Expense': const Color(0xFFEF5350), // Red for Expense
+      AppLocalizations.of(context)!.all: const Color(0xFF78909C),
+      AppLocalizations.of(context)!.incomeFilter: const Color(0xFF4CAF50),
+      AppLocalizations.of(context)!.expense: const Color(0xFFEF5350),
     };
     return filterTypeColors[filterType] ?? Colors.grey.withOpacity(0.8);
+  }
+
+  String _getFilterTypeValue(String localizedFilterType) {
+    // Map the localized filter type back to its English value for comparison
+    if (localizedFilterType == AppLocalizations.of(context)!.all) {
+      return "all";
+    } else if (localizedFilterType == AppLocalizations.of(context)!.expense) {
+      return "expense";
+    } else if (localizedFilterType == AppLocalizations.of(context)!.incomeFilter) {
+      return "income";
+    }
+    return "all"; // Fallback
   }
 
   double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
@@ -239,7 +321,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       return amountInKGS * rate;
     } catch (e) {
       print('Error converting amount: $e');
-      return amountInKGS; // Fallback to KGS if conversion fails
+      return amountInKGS;
     }
   }
 
@@ -249,18 +331,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
 
-    List<Transaction> filteredTransactions = _transactions.where((transaction) {
-      final matchesSearch =
-      transaction.description.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesFilter =
-          _filterType == "All" || transaction.type == _filterType.toLowerCase();
-      return matchesSearch && matchesFilter;
-    }).toList();
+    // Since filtering is now done server-side, we don't need to filter the transactions here
+    List<Transaction> filteredTransactions = _transactions;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "Transaction History",
+          AppLocalizations.of(context)!.transactionHistory,
           style: AppTextStyles.heading(context),
         ),
         flexibleSpace: Container(
@@ -293,12 +370,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             _buildSearchAndFilterRow(),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadTransactions,
+                onRefresh: () => _loadTransactions(reset: true),
                 color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                 child: filteredTransactions.isEmpty
                     ? Center(
                   child: Text(
-                    "No transactions found",
+                    AppLocalizations.of(context)!.noTransactionsFound,
                     style: AppTextStyles.body(context).copyWith(
                       color: isDark
                           ? AppColors.darkTextSecondary
@@ -306,13 +383,29 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     ),
                   ),
                 )
-                    : ListView.builder(
-                  itemCount: filteredTransactions.length,
-                  itemBuilder: (context, index) {
-                    final transaction = filteredTransactions[index];
-                    return _buildTransactionCard(
-                        transaction, index, currencyProvider, currencySymbol);
-                  },
+                    : Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true, // Always show the scrollbar
+                  thickness: 6.0, // Adjust thickness for better visibility
+                  radius: const Radius.circular(3), // Rounded edges for the scrollbar
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    itemCount: filteredTransactions.length + (_isLoadingMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == filteredTransactions.length && _isLoadingMore) {
+                        // Show a loading indicator at the bottom while fetching more transactions
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                      final transaction = filteredTransactions[index];
+                      return _buildTransactionCard(
+                          transaction, index, currencyProvider, currencySymbol);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -328,7 +421,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       padding: const EdgeInsets.all(8.0),
       child: Row(
         children: [
-          // Filter button (25% width)
           Expanded(
             flex: 25,
             child: Padding(
@@ -349,12 +441,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ),
             ),
           ),
-          // Search bar (75% width)
           Expanded(
             flex: 75,
             child: TextField(
               decoration: AppInputStyles.textField(context).copyWith(
-                labelText: 'Search Transactions',
+                labelText: AppLocalizations.of(context)!.searchTransactions,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -365,6 +456,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   onPressed: () {
                     setState(() {
                       _searchQuery = "";
+                      _loadTransactions(reset: true); // Reload transactions with empty search
                     });
                   },
                 )
@@ -389,8 +481,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
+                  _loadTransactions(reset: true); // Reload transactions with new search query
                 });
               },
+              // Enable multilingual input for Russian and Kyrgyz
+              textInputAction: TextInputAction.search,
+              keyboardType: TextInputType.text,
+              textCapitalization: TextCapitalization.sentences,
             ),
           ),
         ],
@@ -484,7 +581,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                "${StringExtension(transaction.category).capitalize()} - ${transaction.timestamp.split("T")[0]}",
+                                "${AppLocalizations.of(context)!.getCategoryName(transaction.category)} - ${transaction.timestamp.split("T")[0]}",
                                 style: AppTextStyles.body(context).copyWith(
                                   color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                 ),
@@ -520,32 +617,34 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildDetailRow(
-                              "Description",
+                              AppLocalizations.of(context)!.description,
                               transaction.description,
                               context,
                             ),
                             const SizedBox(height: 8),
                             _buildDetailRow(
-                              "Category",
-                              StringExtension(transaction.category).capitalize(),
+                              AppLocalizations.of(context)!.category,
+                              AppLocalizations.of(context)!.getCategoryName(transaction.category),
                               context,
                             ),
                             const SizedBox(height: 8),
                             _buildDetailRow(
-                              "Amount",
+                              AppLocalizations.of(context)!.amount,
                               "${convertedAmount.toStringAsFixed(2)} $currencySymbol",
                               context,
                               valueColor: isIncome ? Colors.green : Colors.red,
                             ),
                             const SizedBox(height: 8),
                             _buildDetailRow(
-                              "Type",
-                              StringExtension(transaction.type).capitalize(),
+                              AppLocalizations.of(context)!.type,
+                              transaction.type == 'income'
+                                  ? AppLocalizations.of(context)!.income
+                                  : AppLocalizations.of(context)!.expense,
                               context,
                             ),
                             const SizedBox(height: 8),
                             _buildDetailRow(
-                              "Date",
+                              AppLocalizations.of(context)!.date,
                               transaction.timestamp.split("T")[0],
                               context,
                             ),
@@ -589,8 +688,4 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       ],
     );
   }
-}
-
-extension StringExtension on String {
-  String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
 }
