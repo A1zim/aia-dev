@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/services/notification_service.dart';
-import 'package:personal_finance/theme/styles.dart';
+import 'package:aia_wallet/services/api_service.dart';
+import 'package:aia_wallet/services/notification_service.dart';
+import 'package:aia_wallet/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/services/currency_api_service.dart';
-import 'package:personal_finance/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/currency_provider.dart';
+import 'package:aia_wallet/services/currency_api_service.dart';
+import 'package:aia_wallet/generated/app_localizations.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});

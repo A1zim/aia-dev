@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/pages/HomeScreen.dart';
-import 'package:personal_finance/pages/ReportsScreen.dart';
-import 'package:personal_finance/pages/SettingsScreen.dart';
-import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
-import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/theme/styles.dart';
-import 'package:personal_finance/generated/app_localizations.dart';
+import 'package:aia_wallet/pages/HomeScreen.dart';
+import 'package:aia_wallet/pages/ReportsScreen.dart';
+import 'package:aia_wallet/pages/SettingsScreen.dart';
+import 'package:aia_wallet/pages/TransactionHistoryScreen.dart';
+import 'package:aia_wallet/services/api_service.dart';
+import 'package:aia_wallet/theme/styles.dart';
+import 'package:aia_wallet/generated/app_localizations.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});

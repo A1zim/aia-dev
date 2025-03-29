@@ -30,7 +30,7 @@ class ThemeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Convert string to ThemeMode (made public)
+  // Convert string to ThemeMode
   ThemeMode themeModeFromString(String mode) {
     switch (mode) {
       case 'light':
@@ -43,7 +43,7 @@ class ThemeProvider with ChangeNotifier {
     }
   }
 
-  // Convert ThemeMode to string (made public)
+  // Convert ThemeMode to string
   String themeModeToString(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
@@ -54,5 +54,18 @@ class ThemeProvider with ChangeNotifier {
       default:
         return 'system';
     }
+  }
+
+  // Get the logo path based on the current theme
+  String getLogoPath(BuildContext context) {
+    // Determine the effective theme (resolves ThemeMode.system)
+    final brightness = _themeMode == ThemeMode.system
+        ? MediaQuery.of(context).platformBrightness
+        : (_themeMode == ThemeMode.dark ? Brightness.dark : Brightness.light);
+
+    // Return the appropriate logo path
+    return brightness == Brightness.dark
+        ? 'assets/images/aia_logo_w.png'
+        : 'assets/images/aia_logo_b.png';
   }
 }

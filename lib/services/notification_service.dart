@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/theme/styles.dart';
+import 'package:aia_wallet/theme/styles.dart';
 
 class NotificationService {
   static OverlayEntry? _overlayEntry;

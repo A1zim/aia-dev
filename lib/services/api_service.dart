@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:personal_finance/models/transaction.dart';
+import 'package:aia_wallet/models/transaction.dart';
 
 class PaginatedResponse<T> {
   final List<T> items;
@@ -98,7 +98,7 @@ class ApiService {
   // Register a new user
   Future<void> register(String username, String password, {String? email}) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/auth/register/'), // Updated endpoint to match previous setup
+      Uri.parse('$baseUrl/auth/register/'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'username': username,
@@ -112,7 +112,6 @@ class ApiService {
     }
   }
 
-  // Login a user and save tokens
   Future<void> login(String username, String password) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/token/'),
@@ -262,19 +261,16 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final List<dynamic> results = data['results'] ?? data; // Fallback to data if 'results' key is not present
+      final List<dynamic> results = data['results'] ?? data;
       final List<Transaction> transactions = results.map((json) => Transaction.fromJson(json)).toList();
 
-      // Determine if there are more transactions to fetch
       bool hasMore;
       if (data.containsKey('next') && data['next'] != null) {
-        hasMore = true; // If there's a 'next' URL, there are more transactions
+        hasMore = true;
       } else if (data.containsKey('count')) {
-        // If the backend provides a total count, calculate if there are more
         final int totalCount = data['count'];
         hasMore = (page * pageSize) < totalCount;
       } else {
-        // Fallback: Assume there are more transactions if the current page is full
         hasMore = transactions.length == pageSize;
       }
 

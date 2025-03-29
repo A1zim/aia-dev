@@ -155,7 +155,6 @@ class AppButtonStyles {
     );
   }
 
-  // Add outlinedButton style
   static ButtonStyle outlinedButton(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return OutlinedButton.styleFrom(
@@ -232,25 +231,13 @@ class AppInputStyles {
     );
   }
 
-  // Custom dropdown icon with gradient
+  // Custom dropdown icon (reverted to triangle without background)
   static Widget dropdownIcon(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [AppColors.darkAccent, AppColors.darkSecondary]
-              : [AppColors.lightAccent, AppColors.lightSecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        Icons.arrow_drop_down,
-        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      ),
+    return Icon(
+      Icons.arrow_drop_down, // Default triangle icon
+      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      size: 24, // Match the size of the original dropdown icon
     );
   }
 

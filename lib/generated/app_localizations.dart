@@ -97,7 +97,7 @@ class AppLocalizations {
       'expense': 'Expense',
       'incomeFilter': 'Income',
       'undo': 'Undo',
-      'welcomeBack': 'Welcome Back!',
+      'welcomeBack': 'Welcome!',
       'createAccount': 'Create Account',
       'verifyYourEmail': 'Verify Your Email',
       'login': 'Login',
@@ -157,7 +157,10 @@ class AppLocalizations {
       "clearDataConfirm": "Are you sure you want to clear all your financial data? This action cannot be undone. Please enter your password to confirm.",
       "enterPassword": "Enter Password",
       "dataCleared": "All data has been cleared successfully.",
-      "clearDataFailed": "Failed to clear data: %s"
+      "clearDataFailed": "Failed to clear data: %s",
+      "usernameTaken" : "Username is available",
+      "usernameAvailable": "Username is already taken",
+      "codeInvalid": "Incorrect code"
     },
     'ky': {
       'appTitle': 'Жеке Финансы',
@@ -244,7 +247,7 @@ class AppLocalizations {
       'expense': 'Чыгаша',
       'incomeFilter': 'Киреше',
       'undo': 'Жокко чыгаруу',
-      'welcomeBack': 'Кайра Кош Келдиңиз!',
+      'welcomeBack': 'Кош Келдиңиз!',
       'createAccount': 'Каттоо Эсебин Түзүү',
       'verifyYourEmail': 'Электрондук Почтаңызды Ырастаңыз',
       'login': 'Кирүү',
@@ -304,7 +307,10 @@ class AppLocalizations {
       "clearDataConfirm": "Сиз чын эле бардык финансылык маалыматыңызды тазалоону каалайсызбы? Бул аракетти кайтаруу мүмкүн эмес. Тазалоону ырастоо үчүн сырсөзүңүздү киргизиңиз.",
       "enterPassword": "Сырсөздү киргизиңиз",
       "dataCleared": "Бардык маалымат ийгиликтүү тазаланды.",
-      "clearDataFailed": "Маалыматты тазалоо ишке ашкан жок: %s"
+      "clearDataFailed": "Маалыматты тазалоо ишке ашкан жок: %s",
+      "usernameTaken" : "Бул ысым бош эмес",
+      "usernameAvailable": "Бул ысымды колдонсо болот",
+      "codeInvalid": "Туура эмес код"
     },
     'ru': {
       'appTitle': 'Личные Финансы',
@@ -391,7 +397,7 @@ class AppLocalizations {
       'expense': 'Расход',
       'incomeFilter': 'Доход',
       'undo': 'Отменить',
-      'welcomeBack': 'Добро пожаловать обратно!',
+      'welcomeBack': 'Добро пожаловать!',
       'createAccount': 'Создать Аккаунт',
       'verifyYourEmail': 'Подтвердите Вашу Электронную Почту',
       'login': 'Войти',
@@ -451,7 +457,10 @@ class AppLocalizations {
       "clearDataConfirm": "Вы уверены, что хотите очистить все ваши финансовые данные? Это действие нельзя отменить. Пожалуйста, введите ваш пароль для подтверждения.",
       "enterPassword": "Введите пароль",
       "dataCleared": "Все данные успешно очищены.",
-      "clearDataFailed": "Не удалось очистить данные: %s"
+      "clearDataFailed": "Не удалось очистить данные: %s",
+      "usernameTaken" : "Имя пользователя не доступно",
+      "usernameAvailable": "Имя пользователя доступно",
+      "codeInvalid": "Не правильный код"
     },
   };
 
@@ -552,7 +561,7 @@ class AppLocalizations {
   String get expense => _localizedValues[locale.languageCode]!['expense']!;
   String get incomeFilter => _localizedValues[locale.languageCode]!['incomeFilter']!;
   String get undo => _localizedValues[locale.languageCode]!['undo']!;
-  String get welcomeBack => _localizedValues[locale.languageCode]!['welcomeBack']!;
+  String get welcome => _localizedValues[locale.languageCode]!['welcomeBack']!;
   String get createAccount => _localizedValues[locale.languageCode]!['createAccount']!;
   String get verifyYourEmail => _localizedValues[locale.languageCode]!['verifyYourEmail']!;
   String get login => _localizedValues[locale.languageCode]!['login']!;
@@ -618,6 +627,9 @@ class AppLocalizations {
   String get enterPassword => _localizedValues[locale.languageCode]!['enterPassword']!;
   String get dataCleared => _localizedValues[locale.languageCode]!['dataCleared']!;
   String get clearDataFailed => _localizedValues[locale.languageCode]!['clearDataFailed']!;
+  String get usernameTaken => _localizedValues[locale.languageCode]!['usernameTaken']!;
+  String get usernameAvailable => _localizedValues[locale.languageCode]!['usernameAvailable']!;
+  String get codeInvalid => _localizedValues[locale.languageCode]!['codeInvalid']!;
 
   // Method to get the localized category name dynamically
   String getCategoryName(String category) {

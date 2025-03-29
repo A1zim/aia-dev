@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/pages/AddTransactionScreen.dart';
-import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/services/currency_api_service.dart';
-import 'package:personal_finance/models/transaction.dart';
-import 'package:personal_finance/theme/styles.dart';
+import 'package:aia_wallet/pages/AddTransactionScreen.dart';
+import 'package:aia_wallet/services/api_service.dart';
+import 'package:aia_wallet/services/currency_api_service.dart';
+import 'package:aia_wallet/models/transaction.dart';
+import 'package:aia_wallet/theme/styles.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/currency_provider.dart';
+import 'package:aia_wallet/generated/app_localizations.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
