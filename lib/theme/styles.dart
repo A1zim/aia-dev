@@ -66,13 +66,6 @@ class AppTextStyles {
       fontSize: 24,
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      shadows: [
-        Shadow(
-          color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-          blurRadius: 4,
-          offset: const Offset(2, 2),
-        ),
-      ],
     );
   }
 
@@ -82,13 +75,6 @@ class AppTextStyles {
       fontSize: 18,
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      shadows: [
-        Shadow(
-          color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-          blurRadius: 4,
-          offset: const Offset(1, 1),
-        ),
-      ],
     );
   }
 
@@ -155,7 +141,6 @@ class AppButtonStyles {
     );
   }
 
-  // Add outlinedButton style
   static ButtonStyle outlinedButton(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return OutlinedButton.styleFrom(
@@ -212,7 +197,7 @@ class AppInputStyles {
           ? AppColors.darkBackground.withOpacity(0.3)
           : AppColors.lightSurface.withOpacity(0.8),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20), // Rounded corners
+        borderRadius: BorderRadius.circular(20),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
@@ -232,29 +217,15 @@ class AppInputStyles {
     );
   }
 
-  // Custom dropdown icon with gradient
   static Widget dropdownIcon(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [AppColors.darkAccent, AppColors.darkSecondary]
-              : [AppColors.lightAccent, AppColors.lightSecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        Icons.arrow_drop_down,
-        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      ),
+    return Icon(
+      Icons.arrow_drop_down,
+      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+      size: 24,
     );
   }
 
-  // Custom style for dropdown menu items
   static DropdownMenuItem<T> dropdownMenuItem<T>(
       BuildContext context,
       T value,
@@ -275,7 +246,6 @@ class AppInputStyles {
     );
   }
 
-  // Common properties for DropdownButtonFormField
   static Map<String, dynamic> dropdownProperties(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return {
@@ -285,7 +255,7 @@ class AppInputStyles {
       'dropdownColor': isDark ? AppColors.darkSurface : AppColors.lightSurface,
       'icon': dropdownIcon(context),
       'menuMaxHeight': 300.0,
-      'borderRadius': BorderRadius.circular(16), // Rounded corners for the dropdown menu
+      'borderRadius': BorderRadius.circular(16),
       'elevation': 8,
     };
   }
@@ -374,7 +344,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-      useMaterial3: true, // Keep Material 3 enabled
+      useMaterial3: true,
     );
   }
 
@@ -433,7 +403,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-      useMaterial3: true, // Keep Material 3 enabled
+      useMaterial3: true,
     );
   }
 }

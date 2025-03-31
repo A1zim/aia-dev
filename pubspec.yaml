@@ -1,4 +1,4 @@
-name: personal_finance
+name: aia_wallet
 description: "A new Flutter project."
 
 publish_to: 'none'
@@ -27,7 +27,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
+  assets:
+    - assets/images/app_logo.png
+    - assets/images/aia_logo_b.png
+    - assets/images/aia_logo_w.png
   generate: true
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_logo.png"
+  min_sdk_android: 21

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/generated/app_localizations.dart';
-import 'package:personal_finance/pages/LoginRegister.dart';
-import 'package:personal_finance/pages/MainNavigationScreen.dart';
-import 'package:personal_finance/pages/AddTransactionScreen.dart';
-import 'package:personal_finance/pages/HomeScreen.dart';
-import 'package:personal_finance/pages/ReportsScreen.dart';
-import 'package:personal_finance/pages/SettingsScreen.dart';
-import 'package:personal_finance/pages/TransactionHistoryScreen.dart';
-import 'package:personal_finance/pages/ProfileScreen.dart';
-import 'package:personal_finance/pages/CurrencyScreen.dart';
-import 'package:personal_finance/theme/styles.dart';
-import 'package:personal_finance/providers/theme_provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart';
+import 'package:aia_wallet/generated/app_localizations.dart';
+import 'package:aia_wallet/pages/LoginRegister.dart';
+import 'package:aia_wallet/pages/MainNavigationScreen.dart';
+import 'package:aia_wallet/pages/AddTransactionScreen.dart';
+import 'package:aia_wallet/pages/HomeScreen.dart';
+import 'package:aia_wallet/pages/ReportsScreen.dart';
+import 'package:aia_wallet/pages/SettingsScreen.dart';
+import 'package:aia_wallet/pages/TransactionHistoryScreen.dart';
+import 'package:aia_wallet/pages/ProfileScreen.dart';
+import 'package:aia_wallet/pages/CurrencyScreen.dart';
+import 'package:aia_wallet/theme/styles.dart';
+import 'package:aia_wallet/providers/theme_provider.dart';
+import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Define LocaleProvider
@@ -83,7 +83,7 @@ class MyApp extends StatelessWidget {
     return Consumer2<ThemeProvider, LocaleProvider>(
       builder: (context, themeProvider, localeProvider, child) {
         return MaterialApp(
-          title: 'Personal Finance',
+          title: 'AiaWallet',
           theme: AppTheme.lightTheme().copyWith(
             pageTransitionsTheme: const PageTransitionsTheme(
               builders: {

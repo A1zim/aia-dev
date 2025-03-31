@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/theme/styles.dart';
+import 'package:aia_wallet/theme/styles.dart';
+
+import '../theme/styles.dart';
 
 class SummaryCard extends StatelessWidget {
   final String title;

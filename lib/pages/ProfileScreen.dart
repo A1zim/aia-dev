@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/services/currency_api_service.dart';
-import 'package:personal_finance/services/notification_service.dart';
-import 'package:personal_finance/theme/styles.dart';
-import 'package:personal_finance/widgets/drawer.dart';
-import 'package:personal_finance/widgets/summary_card.dart';
+import 'package:aia_wallet/services/api_service.dart';
+import 'package:aia_wallet/services/currency_api_service.dart';
+import 'package:aia_wallet/services/notification_service.dart';
+import 'package:aia_wallet/theme/styles.dart';
+import 'package:aia_wallet/widgets/drawer.dart';
+import 'package:aia_wallet/widgets/summary_card.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/currency_provider.dart';
+import 'package:aia_wallet/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/theme_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,13 +17,14 @@ class ProfileScreen extends StatefulWidget {
   _ProfileScreenState createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Added for drawer control
   late TextEditingController _nicknameController;
   late TextEditingController _oldPasswordController;
   late TextEditingController _newPasswordController;
-  late TextEditingController _confirmPasswordController; // For clear data confirmation
+  late TextEditingController _confirmPasswordController;
   String? _username;
   String? _email;
   String? _nickname;
@@ -39,7 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nicknameController = TextEditingController();
     _oldPasswordController = TextEditingController();
     _newPasswordController = TextEditingController();
-    _confirmPasswordController = TextEditingController(); // Initialize controller for clear data
+    _confirmPasswordController = TextEditingController();
     _loadData();
   }
 
@@ -150,10 +152,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showChangePasswordDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
           backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           title: Text(AppLocalizations.of(context)!.changePassword, style: AppTextStyles.subheading(context)),
@@ -184,7 +186,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: _changePassword,
-              child: Text(AppLocalizations.of(context)!.confirm, style: AppTextStyles.body(context)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.purple[700] : Colors.blue[700],
+              ),
+              child: Text(
+                AppLocalizations.of(context)!.confirm,
+                style: AppTextStyles.body(context).copyWith(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -193,10 +201,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showClearDataDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
           backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           title: Text(
@@ -231,21 +239,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  // First, attempt to change password with the provided password to verify it
-                  // This is a simple way to verify the password; adjust based on your backend
-                  await _apiService.changePassword(
-                    _confirmPasswordController.text,
-                    _confirmPasswordController.text, // Use the same password to "verify"
-                  );
-                  // If the above doesn't throw an error, the password is correct
-                  await _apiService.clearData();
+                  await _apiService.clearData(_confirmPasswordController.text);
                   _confirmPasswordController.clear();
                   Navigator.pop(context);
                   setState(() {
                     _totalIncome = 0.0;
                     _totalExpenses = 0.0;
                     _balance = 0.0;
-                    _expandedCards.remove(2); // Collapse the card
+                    _expandedCards.remove(2);
                   });
                   NotificationService.showNotification(
                     context,
@@ -259,7 +260,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }
               },
-              child: Text(AppLocalizations.of(context)!.confirm, style: AppTextStyles.body(context)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.purple[700] : Colors.blue[700],
+              ),
+              child: Text(
+                AppLocalizations.of(context)!.confirm,
+                style: AppTextStyles.body(context).copyWith(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -296,40 +303,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final logoPath = themeProvider.getLogoPath(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.profile, style: AppTextStyles.heading(context)),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkPrimary, AppColors.darkSecondary]
-                  : [AppColors.lightPrimary, AppColors.lightSecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        iconTheme: IconThemeData(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        ),
-      ),
+      key: _scaffoldKey, // Assign scaffold key for drawer
       drawer: CustomDrawer(currentRoute: '/profile', parentContext: context),
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            _buildNicknameCard(),
-            const SizedBox(height: 12),
-            _buildUsernameEmailCard(),
-            const SizedBox(height: 12),
-            _buildBalanceCard(currencySymbol),
-          ],
-        ),
+          : Column(
+        children: [
+          // Custom Header like HomeScreen
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+            color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+            child: SafeArea(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                    child: Icon(
+                      Icons.menu,
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        logoPath,
+                        height: 40,
+                        width: 40,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 8),
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'AIA',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'Wallet',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.normal,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Divider(
+            color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+            thickness: 1,
+          ),
+          Container(
+            margin: const EdgeInsets.only(top: 8.0),
+            child: Center(
+              child: Text(
+                AppLocalizations.of(context)!.profile,
+                style: AppTextStyles.heading(context).copyWith(fontSize: 18),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListView(
+                children: [
+                  _buildNicknameCard(),
+                  const SizedBox(height: 12),
+                  _buildUsernameEmailCard(),
+                  const SizedBox(height: 12),
+                  _buildBalanceCard(currencySymbol),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -371,9 +440,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            AnimatedContainer(
+            AnimatedSize(
               duration: const Duration(milliseconds: 300),
-              height: isExpanded ? null : 0,
+              curve: Curves.easeInOut,
               child: isExpanded
                   ? Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -385,6 +454,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         labelText: AppLocalizations.of(context)!.enterNewNickname,
                       ),
                       maxLength: 18,
+                      buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
+                      null, // Hide character counter
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -392,7 +463,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         ElevatedButton(
                           onPressed: _updateNickname,
-                          child: Text(AppLocalizations.of(context)!.save),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isDark ? Colors.purple[700] : Colors.blue[700],
+                          ),
+                          child: Text(
+                            AppLocalizations.of(context)!.save,
+                            style: AppTextStyles.body(context).copyWith(color: Colors.white),
+                          ),
                         ),
                       ],
                     ),
@@ -512,9 +589,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            AnimatedContainer(
+            AnimatedSize(
               duration: const Duration(milliseconds: 300),
-              height: isExpanded ? null : 0,
+              curve: Curves.easeInOut,
               child: isExpanded
                   ? Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -567,20 +644,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: AppLocalizations.of(context)!.balance,
               amount: _balance.toStringAsFixed(2),
               currencySymbol: currencySymbol,
-              color: Colors.blue,
+              color: Colors.blue, // Keeping as blue for balance
               icon: Icons.account_balance_wallet,
               trailing: Icon(
                 isExpanded ? Icons.expand_less : Icons.expand_more,
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
             ),
-            AnimatedContainer(
+            AnimatedSize(
               duration: const Duration(milliseconds: 300),
-              height: isExpanded ? null : 0,
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface, // Ensure consistent background
+              curve: Curves.easeInOut,
               child: isExpanded
                   ? Padding(
-                padding: const EdgeInsets.only(top: 8.0), // Reduced padding for closer spacing
+                padding: const EdgeInsets.only(top: 8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -588,24 +664,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: AppLocalizations.of(context)!.income,
                       amount: _totalIncome.toStringAsFixed(2),
                       currencySymbol: currencySymbol,
-                      color: Colors.green,
+                      color: const Color(0xFF009966), // Green from ReportsScreen
                       icon: Icons.arrow_downward,
                     ),
-                    const SizedBox(height: 8), // Same spacing between all cards
+                    const SizedBox(height: 8),
                     SummaryCard(
                       title: AppLocalizations.of(context)!.expenses,
                       amount: _totalExpenses.toStringAsFixed(2),
                       currencySymbol: currencySymbol,
-                      color: Colors.red,
+                      color: const Color(0xFF990033), // Red from ReportsScreen
                       icon: Icons.arrow_upward,
                     ),
-                    const SizedBox(height: 8), // Spacing before the button
+                    const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: ElevatedButton(
                         onPressed: _showClearDataDialog,
-                        style: AppButtonStyles.elevatedButton(context).copyWith(
-                          backgroundColor: WidgetStateProperty.all(Colors.red),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
                         ),
                         child: Text(
                           AppLocalizations.of(context)!.clear,

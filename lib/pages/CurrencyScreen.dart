@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:personal_finance/services/api_service.dart';
-import 'package:personal_finance/services/currency_api_service.dart';
-import 'package:personal_finance/services/notification_service.dart';
-import 'package:personal_finance/theme/styles.dart';
-import 'package:personal_finance/widgets/drawer.dart';
+import 'package:aia_wallet/services/api_service.dart';
+import 'package:aia_wallet/services/currency_api_service.dart';
+import 'package:aia_wallet/services/notification_service.dart';
+import 'package:aia_wallet/theme/styles.dart';
+import 'package:aia_wallet/widgets/drawer.dart';
 import 'package:provider/provider.dart';
-import 'package:personal_finance/providers/currency_provider.dart';
-import 'package:personal_finance/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/currency_provider.dart';
+import 'package:aia_wallet/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/theme_provider.dart';
 
 class CurrencyScreen extends StatefulWidget {
   const CurrencyScreen({super.key});
@@ -24,6 +25,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
   final TextEditingController _searchController = TextEditingController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Added for drawer control
 
   List<String> _allCurrencies = [];
   List<String> _filteredCurrencies = [];
@@ -95,7 +97,8 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
     final filtered = _allCurrencies.where((currency) {
       final country = _currencyToCountry[currency] ?? '';
-      return (currency.toUpperCase().contains(query) || country.toUpperCase().contains(query)) && !_currencies.contains(currency);
+      return (currency.toUpperCase().contains(query) || country.toUpperCase().contains(query)) &&
+          !_currencies.contains(currency);
     }).toList();
 
     final rates = <String, double>{};
@@ -129,7 +132,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         message: AppLocalizations.of(context)!.currencyChanged(currency),
       );
 
-      if (Scaffold.of(context).isDrawerOpen) {
+      if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
         Navigator.pop(context);
       }
 
@@ -278,28 +281,11 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final logoPath = themeProvider.getLogoPath(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppLocalizations.of(context)!.manageCurrencies,
-          style: AppTextStyles.heading(context),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkPrimary, AppColors.darkSecondary]
-                  : [AppColors.lightPrimary, AppColors.lightSecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        iconTheme: IconThemeData(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        ),
-      ),
+      key: _scaffoldKey, // Assign scaffold key for drawer
       drawer: CustomDrawer(
         currentRoute: '/currency',
         parentContext: context,
@@ -314,176 +300,257 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: _isLoading
-            ? Center(
-          child: CircularProgressIndicator(
-            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-          ),
-        )
-            : _errorMessage != null
-            ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _errorMessage!,
-                style: AppTextStyles.body(context).copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _fetchCurrencies,
-                style: AppButtonStyles.elevatedButton(context),
-                child: Text(
-                  AppLocalizations.of(context)!.retry,
-                  style: AppTextStyles.body(context).copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        )
-            : Column(
+        child: Column(
           children: [
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: _currencies.length,
-                itemBuilder: (context, index) {
-                  final currency = _currencies[index];
-                  final country = _currencyToCountry[currency] ?? 'Unknown';
-                  final rate = _exchangeRates[currency] ?? 1.0;
-                  final isSelected = currencyProvider.currency == currency;
-                  final currencyColor = _getCurrencyColor(currency);
-
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+            // Custom Header like HomeScreen
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+              child: SafeArea(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      child: Icon(
+                        Icons.menu,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        size: 24,
+                      ),
                     ),
-                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isSelected
-                            ? currencyColor
-                            : currencyColor.withOpacity(0.3),
-                        child: Text(
-                          currency,
-                          style: TextStyle(
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                            fontWeight: FontWeight.bold,
+                    const SizedBox(width: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          logoPath,
+                          height: 40,
+                          width: 40,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 8),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'AIA',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Wallet',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.normal,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Divider(
+              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+              thickness: 1,
+            ),
+            Container(
+              margin: const EdgeInsets.only(top: 8.0),
+              child: Center(
+                child: Text(
+                  AppLocalizations.of(context)!.manageCurrencies,
+                  style: AppTextStyles.heading(context).copyWith(fontSize: 18),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                child: CircularProgressIndicator(
+                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                ),
+              )
+                  : _errorMessage != null
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage!,
+                      style: AppTextStyles.body(context).copyWith(
+                        color: Theme.of(context).colorScheme.error,
                       ),
-                      title: Text(
-                        '$currency - $country',
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _fetchCurrencies,
+                      style: AppButtonStyles.elevatedButton(context),
+                      child: Text(
+                        AppLocalizations.of(context)!.retry,
                         style: AppTextStyles.body(context).copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      subtitle: Text(
-                        '1 $currency = ${rate.toStringAsFixed(2)} KGS',
-                        style: AppTextStyles.body(context).copyWith(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isSelected)
-                            Icon(
-                              Icons.check,
-                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                            ),
-                          if (currency != 'KGS')
-                            IconButton(
-                              icon: Icon(
-                                Icons.delete,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                              onPressed: () => _deleteCurrency(currency),
-                            ),
-                        ],
-                      ),
-                      onTap: () => _selectCurrency(currency),
                     ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
+                  ],
+                ),
+              )
+                  : Column(
                 children: [
-                  TextField(
-                    controller: _searchController,
-                    decoration: AppInputStyles.textField(context).copyWith(
-                      labelText: AppLocalizations.of(context)!.searchCurrencyOrCountry,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                      ),
-                    ),
-                    textCapitalization: TextCapitalization.none,
-                  ),
-                  const SizedBox(height: 8),
-                  if (_filteredCurrencies.isNotEmpty)
-                    SizedBox(
-                      height: 150,
-                      child: ListView.builder(
-                        itemCount: _filteredCurrencies.length,
-                        itemBuilder: (context, index) {
-                          final currency = _filteredCurrencies[index];
-                          final country = _currencyToCountry[currency] ?? 'Unknown';
-                          final rate = _filteredExchangeRates[currency] ?? 1.0;
-                          final currencyColor = _getCurrencyColor(currency);
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: _currencies.length,
+                      itemBuilder: (context, index) {
+                        final currency = _currencies[index];
+                        final country = _currencyToCountry[currency] ?? 'Unknown';
+                        final rate = _exchangeRates[currency] ?? 1.0;
+                        final isSelected = currencyProvider.currency == currency;
+                        final currencyColor = _getCurrencyColor(currency);
 
-                          return Card(
-                            elevation: 1,
-                            margin: const EdgeInsets.symmetric(vertical: 4.0),
-                            shape: RoundedRectangleBorder(
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.symmetric(vertical: 8.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isSelected
+                                  ? currencyColor
+                                  : currencyColor.withOpacity(0.3),
+                              child: Text(
+                                currency,
+                                style: TextStyle(
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              '$currency - $country',
+                              style: AppTextStyles.body(context).copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '1 $currency = ${rate.toStringAsFixed(2)} KGS',
+                              style: AppTextStyles.body(context).copyWith(
+                                color:
+                                isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSelected)
+                                  Icon(
+                                    Icons.check,
+                                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                                  ),
+                                if (currency != 'KGS')
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color: Theme.of(context).colorScheme.error,
+                                    ),
+                                    onPressed: () => _deleteCurrency(currency),
+                                  ),
+                              ],
+                            ),
+                            onTap: () => _selectCurrency(currency),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _searchController,
+                          decoration: AppInputStyles.textField(context).copyWith(
+                            labelText: AppLocalizations.of(context)!.searchCurrencyOrCountry,
+                            border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: currencyColor.withOpacity(0.3),
-                                child: Text(
-                                  currency,
-                                  style: TextStyle(
-                                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                '$currency - $country',
-                                style: AppTextStyles.body(context),
-                              ),
-                              subtitle: Text(
-                                '1 $currency = ${rate.toStringAsFixed(2)} KGS',
-                                style: AppTextStyles.body(context).copyWith(
-                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                ),
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.add,
-                                  color: Colors.green,
-                                ),
-                                onPressed: () => _addCurrency(currency),
-                              ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                          textCapitalization: TextCapitalization.none,
+                        ),
+                        const SizedBox(height: 8),
+                        if (_filteredCurrencies.isNotEmpty)
+                          SizedBox(
+                            height: 150,
+                            child: ListView.builder(
+                              itemCount: _filteredCurrencies.length,
+                              itemBuilder: (context, index) {
+                                final currency = _filteredCurrencies[index];
+                                final country = _currencyToCountry[currency] ?? 'Unknown';
+                                final rate = _filteredExchangeRates[currency] ?? 1.0;
+                                final currencyColor = _getCurrencyColor(currency);
+
+                                return Card(
+                                  elevation: 1,
+                                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: currencyColor.withOpacity(0.3),
+                                      child: Text(
+                                        currency,
+                                        style: TextStyle(
+                                          color: isDark
+                                              ? AppColors.darkTextPrimary
+                                              : AppColors.lightTextPrimary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      '$currency - $country',
+                                      style: AppTextStyles.body(context),
+                                    ),
+                                    subtitle: Text(
+                                      '1 $currency = ${rate.toStringAsFixed(2)} KGS',
+                                      style: AppTextStyles.body(context).copyWith(
+                                        color: isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.lightTextSecondary,
+                                      ),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(
+                                        Icons.add,
+                                        color: Colors.green,
+                                      ),
+                                      onPressed: () => _addCurrency(currency),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),

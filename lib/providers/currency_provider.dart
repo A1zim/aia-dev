@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:personal_finance/services/api_service.dart';
+import 'package:aia_wallet/services/api_service.dart';
 
 class CurrencyProvider with ChangeNotifier {
   String _currency = 'KGS';
