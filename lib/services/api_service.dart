@@ -95,66 +95,81 @@ class ApiService {
     return response;
   }
 
-  // Register a new user
-  Future<void> register(String username, String password, {String? email}) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register/'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'username': username,
-        'password': password,
-        if (email != null && email.isNotEmpty) 'email': email,
-      }),
-    );
-
-    if (response.statusCode != 201) {
-      throw Exception('Failed to register: ${json.decode(response.body)['error'] ?? response.body}');
-    }
-  }
-
   Future<void> login(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/token/'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'username': username, 'password': password}),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login/'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'username': username, 'password': password}),
+      );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      await saveTokens(data['access'], data['refresh']);
-    } else {
-      throw Exception('Failed to login: ${json.decode(response.body)['error'] ?? response.body}');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        await saveTokens(data['access'], data['refresh']);
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception('${errorData['error'] ?? 'Login failed'}: ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 
-  // Verify email with a 6-digit code
+  Future<void> register(String username, String password, {String? email}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register/'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'username': username,
+          'password': password,
+          if (email != null && email.isNotEmpty) 'email': email,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data; // Return the response data which includes user info
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception('${errorData['error'] ?? 'Registration failed'}: ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      throw Exception('Registration failed: ${e.toString()}');
+    }
+  }
+
   Future<void> verifyEmail(String email, String code) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/verify-email/'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'email': email,
-        'code': code,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/verify-email/'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'code': code}),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to verify email: ${json.decode(response.body)['error'] ?? response.body}');
+      if (response.statusCode != 200) {
+        final errorData = json.decode(response.body);
+        throw Exception('${errorData['error'] ?? 'Verification failed'}: ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      throw Exception('Email verification failed: ${e.toString()}');
     }
   }
 
-  // Forgot password: Send a 6-digit code to the user's email
   Future<void> forgotPassword(String email) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/forgot-password/'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'email': email,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/forgot-password/'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to send reset code: ${json.decode(response.body)['error'] ?? response.body}');
+      if (response.statusCode != 200) {
+        final errorData = json.decode(response.body);
+        throw Exception('${errorData['error'] ?? 'Password reset failed'}: ${errorData['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      throw Exception('Password reset failed: ${e.toString()}');
     }
   }
 

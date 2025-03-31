@@ -61,188 +61,143 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        child: _screens[_selectedIndex],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+      resizeToAvoidBottomInset: false, // Prevent resizing when keyboard appears
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            child: _screens[_selectedIndex],
           ),
-          boxShadow: [
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? Colors.black : Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildNavItem(
+                    index: 0,
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home,
+                    label: AppLocalizations.of(context)!.home,
+                  ),
+                  _buildNavItem(
+                    index: 1,
+                    icon: Icons.history_outlined,
+                    selectedIcon: Icons.history,
+                    label: AppLocalizations.of(context)!.history,
+                  ),
+                  _buildNavItem(
+                    index: 2,
+                    icon: Icons.bar_chart,
+                    selectedIcon: Icons.bar_chart,
+                    label: AppLocalizations.of(context)!.reports,
+                  ),
+                  _buildNavItem(
+                    index: 3,
+                    icon: Icons.settings_outlined,
+                    selectedIcon: Icons.settings,
+                    label: AppLocalizations.of(context)!.settingsTitle,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData selectedIcon,
+    required String label,
+  }) {
+    final isSelected = _selectedIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeColor = isDark ? Colors.purpleAccent[100]! : Colors.blue; // Blue for light, Purple for dark
+    final unselectedColor = isDark ? Colors.purpleAccent! : Colors.blue[200]!; // Lighter shades for unselected
+
+    return GestureDetector(
+      onTap: () => _onItemTapped(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? themeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: isSelected
+              ? [
             BoxShadow(
-              color: isDark
-                  ? AppColors.darkShadow
-                  : AppColors.lightShadow.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return ScaleTransition(
+                  scale: animation,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: Icon(
+                isSelected ? selectedIcon : icon,
+                key: ValueKey(isSelected),
+                color: isSelected ? Colors.white : unselectedColor,
+                size: 24,
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOutCubic,
+              child: isSelected
+                  ? Row(
+                children: [
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              )
+                  : const SizedBox.shrink(),
             ),
           ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          child: NavigationBar(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: _onItemTapped,
-            backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-            elevation: 0,
-            indicatorColor: Colors.transparent,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: [
-              NavigationDestination(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == 0
-                        ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.home_outlined,
-                    color: _selectedIndex == 0
-                        ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                        : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
-                  ),
-                ),
-                selectedIcon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.home,
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                ),
-                label: AppLocalizations.of(context)!.home,
-              ),
-              NavigationDestination(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == 1
-                        ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.history_outlined,
-                    color: _selectedIndex == 1
-                        ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                        : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
-                  ),
-                ),
-                selectedIcon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.history,
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                ),
-                label: AppLocalizations.of(context)!.history,
-              ),
-              NavigationDestination(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == 2
-                        ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.bar_chart,
-                    color: _selectedIndex == 2
-                        ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                        : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
-                  ),
-                ),
-                selectedIcon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.bar_chart,
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                ),
-                label: AppLocalizations.of(context)!.reports,
-              ),
-              NavigationDestination(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == 3
-                        ? (isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2))
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.settings_outlined,
-                    color: _selectedIndex == 3
-                        ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
-                        : (isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary),
-                  ),
-                ),
-                selectedIcon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkAccent.withOpacity(0.2)
-                        : AppColors.lightAccent.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.settings,
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                ),
-                label: AppLocalizations.of(context)!.settingsTitle,
-              ),
-            ],
-          ),
         ),
       ),
     );

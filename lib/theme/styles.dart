@@ -66,13 +66,6 @@ class AppTextStyles {
       fontSize: 24,
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      shadows: [
-        Shadow(
-          color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-          blurRadius: 4,
-          offset: const Offset(2, 2),
-        ),
-      ],
     );
   }
 
@@ -82,13 +75,6 @@ class AppTextStyles {
       fontSize: 18,
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      shadows: [
-        Shadow(
-          color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-          blurRadius: 4,
-          offset: const Offset(1, 1),
-        ),
-      ],
     );
   }
 
@@ -211,7 +197,7 @@ class AppInputStyles {
           ? AppColors.darkBackground.withOpacity(0.3)
           : AppColors.lightSurface.withOpacity(0.8),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20), // Rounded corners
+        borderRadius: BorderRadius.circular(20),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
@@ -231,17 +217,15 @@ class AppInputStyles {
     );
   }
 
-  // Custom dropdown icon (reverted to triangle without background)
   static Widget dropdownIcon(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Icon(
-      Icons.arrow_drop_down, // Default triangle icon
+      Icons.arrow_drop_down,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      size: 24, // Match the size of the original dropdown icon
+      size: 24,
     );
   }
 
-  // Custom style for dropdown menu items
   static DropdownMenuItem<T> dropdownMenuItem<T>(
       BuildContext context,
       T value,
@@ -262,7 +246,6 @@ class AppInputStyles {
     );
   }
 
-  // Common properties for DropdownButtonFormField
   static Map<String, dynamic> dropdownProperties(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return {
@@ -272,7 +255,7 @@ class AppInputStyles {
       'dropdownColor': isDark ? AppColors.darkSurface : AppColors.lightSurface,
       'icon': dropdownIcon(context),
       'menuMaxHeight': 300.0,
-      'borderRadius': BorderRadius.circular(16), // Rounded corners for the dropdown menu
+      'borderRadius': BorderRadius.circular(16),
       'elevation': 8,
     };
   }
@@ -361,7 +344,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-      useMaterial3: true, // Keep Material 3 enabled
+      useMaterial3: true,
     );
   }
 
@@ -420,7 +403,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-      useMaterial3: true, // Keep Material 3 enabled
+      useMaterial3: true,
     );
   }
 }

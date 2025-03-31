@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:aia_wallet/pages/AddTransactionScreen.dart';
 import 'package:aia_wallet/services/api_service.dart';
 import 'package:aia_wallet/services/currency_api_service.dart';
+import 'package:aia_wallet/services/notification_service.dart';
 import 'package:aia_wallet/models/transaction.dart';
 import 'package:aia_wallet/theme/styles.dart';
 import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
+import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
@@ -19,28 +21,26 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
   List<Transaction> _transactions = [];
+  List<Transaction> _filteredTransactions = []; // For client-side filtering
   String _searchQuery = "";
-  late String _filterType; // Use late initialization
+  late String _filterType;
   int? _expandedIndex;
-  final int _pageSize = 20; // Number of transactions to fetch per page
-  int _currentPage = 1; // Current page number
-  bool _isLoadingMore = false; // Flag to prevent multiple simultaneous fetches
-  bool _hasMoreTransactions = true; // Flag to check if there are more transactions to fetch
-  final ScrollController _scrollController = ScrollController(); // Scroll controller for pagination
+  final int _pageSize = 20;
+  int _currentPage = 1;
+  bool _isLoadingMore = false;
+  bool _hasMoreTransactions = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Add scroll listener for pagination
     _scrollController.addListener(_scrollListener);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Set the localized value of _filterType using the context
     _filterType = AppLocalizations.of(context)!.all;
-    // Ensure this only runs once by checking if _transactions is empty
     if (_transactions.isEmpty) {
       _loadTransactions();
     }
@@ -57,7 +57,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         _scrollController.position.maxScrollExtent * 0.8 &&
         !_isLoadingMore &&
         _hasMoreTransactions) {
-      // When the user scrolls to 80% of the list, fetch more transactions
       _loadMoreTransactions();
     }
   }
@@ -66,6 +65,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     if (reset) {
       setState(() {
         _transactions.clear();
+        _filteredTransactions.clear();
         _currentPage = 1;
         _hasMoreTransactions = true;
         _isLoadingMore = false;
@@ -88,8 +88,10 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       setState(() {
         if (reset) {
           _transactions = paginatedResponse.items;
+          _filteredTransactions = _applySearchFilter(_transactions);
         } else {
           _transactions.addAll(paginatedResponse.items);
+          _filteredTransactions = _applySearchFilter(_transactions);
         }
         _hasMoreTransactions = paginatedResponse.hasMore;
         _isLoadingMore = false;
@@ -99,14 +101,10 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)!.transactionsLoadFailed(e.toString()),
-              style: AppTextStyles.body(context),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        NotificationService.showNotification(
+          context,
+          message: AppLocalizations.of(context)!.transactionsLoadFailed(e.toString()),
+          isError: true,
         );
       }
       setState(() {
@@ -120,68 +118,40 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     await _loadTransactions();
   }
 
+  List<Transaction> _applySearchFilter(List<Transaction> transactions) {
+    if (_searchQuery.isEmpty) {
+      return transactions;
+    }
+    return transactions.where((transaction) {
+      return transaction.description.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
   Future<void> _deleteTransaction(int id, int index) async {
-    final deletedTransaction = _transactions[index];
-    bool shouldDelete = true;
+    try {
+      // Immediately delete the transaction from the API
+      await _apiService.deleteTransaction(id);
 
-    setState(() {
-      _transactions.removeAt(index);
-      if (_expandedIndex == index) {
-        _expandedIndex = null;
-      } else if (_expandedIndex != null && _expandedIndex! > index) {
-        _expandedIndex = _expandedIndex! - 1;
-      }
-    });
-
-    if (mounted) {
-      final snackBar = SnackBar(
-        content: Text(
-          AppLocalizations.of(context)!.transactionDeleted,
-          style: AppTextStyles.body(context),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        action: SnackBarAction(
-          label: AppLocalizations.of(context)!.undo,
-          textColor: Colors.white,
-          onPressed: () {
-            shouldDelete = false;
-            setState(() {
-              _transactions.insert(index, deletedTransaction);
-              if (_expandedIndex != null && _expandedIndex! >= index) {
-                _expandedIndex = _expandedIndex! + 1;
-              }
-            });
-          },
-        ),
-        duration: const Duration(seconds: 3),
-      );
-
-      await ScaffoldMessenger.of(context)
-          .showSnackBar(snackBar)
-          .closed
-          .then((reason) {
-        if (shouldDelete && reason != SnackBarClosedReason.action) {
-          _apiService.deleteTransaction(id).catchError((e) {
-            setState(() {
-              _transactions.insert(index, deletedTransaction);
-              if (_expandedIndex != null && _expandedIndex! >= index) {
-                _expandedIndex = _expandedIndex! + 1;
-              }
-            });
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    AppLocalizations.of(context)!.deleteTransactionFailed(e.toString()),
-                    style: AppTextStyles.body(context),
-                  ),
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                ),
-              );
-            }
-          });
+      // Update the UI by removing the transaction
+      setState(() {
+        _transactions.removeAt(index);
+        _filteredTransactions = _applySearchFilter(_transactions);
+        if (_expandedIndex == index) {
+          _expandedIndex = null;
+        } else if (_expandedIndex != null && _expandedIndex! > index) {
+          _expandedIndex = _expandedIndex! - 1;
         }
       });
+    } catch (e) {
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: AppLocalizations.of(context)!.deleteTransactionFailed(e.toString()),
+          isError: true,
+        );
+      }
+      // Reload transactions to restore the state if deletion fails
+      await _loadTransactions(reset: true);
     }
   }
 
@@ -193,8 +163,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       ),
     );
 
-    if (result == true) {
-      _loadTransactions(reset: true); // Reset and reload transactions after edit
+    if (result is Map<String, dynamic> && result['success'] == true) {
+      await _loadTransactions(reset: true);
+      NotificationService.showNotification(
+        context,
+        message: result['message'],
+      );
     }
   }
 
@@ -287,7 +261,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       } else {
         _filterType = AppLocalizations.of(context)!.all;
       }
-      _loadTransactions(reset: true); // Reload transactions with the new filter
+      _loadTransactions(reset: true);
     });
   }
 
@@ -301,7 +275,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   }
 
   String _getFilterTypeValue(String localizedFilterType) {
-    // Map the localized filter type back to its English value for comparison
     if (localizedFilterType == AppLocalizations.of(context)!.all) {
       return "all";
     } else if (localizedFilterType == AppLocalizations.of(context)!.expense) {
@@ -309,7 +282,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     } else if (localizedFilterType == AppLocalizations.of(context)!.incomeFilter) {
       return "income";
     }
-    return "all"; // Fallback
+    return "all";
   }
 
   double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
@@ -329,32 +302,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final logoPath = themeProvider.getLogoPath(context);
     final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
 
-    // Since filtering is now done server-side, we don't need to filter the transactions here
-    List<Transaction> filteredTransactions = _transactions;
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppLocalizations.of(context)!.transactionHistory,
-          style: AppTextStyles.heading(context),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkPrimary, AppColors.darkSecondary]
-                  : [AppColors.lightPrimary, AppColors.lightSecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        iconTheme: IconThemeData(
-          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-        ),
-      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -367,12 +319,84 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         child: Column(
           children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+              child: SafeArea(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pushReplacementNamed(context, '/home'),
+                      child: Icon(
+                        Icons.home,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          logoPath,
+                          height: 40,
+                          width: 40,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 8),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'AIA',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Wallet',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.normal,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Divider to split logo from title
+            Divider(
+              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+              thickness: 1,
+            ),
+            // Title
+            Container(
+              margin: const EdgeInsets.only(top: 8.0),
+              child: Center(
+                child: Text(
+                  AppLocalizations.of(context)!.transactionHistory,
+                  style: AppTextStyles.heading(context).copyWith(fontSize: 18),
+                ),
+              ),
+            ),
             _buildSearchAndFilterRow(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => _loadTransactions(reset: true),
                 color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                child: filteredTransactions.isEmpty
+                child: _filteredTransactions.isEmpty
                     ? Center(
                   child: Text(
                     AppLocalizations.of(context)!.noTransactionsFound,
@@ -385,15 +409,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 )
                     : Scrollbar(
                   controller: _scrollController,
-                  thumbVisibility: true, // Always show the scrollbar
-                  thickness: 6.0, // Adjust thickness for better visibility
-                  radius: const Radius.circular(3), // Rounded edges for the scrollbar
+                  thumbVisibility: true,
+                  thickness: 6.0,
+                  radius: const Radius.circular(3),
                   child: ListView.builder(
                     controller: _scrollController,
-                    itemCount: filteredTransactions.length + (_isLoadingMore ? 1 : 0),
+                    padding: const EdgeInsets.only(bottom: 80.0),
+                    itemCount: _filteredTransactions.length + (_isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index == filteredTransactions.length && _isLoadingMore) {
-                        // Show a loading indicator at the bottom while fetching more transactions
+                      if (index == _filteredTransactions.length && _isLoadingMore) {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(16.0),
@@ -401,7 +425,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           ),
                         );
                       }
-                      final transaction = filteredTransactions[index];
+                      final transaction = _filteredTransactions[index];
                       return _buildTransactionCard(
                           transaction, index, currencyProvider, currencySymbol);
                     },
@@ -456,7 +480,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   onPressed: () {
                     setState(() {
                       _searchQuery = "";
-                      _loadTransactions(reset: true); // Reload transactions with empty search
+                      _filteredTransactions = _applySearchFilter(_transactions);
                     });
                   },
                 )
@@ -481,10 +505,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
-                  _loadTransactions(reset: true); // Reload transactions with new search query
+                  _filteredTransactions = _applySearchFilter(_transactions);
                 });
               },
-              // Enable multilingual input for Russian and Kyrgyz
               textInputAction: TextInputAction.search,
               keyboardType: TextInputType.text,
               textCapitalization: TextCapitalization.sentences,
@@ -605,9 +628,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       ],
                     ),
                   ),
-                  AnimatedContainer(
+                  AnimatedSize(
                     duration: const Duration(milliseconds: 300),
-                    height: isExpanded ? null : 0,
+                    curve: Curves.easeInOut,
                     child: isExpanded
                         ? Container(
                       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,

@@ -20,7 +20,7 @@ urlpatterns = [
     # User and transaction endpoints
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
-    path('auth/token/', LoginView.as_view(), name='login'),
+    path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('users/', UserListCreate.as_view(), name='user-list'),
     path('users/me/', UserDetail.as_view(), name='user-detail'),

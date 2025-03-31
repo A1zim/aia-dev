@@ -160,7 +160,12 @@ class AppLocalizations {
       "clearDataFailed": "Failed to clear data: %s",
       "usernameTaken" : "Username is available",
       "usernameAvailable": "Username is already taken",
-      "codeInvalid": "Incorrect code"
+      "codeInvalid": "Invalid code",
+      "fillAllFields": "Не правильный код",
+      "enterValidCode": "Не правильный код",
+      "resetPasswordSent" : "Reset password sent",
+      "transactionFailed" : "transactionFailed",
+
     },
     'ky': {
       'appTitle': 'Жеке Финансы',
@@ -310,7 +315,13 @@ class AppLocalizations {
       "clearDataFailed": "Маалыматты тазалоо ишке ашкан жок: %s",
       "usernameTaken" : "Бул ысым бош эмес",
       "usernameAvailable": "Бул ысымды колдонсо болот",
-      "codeInvalid": "Туура эмес код"
+      "codeInvalid": "Туура эмес код",
+      "fillAllFields": "Не правильный код",
+      "enterValidCode": "Не правильный код",
+      "resetPasswordSent" : "Reset password sent",
+      "transactionFailed" : "transactionFailed",
+
+
     },
     'ru': {
       'appTitle': 'Личные Финансы',
@@ -460,7 +471,12 @@ class AppLocalizations {
       "clearDataFailed": "Не удалось очистить данные: %s",
       "usernameTaken" : "Имя пользователя не доступно",
       "usernameAvailable": "Имя пользователя доступно",
-      "codeInvalid": "Не правильный код"
+      "codeInvalid": "Не правильный код",
+      "codeInvalid": "Не правильный код",
+      "fillAllFields": "Не правильный код",
+      "enterValidCode": "Не правильный код",
+      "resetPasswordSent" : "Reset password sent",
+      "transactionFailed" : "transactionFailed",
     },
   };
 
@@ -630,6 +646,29 @@ class AppLocalizations {
   String get usernameTaken => _localizedValues[locale.languageCode]!['usernameTaken']!;
   String get usernameAvailable => _localizedValues[locale.languageCode]!['usernameAvailable']!;
   String get codeInvalid => _localizedValues[locale.languageCode]!['codeInvalid']!;
+  String get fillAllFields => _localizedValues[locale.languageCode]!['fillAllFields']!;
+  String get enterValidCode => _localizedValues[locale.languageCode]!['enterValidCode']!;
+  String get resetPasswordSent => _localizedValues[locale.languageCode]!['resetPasswordSent']!;
+  String get transactionFailed => _localizedValues[locale.languageCode]!['transactionFailed']!;
+
+  // Add this method to your AppLocalizations class
+  String translate(String key) {
+    // First try to get the translation from the localized values
+    if (_localizedValues[locale.languageCode]?.containsKey(key) ?? false) {
+      return _localizedValues[locale.languageCode]![key]!;
+    }
+
+    // If not found, try the English version as fallback
+    if (_localizedValues['en']?.containsKey(key) ?? false) {
+      return _localizedValues['en']![key]!;
+    }
+
+    // If still not found, return the key itself with a warning
+    debugPrint('Translation not found for key: $key');
+    return key;
+  }
+
+
 
   // Method to get the localized category name dynamically
   String getCategoryName(String category) {

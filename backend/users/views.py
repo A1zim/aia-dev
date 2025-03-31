@@ -190,47 +190,56 @@ class ForgotPasswordView(APIView):
         )
 
 class LoginView(APIView):
-    permission_classes = [AllowAny]  # Allow unauthenticated users to access this endpoint
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
 
-        if not username or not password:
+        if not username:
             return Response(
-                {"error": "Username and password are required"},
+                {"error": "username_required", "message": "Username is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not password:
+            return Response(
+                {"error": "password_required", "message": "Password is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # First, try to authenticate with the actual password
-        user = authenticate(request, username=username, password=password)
-        if user is None:
-            # If authentication fails, check the temporary code
-            try:
-                user = User.objects.get(username=username)
-                if user.temporary_code and user.temporary_code == password:
-                    # Update the user's password to the temporary code
-                    user.set_password(password)
-                    user.temporary_code = None  # Clear the temporary code
-                    user.save()
-                    # Log the user in by generating tokens
-                    refresh = RefreshToken.for_user(user)
-                    return Response(
-                        {
-                            "message": "Login successful with temporary code. Password updated.",
-                            "access": str(refresh.access_token),
-                            "refresh": str(refresh),
-                        },
-                        status=status.HTTP_200_OK
-                    )
-            except User.DoesNotExist:
-                pass
+        # Check if user exists first
+        try:
+            user = User.objects.get(username__iexact=username)
+        except User.DoesNotExist:
             return Response(
-                {"error": "Invalid credentials"},
+                {"error": "user_not_found", "message": "Username does not exist"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # If authentication succeeds with the password, generate tokens
+        # Try to authenticate with the password
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            # If authentication fails, check temporary code
+            user = User.objects.get(username__iexact=username)  # Already confirmed exists
+            if user.temporary_code and user.temporary_code == password:
+                user.set_password(password)
+                user.temporary_code = None
+                user.save()
+                refresh = RefreshToken.for_user(user)
+                return Response(
+                    {
+                        "message": "Login successful with temporary code. Password updated.",
+                        "access": str(refresh.access_token),
+                        "refresh": str(refresh),
+                    },
+                    status=status.HTTP_200_OK
+                )
+            return Response(
+                {"error": "password_incorrect", "message": "Password is incorrect"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Successful login with password
         refresh = RefreshToken.for_user(user)
         return Response(
             {
@@ -242,7 +251,6 @@ class LoginView(APIView):
         )
 
 class ChangePasswordView(APIView):
-    """Change the authenticated user's password"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -250,16 +258,21 @@ class ChangePasswordView(APIView):
             old_password = request.data.get('old_password')
             new_password = request.data.get('new_password')
 
-            if not old_password or not new_password:
+            if not old_password:
                 return Response(
-                    {"error": "Old password and new password are required"},
+                    {"error": "old_password_required", "message": "Old password is required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if not new_password:
+                return Response(
+                    {"error": "new_password_required", "message": "New password is required"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             user = request.user
             if not check_password(old_password, user.password):
                 return Response(
-                    {"error": "Old password is incorrect"},
+                    {"error": "invalid_old_password", "message": "Old password is incorrect"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -272,7 +285,7 @@ class ChangePasswordView(APIView):
             )
         except Exception as e:
             return Response(
-                {"error": f"Internal server error: {str(e)}"},
+                {"error": "server_error", "message": f"Internal server error: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
