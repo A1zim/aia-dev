@@ -80,7 +80,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             right: 20,
             child: Container(
               decoration: BoxDecoration(
-                color: isDark ? Colors.black : Colors.white,
+                color: isDark ? Color(0xFF121214) : Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(

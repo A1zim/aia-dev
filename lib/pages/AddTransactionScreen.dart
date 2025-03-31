@@ -61,7 +61,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
       _descriptionController.text = widget.transaction!.description;
       _selectedType = widget.transaction!.type;
       _selectedCategory = widget.transaction!.category;
-      _selectedDate = DateTime.parse(widget.transaction!.timestamp);
+      _selectedDate = DateTime.parse(widget.transaction!.timestamp); // Keep the original date
       if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
         _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
         _displayCurrency = widget.transaction!.originalCurrency!;
@@ -94,34 +94,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime today = DateTime(2025, 3, 31); // Today is March 31, 2025
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+      lastDate: today,
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = DateTime(picked.year, picked.month, picked.day);
+        print('Selected date updated to: $_selectedDate');
+      });
     }
   }
 
   Future<void> _submit() async {
-    // Complete any pending operation before saving
     if (_operation != null && _operationValue != null) {
       _applyOperation();
     }
 
-    // Parse the final amount after applying the operation
     double finalAmount = double.tryParse(_amountController.text) ?? 0.0;
 
-    // Check if the final amount is 0 or negative
     if (finalAmount <= 0) {
       NotificationService.showNotification(
         context,
         message: AppLocalizations.of(context)!.amountInvalid,
         isError: true,
       );
-      return; // Stop submission if amount is 0 or negative
+      return;
     }
 
     if (_formKey.currentState!.validate()) {
@@ -142,21 +143,24 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
           category: _selectedCategory,
           amount: amountInKGS,
           description: _descriptionController.text,
-          timestamp: _selectedDate.toIso8601String(),
+          timestamp: widget.transaction != null
+              ? widget.transaction!.timestamp // Preserve original timestamp when editing
+              : _selectedDate.toIso8601String(), // Use selected date for new transactions
           username: widget.transaction?.username ?? '',
           originalCurrency: transactionCurrency,
           originalAmount: enteredAmount,
         );
 
-        // Save the transaction (same as before)
-        widget.transaction == null
-            ? await _apiService.addTransaction(transaction)
-            : await _apiService.updateTransaction(widget.transaction!.id, transaction);
+        print('Submitting transaction with timestamp: ${transaction.timestamp}');
 
-        // Keep the original 1-second delay before popping
+        if (widget.transaction == null) {
+          await _apiService.addTransaction(transaction);
+        } else {
+          await _apiService.updateTransaction(widget.transaction!.id, transaction);
+        }
+
         if (mounted) {
           await Future.delayed(const Duration(seconds: 1));
-          // Pass the success message back to HomeScreen
           Navigator.pop(context, {
             'success': true,
             'message': widget.transaction == null
@@ -354,12 +358,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                 ),
               ),
             ),
-            // Divider to split logo from title
             Divider(
               color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
               thickness: 1,
             ),
-            // Title
             Container(
               margin: const EdgeInsets.only(top: 8.0),
               child: Center(
@@ -548,15 +550,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                             );
                           },
                         ),
-                      ListTile(
-                        title: Text("${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}", style: AppTextStyles.body(context)),
-                        trailing: Icon(Icons.calendar_today, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
-                        onTap: () => _selectDate(context),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-                        tileColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
-                      ),
-                      const SizedBox(height: 16),
+                      // Show date picker only when adding a new transaction
+                      if (widget.transaction == null)
+                        ListTile(
+                          title: Text("${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}", style: AppTextStyles.body(context)),
+                          trailing: Icon(Icons.calendar_today, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                          onTap: () => _selectDate(context),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                          tileColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                        ),
+                      if (widget.transaction == null) const SizedBox(height: 16),
                     ],
                   ),
                 ),

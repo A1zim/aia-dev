@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
+import 'package:intl/intl.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -21,7 +22,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
   List<Transaction> _transactions = [];
-  List<Transaction> _filteredTransactions = []; // For client-side filtering
+  List<Transaction> _filteredTransactions = [];
   String _searchQuery = "";
   late String _filterType;
   int? _expandedIndex;
@@ -30,11 +31,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   bool _isLoadingMore = false;
   bool _hasMoreTransactions = true;
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+
+  Map<String, List<Transaction>> _groupedTransactions = {};
+  List<String> _dateKeys = [];
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
+    _searchController.text = _searchQuery;
   }
 
   @override
@@ -49,6 +55,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -98,6 +105,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         if (_hasMoreTransactions) {
           _currentPage++;
         }
+        _groupTransactionsByDate();
       });
     } catch (e) {
       if (mounted) {
@@ -127,12 +135,66 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     }).toList();
   }
 
+  void _groupTransactionsByDate() {
+    _groupedTransactions.clear();
+    _dateKeys.clear();
+
+    // Set today as March 31, 2025
+    final now = DateTime(2025, 3, 31);
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1)); // March 30, 2025
+    final dateFormat = DateFormat('dd.MM.yy');
+
+    for (var transaction in _filteredTransactions) {
+      final dateStr = transaction.timestamp.split("T")[0];
+      final transactionDate = DateTime.parse(dateStr);
+      final transactionDay = DateTime(transactionDate.year, transactionDate.month, transactionDate.day);
+
+      String dateKey;
+      if (transactionDay == today) {
+        dateKey = AppLocalizations.of(context)!.today;
+      } else if (transactionDay == yesterday) {
+        dateKey = AppLocalizations.of(context)!.yesterday;
+      } else {
+        dateKey = dateFormat.format(transactionDay);
+      }
+
+      if (!_groupedTransactions.containsKey(dateKey)) {
+        _groupedTransactions[dateKey] = [];
+      }
+      _groupedTransactions[dateKey]!.add(transaction);
+    }
+
+    _dateKeys = _groupedTransactions.keys.toList();
+    _dateKeys.sort((a, b) {
+      DateTime dateA, dateB;
+      if (a == AppLocalizations.of(context)!.today) {
+        dateA = today;
+      } else if (a == AppLocalizations.of(context)!.yesterday) {
+        dateA = yesterday;
+      } else {
+        dateA = dateFormat.parse(a);
+      }
+
+      if (b == AppLocalizations.of(context)!.today) {
+        dateB = today;
+      } else if (b == AppLocalizations.of(context)!.yesterday) {
+        dateB = yesterday;
+      } else {
+        dateB = dateFormat.parse(b);
+      }
+
+      return dateB.compareTo(dateA);
+    });
+
+    for (var dateKey in _dateKeys) {
+      _groupedTransactions[dateKey]!.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    }
+  }
+
   Future<void> _deleteTransaction(int id, int index) async {
     try {
-      // Immediately delete the transaction from the API
       await _apiService.deleteTransaction(id);
-
-      // Update the UI by removing the transaction
       setState(() {
         _transactions.removeAt(index);
         _filteredTransactions = _applySearchFilter(_transactions);
@@ -141,7 +203,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         } else if (_expandedIndex != null && _expandedIndex! > index) {
           _expandedIndex = _expandedIndex! - 1;
         }
+        _groupTransactionsByDate();
       });
+      // Show success notification after deletion
+      if (mounted) {
+        NotificationService.showNotification(
+          context,
+          message: AppLocalizations.of(context)!.transactionDeleted,
+        );
+      }
     } catch (e) {
       if (mounted) {
         NotificationService.showNotification(
@@ -150,7 +220,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           isError: true,
         );
       }
-      // Reload transactions to restore the state if deletion fails
       await _loadTransactions(reset: true);
     }
   }
@@ -319,23 +388,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
               child: SafeArea(
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pushReplacementNamed(context, '/home'),
-                      child: Icon(
-                        Icons.home,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 24),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -372,16 +432,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(width: 24),
                   ],
                 ),
               ),
             ),
-            // Divider to split logo from title
             Divider(
               color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
               thickness: 1,
             ),
-            // Title
             Container(
               margin: const EdgeInsets.only(top: 8.0),
               child: Center(
@@ -415,9 +474,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   child: ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.only(bottom: 80.0),
-                    itemCount: _filteredTransactions.length + (_isLoadingMore ? 1 : 0),
+                    itemCount: _dateKeys.length + (_isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index == _filteredTransactions.length && _isLoadingMore) {
+                      if (index == _dateKeys.length && _isLoadingMore) {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(16.0),
@@ -425,9 +484,33 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           ),
                         );
                       }
-                      final transaction = _filteredTransactions[index];
-                      return _buildTransactionCard(
-                          transaction, index, currencyProvider, currencySymbol);
+                      final dateKey = _dateKeys[index];
+                      final transactions = _groupedTransactions[dateKey]!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            child: Text(
+                              dateKey,
+                              style: AppTextStyles.subheading(context).copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                              ),
+                            ),
+                          ),
+                          ...transactions.asMap().entries.map((entry) {
+                            final transactionIndex = _filteredTransactions.indexOf(entry.value);
+                            return _buildTransactionCard(
+                              entry.value,
+                              transactionIndex,
+                              currencyProvider,
+                              currencySymbol,
+                            );
+                          }).toList(),
+                        ],
+                      );
                     },
                   ),
                 ),
@@ -468,6 +551,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           Expanded(
             flex: 75,
             child: TextField(
+              controller: _searchController,
               decoration: AppInputStyles.textField(context).copyWith(
                 labelText: AppLocalizations.of(context)!.searchTransactions,
                 prefixIcon: const Icon(Icons.search),
@@ -480,7 +564,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   onPressed: () {
                     setState(() {
                       _searchQuery = "";
+                      _searchController.clear();
                       _filteredTransactions = _applySearchFilter(_transactions);
+                      _groupTransactionsByDate();
                     });
                   },
                 )
@@ -506,6 +592,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 setState(() {
                   _searchQuery = value;
                   _filteredTransactions = _applySearchFilter(_transactions);
+                  _groupTransactionsByDate();
                 });
               },
               textInputAction: TextInputAction.search,
@@ -604,7 +691,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                "${AppLocalizations.of(context)!.getCategoryName(transaction.category)} - ${transaction.timestamp.split("T")[0]}",
+                                AppLocalizations.of(context)!.getCategoryName(transaction.category),
                                 style: AppTextStyles.body(context).copyWith(
                                   color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                 ),
@@ -663,12 +750,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                               transaction.type == 'income'
                                   ? AppLocalizations.of(context)!.income
                                   : AppLocalizations.of(context)!.expense,
-                              context,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildDetailRow(
-                              AppLocalizations.of(context)!.date,
-                              transaction.timestamp.split("T")[0],
                               context,
                             ),
                           ],

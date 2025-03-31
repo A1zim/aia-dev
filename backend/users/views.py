@@ -469,7 +469,6 @@ class AddTransaction(APIView):
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
-# Update TransactionDetailView to ensure original_currency is validated by the serializer
 class TransactionDetailView(APIView):
     """Update or delete a specific transaction"""
     permission_classes = [IsAuthenticated]
@@ -479,6 +478,10 @@ class TransactionDetailView(APIView):
         try:
             print(f"Updating transaction {transaction_id} for user: {request.user.username}")
             transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
+            
+            # Log the incoming request data to verify the timestamp
+            print(f"Request data: {request.data}")
+
             serializer = TransactionSerializer(
                 transaction_obj,
                 data=request.data,
@@ -588,8 +591,6 @@ class TransactionDetailView(APIView):
         except Exception as e:
             print(f"Error in TransactionDetailView.delete: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# ... (other views like GetTransactionsByCategory, ClearHistory, etc., remain unchanged)
 
 
 class GetTransactionsByCategory(APIView):

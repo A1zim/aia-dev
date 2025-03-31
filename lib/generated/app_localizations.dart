@@ -165,6 +165,8 @@ class AppLocalizations {
       "enterValidCode": "Не правильный код",
       "resetPasswordSent" : "Reset password sent",
       "transactionFailed" : "transactionFailed",
+      "today" : "Today",
+      "yesterday" : "Yesterday",
 
     },
     'ky': {
@@ -320,7 +322,8 @@ class AppLocalizations {
       "enterValidCode": "Не правильный код",
       "resetPasswordSent" : "Reset password sent",
       "transactionFailed" : "transactionFailed",
-
+      "today" : "Today",
+      "yesterday" : "Yesterday",
 
     },
     'ru': {
@@ -477,6 +480,8 @@ class AppLocalizations {
       "enterValidCode": "Не правильный код",
       "resetPasswordSent" : "Reset password sent",
       "transactionFailed" : "transactionFailed",
+      "today" : "Today",
+      "yesterday" : "Yesterday",
     },
   };
 
@@ -650,6 +655,8 @@ class AppLocalizations {
   String get enterValidCode => _localizedValues[locale.languageCode]!['enterValidCode']!;
   String get resetPasswordSent => _localizedValues[locale.languageCode]!['resetPasswordSent']!;
   String get transactionFailed => _localizedValues[locale.languageCode]!['transactionFailed']!;
+  String get today => _localizedValues[locale.languageCode]!['today']!;
+  String get yesterday => _localizedValues[locale.languageCode]!['yesterday']!;
 
   // Add this method to your AppLocalizations class
   String translate(String key) {

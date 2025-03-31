@@ -155,25 +155,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final logoPath = themeProvider.getLogoPath(context);
     _selectedCurrency = currencyProvider.currency; // Sync with provider
     _exchangeRate = currencyProvider.exchangeRate;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.settingsTitle, style: AppTextStyles.heading(context)),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkPrimary, AppColors.darkSecondary]
-                  : [AppColors.lightPrimary, AppColors.lightSecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        iconTheme: IconThemeData(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -184,160 +170,244 @@ class _SettingsScreenState extends State<SettingsScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                child: SwitchListTile.adaptive(
-                  title: Text(AppLocalizations.of(context)!.darkMode,
-                      style: AppTextStyles.body(context).copyWith(fontSize: 16)),
-                  subtitle: Text(
-                    isDark
-                        ? AppLocalizations.of(context)!.darkModeEnabled
-                        : AppLocalizations.of(context)!.darkModeDisabled,
-                    style: AppTextStyles.body(context).copyWith(
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                    ),
-                  ),
-                  value: isDark,
-                  onChanged: (value) {
-                    themeProvider.toggleTheme();
-                  },
-                  secondary: Icon(
-                    Icons.dark_mode,
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                  activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-              ListTile(
-                leading: Icon(
-                  Icons.attach_money,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(AppLocalizations.of(context)!.selectCurrency,
-                    style: AppTextStyles.body(context).copyWith(fontSize: 16)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          children: [
+            // Custom Header like ReportsScreen
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+              child: SafeArea(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    DropdownButtonFormField<String>(
-                      value: _availableCurrencies.contains(_selectedCurrency) ? _selectedCurrency : 'KGS',
-                      onChanged: _isLoading ? null : _selectCurrency,
-                      decoration: AppInputStyles.dropdown(context, labelText: 'Currency'),
-                      items: _availableCurrencies.map((currency) {
-                        final country = _currencyApiService.getCountryForCurrency(currency);
-                        final currencyColor = _getCurrencyColor(currency);
-                        return DropdownMenuItem<String>(
-                          value: currency,
-                          child: Row(
+                    const SizedBox(width: 24),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          logoPath,
+                          height: 40,
+                          width: 40,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 8),
+                        RichText(
+                          text: TextSpan(
                             children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: currencyColor,
-                                  shape: BoxShape.circle,
+                              TextSpan(
+                                text: 'AIA',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Text('$currency - $country'),
+                              TextSpan(
+                                text: 'Wallet',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.normal,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
                             ],
                           ),
-                        );
-                      }).toList(),
-                      itemHeight: 50,
-                      style: AppTextStyles.body(context).copyWith(
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                      ),
-                      dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                      icon: AppInputStyles.dropdownIcon(context),
-                      menuMaxHeight: 300.0,
-                      borderRadius: BorderRadius.circular(16),
-                      elevation: 8,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 56.0, top: 8.0),
-                      child: Text(
-                        '1 KGS = ${_exchangeRate.toStringAsFixed(3)} $_selectedCurrency',
-                        style: AppTextStyles.body(context).copyWith(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         ),
+                      ],
+                    ),
+                    const SizedBox(width: 24),
+                  ],
+                ),
+              ),
+            ),
+            Divider(
+              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+              thickness: 1,
+            ),
+            Container(
+              margin: const EdgeInsets.only(top: 8.0),
+              child: Center(
+                child: Text(
+                  AppLocalizations.of(context)!.settingsTitle,
+                  style: AppTextStyles.heading(context).copyWith(fontSize: 18),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                      child: SwitchListTile.adaptive(
+                        title: Text(AppLocalizations.of(context)!.darkMode,
+                            style: AppTextStyles.body(context).copyWith(fontSize: 16)),
+                        subtitle: Text(
+                          isDark
+                              ? AppLocalizations.of(context)!.darkModeEnabled
+                              : AppLocalizations.of(context)!.darkModeDisabled,
+                          style: AppTextStyles.body(context).copyWith(
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                        value: isDark,
+                        onChanged: (value) {
+                          themeProvider.toggleTheme();
+                        },
+                        secondary: Icon(
+                          Icons.dark_mode,
+                          color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                        ),
+                        activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    Divider(
+                      color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+                      thickness: 1,
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        Icons.attach_money,
+                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                      ),
+                      title: Text(AppLocalizations.of(context)!.selectCurrency,
+                          style: AppTextStyles.body(context).copyWith(fontSize: 16)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            value: _availableCurrencies.contains(_selectedCurrency) ? _selectedCurrency : 'KGS',
+                            onChanged: _isLoading ? null : _selectCurrency,
+                            decoration: AppInputStyles.dropdown(context, labelText: 'Currency'),
+                            items: _availableCurrencies.map((currency) {
+                              final country = _currencyApiService.getCountryForCurrency(currency);
+                              final currencyColor = _getCurrencyColor(currency);
+                              return DropdownMenuItem<String>(
+                                value: currency,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color: currencyColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text('$currency - $country'),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            itemHeight: 50,
+                            style: AppTextStyles.body(context).copyWith(
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            ),
+                            dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                            icon: AppInputStyles.dropdownIcon(context),
+                            menuMaxHeight: 300.0,
+                            borderRadius: BorderRadius.circular(16),
+                            elevation: 8,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 56.0, top: 8.0),
+                            child: Text(
+                              '1 KGS = ${_exchangeRate.toStringAsFixed(3)} $_selectedCurrency',
+                              style: AppTextStyles.body(context).copyWith(
+                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: _isLoading
+                          ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                        ),
+                      )
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Divider(
+                      color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+                      thickness: 1,
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        Icons.language,
+                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                      ),
+                      title: Text(AppLocalizations.of(context)!.selectLanguage,
+                          style: AppTextStyles.body(context).copyWith(fontSize: 16)),
+                      subtitle: DropdownButtonFormField<String>(
+                        value: _selectedLanguage,
+                        onChanged: _selectLanguage,
+                        decoration: AppInputStyles.dropdown(context, labelText: 'Language'),
+                        items: [
+                          DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
+                          DropdownMenuItem(value: 'ky', child: Text(AppLocalizations.of(context)!.languageKyrgyz)),
+                          DropdownMenuItem(value: 'ru', child: Text(AppLocalizations.of(context)!.languageRussian)),
+                        ].map((item) {
+                          final languageColor = _getLanguageColor(item.value!);
+                          return DropdownMenuItem<String>(
+                            value: item.value,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: languageColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(item.child.toString().replaceAll('Text("', '').replaceAll('")', '')),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        itemHeight: 50,
+                        style: AppTextStyles.body(context).copyWith(
+                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        ),
+                        dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                        icon: AppInputStyles.dropdownIcon(context),
+                        menuMaxHeight: 300.0,
+                        borderRadius: BorderRadius.circular(16),
+                        elevation: 8,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Divider(
+                      color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+                      thickness: 1,
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        Icons.logout,
+                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                      ),
+                      title: Text(AppLocalizations.of(context)!.logout,
+                          style: AppTextStyles.body(context).copyWith(fontSize: 16)),
+                      onTap: _logout,
                     ),
                   ],
                 ),
-                trailing: _isLoading
-                    ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                  ),
-                )
-                    : null,
               ),
-              const SizedBox(height: 16),
-              Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-              ListTile(
-                leading: Icon(
-                  Icons.language,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(AppLocalizations.of(context)!.selectLanguage,
-                    style: AppTextStyles.body(context).copyWith(fontSize: 16)),
-                subtitle: DropdownButtonFormField<String>(
-                  value: _selectedLanguage,
-                  onChanged: _selectLanguage,
-                  decoration: AppInputStyles.dropdown(context).copyWith(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  items: [
-                    DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.languageEnglish)),
-                    DropdownMenuItem(value: 'ky', child: Text(AppLocalizations.of(context)!.languageKyrgyz)),
-                    DropdownMenuItem(value: 'ru', child: Text(AppLocalizations.of(context)!.languageRussian)),
-                  ].map((item) {
-                    final languageColor = _getLanguageColor(item.value!);
-                    return DropdownMenuItem<String>(
-                      value: item.value,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: languageColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(item.child.toString().replaceAll('Text("', '').replaceAll('")', '')),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  itemHeight: 50,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Divider(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-              ListTile(
-                leading: Icon(
-                  Icons.logout,
-                  color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
-                ),
-                title: Text(AppLocalizations.of(context)!.logout,
-                    style: AppTextStyles.body(context).copyWith(fontSize: 16)),
-                onTap: _logout,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -169,7 +169,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.7,
-      backgroundColor: isDark ? Colors.black : Colors.white,
+      backgroundColor: isDark ? Color(0xFF121214)  : Colors.white,
       child: _userDataCache == null && _isLoading
           ? _buildLoadingState(isDark, themeColor)
           : _buildDrawerContent(

@@ -319,13 +319,17 @@ class ApiService {
   // Update an existing transaction
   Future<void> updateTransaction(int id, Transaction transaction) async {
     final response = await makeAuthenticatedRequest((token) async {
+      // Log the request body to verify the timestamp
+      final requestBody = json.encode(transaction.toJson());
+      print('Updating transaction $id with body: $requestBody');
+
       return await http.put(
         Uri.parse('$baseUrl/transactions/$id/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode(transaction.toJson()),
+        body: requestBody,
       );
     });
 
