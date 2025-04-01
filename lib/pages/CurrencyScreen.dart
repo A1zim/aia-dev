@@ -333,7 +333,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'AIA',
+                                text: 'MON',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -342,7 +342,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                 ),
                               ),
                               TextSpan(
-                                text: 'Wallet',
+                                text: 'ey',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.normal,

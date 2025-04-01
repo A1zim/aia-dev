@@ -27,6 +27,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   String _displayCurrency = 'KGS';
+  late FocusNode _descriptionFocusNode; // Add FocusNode for description field
+  late FocusNode _amountFocusNode; // Add FocusNode for amount field
 
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
@@ -56,12 +58,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
+    _descriptionFocusNode = FocusNode(); // Initialize FocusNode
+    _amountFocusNode = FocusNode(); // Initialize FocusNode
+
     final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
     if (widget.transaction != null) {
       _descriptionController.text = widget.transaction!.description;
       _selectedType = widget.transaction!.type;
       _selectedCategory = widget.transaction!.category;
-      _selectedDate = DateTime.parse(widget.transaction!.timestamp); // Keep the original date
+      _selectedDate = DateTime.parse(widget.transaction!.timestamp);
       if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
         _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
         _displayCurrency = widget.transaction!.originalCurrency!;
@@ -90,16 +95,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     _descriptionController.dispose();
     _amountController.dispose();
     _animationController.dispose();
+    _descriptionFocusNode.dispose(); // Dispose FocusNode
+    _amountFocusNode.dispose(); // Dispose FocusNode
     super.dispose();
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime today = DateTime(2025, 3, 31); // Today is March 31, 2025
+    // Set today as March 31, 2025, for testing purposes
+    final DateTime today = DateTime(2025, 3, 31);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
-      lastDate: today,
+      lastDate: today, // Today is March 31, 2025
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -115,7 +123,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     }
 
     double finalAmount = double.tryParse(_amountController.text) ?? 0.0;
-
     if (finalAmount <= 0) {
       NotificationService.showNotification(
         context,
@@ -143,9 +150,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
           category: _selectedCategory,
           amount: amountInKGS,
           description: _descriptionController.text,
-          timestamp: widget.transaction != null
-              ? widget.transaction!.timestamp // Preserve original timestamp when editing
-              : _selectedDate.toIso8601String(), // Use selected date for new transactions
+          timestamp: _selectedDate.toIso8601String(),
           username: widget.transaction?.username ?? '',
           originalCurrency: transactionCurrency,
           originalAmount: enteredAmount,
@@ -184,10 +189,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
 
   Color _getCategoryColor(String category) {
     const categoryColors = {
-      'food': Color(0xFFEF5350), 'transport': Color(0xFF42A5F5), 'housing': Color(0xFFAB47BC),
-      'utilities': Color(0xFF26C6DA), 'entertainment': Color(0xFFFFCA28), 'healthcare': Color(0xFF4CAF50),
-      'education': Color(0xFFFF8A65), 'shopping': Color(0xFFD4E157), 'other_expense': Color(0xFF90A4AE),
-      'salary': Color(0xFF66BB6A), 'gift': Color(0xFFF06292), 'interest': Color(0xFF29B6F6),
+      'food': Color(0xFFEF5350),
+      'transport': Color(0xFF42A5F5),
+      'housing': Color(0xFFAB47BC),
+      'utilities': Color(0xFF26C6DA),
+      'entertainment': Color(0xFFFFCA28),
+      'healthcare': Color(0xFF4CAF50),
+      'education': Color(0xFFFF8A65),
+      'shopping': Color(0xFFD4E157),
+      'other_expense': Color(0xFF90A4AE),
+      'salary': Color(0xFF66BB6A),
+      'gift': Color(0xFFF06292),
+      'interest': Color(0xFF29B6F6),
       'other_income': Color(0xFF78909C),
     };
     return categoryColors[category] ?? Colors.grey.withOpacity(0.8);
@@ -277,6 +290,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     });
   }
 
+  bool _isKeyboardVisible() {
+    // Check if the keyboard is visible by examining the bottom inset
+    return MediaQuery.of(context).viewInsets.bottom > 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -289,6 +307,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     final kgsSymbol = _currencyApiService.getCurrencySymbol('KGS');
 
     return Scaffold(
+      resizeToAvoidBottomInset: false, // Prevent resizing when keyboard appears
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -332,7 +351,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'AIA',
+                                text: 'MON',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -341,7 +360,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                                 ),
                               ),
                               TextSpan(
-                                text: 'Wallet',
+                                text: 'ey',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.normal,
@@ -366,7 +385,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
               margin: const EdgeInsets.only(top: 8.0),
               child: Center(
                 child: Text(
-                  widget.transaction == null ? AppLocalizations.of(context)!.addTransaction : AppLocalizations.of(context)!.editTransaction,
+                  widget.transaction == null
+                      ? AppLocalizations.of(context)!.addTransaction
+                      : AppLocalizations.of(context)!.editTransaction,
                   style: AppTextStyles.heading(context).copyWith(fontSize: 18),
                 ),
               ),
@@ -507,6 +528,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _descriptionController,
+                        focusNode: _descriptionFocusNode, // Assign FocusNode
                         decoration: AppInputStyles.textField(context).copyWith(labelText: AppLocalizations.of(context)!.description, prefixIcon: const Icon(Icons.description, size: 24)),
                         validator: (value) => value == null || value.isEmpty ? AppLocalizations.of(context)!.descriptionRequired : null,
                         textInputAction: TextInputAction.done,
@@ -517,10 +539,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _amountController,
+                        focusNode: _amountFocusNode, // Assign FocusNode
                         decoration: AppInputStyles.textField(context).copyWith(labelText: '${AppLocalizations.of(context)!.amount} ($displayCurrencySymbol)', prefixIcon: const Icon(Icons.attach_money, size: 24)),
                         keyboardType: TextInputType.number,
                         validator: (value) => value == null || value.isEmpty ? AppLocalizations.of(context)!.amountRequired : double.tryParse(value) == null || double.parse(value) <= 0 ? AppLocalizations.of(context)!.amountInvalid : null,
-                        readOnly: true,
+                        readOnly: true, // Keep it read-only since we use the custom keypad
                       ),
                       const SizedBox(height: 16),
                       if (_displayCurrency != 'KGS')
@@ -550,55 +573,55 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                             );
                           },
                         ),
-                      // Show date picker only when adding a new transaction
-                      if (widget.transaction == null)
-                        ListTile(
-                          title: Text("${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}", style: AppTextStyles.body(context)),
-                          trailing: Icon(Icons.calendar_today, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
-                          onTap: () => _selectDate(context),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-                          tileColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
-                        ),
-                      if (widget.transaction == null) const SizedBox(height: 16),
+                      ListTile(
+                        title: Text("${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}", style: AppTextStyles.body(context)),
+                        trailing: Icon(Icons.calendar_today, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
+                        onTap: () => _selectDate(context),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
+                        tileColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                padding: const EdgeInsets.all(8.0),
-                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                child: GridView.count(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
-                  childAspectRatio: 1.5,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildKeypadButton('1', () => _appendDigit('1')),
-                    _buildKeypadButton('2', () => _appendDigit('2')),
-                    _buildKeypadButton('3', () => _appendDigit('3')),
-                    _buildKeypadButton('⌫', _backspace),
-                    _buildKeypadButton('4', () => _appendDigit('4')),
-                    _buildKeypadButton('5', () => _appendDigit('5')),
-                    _buildKeypadButton('6', () => _appendDigit('6')),
-                    _buildKeypadButton('+', _setZeroAndPrepareAdd),
-                    _buildKeypadButton('7', () => _appendDigit('7')),
-                    _buildKeypadButton('8', () => _appendDigit('8')),
-                    _buildKeypadButton('9', () => _appendDigit('9')),
-                    _buildKeypadButton('-', _setZeroAndPrepareSubtract),
-                    _buildKeypadButton('AC', _clearAll, color: Colors.orange),
-                    _buildKeypadButton('0', () => _appendDigit('0')),
-                    _buildKeypadButton('=', _applyOperation),
-                    _buildKeypadButton('OK', _submit, color: Colors.blue),
-                  ],
+            // Conditionally show the keypad based on keyboard visibility
+            if (!_isKeyboardVisible())
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  child: GridView.count(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 8.0,
+                    mainAxisSpacing: 8.0,
+                    childAspectRatio: 1.5,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildKeypadButton('1', () => _appendDigit('1')),
+                      _buildKeypadButton('2', () => _appendDigit('2')),
+                      _buildKeypadButton('3', () => _appendDigit('3')),
+                      _buildKeypadButton('⌫', _backspace),
+                      _buildKeypadButton('4', () => _appendDigit('4')),
+                      _buildKeypadButton('5', () => _appendDigit('5')),
+                      _buildKeypadButton('6', () => _appendDigit('6')),
+                      _buildKeypadButton('+', _setZeroAndPrepareAdd),
+                      _buildKeypadButton('7', () => _appendDigit('7')),
+                      _buildKeypadButton('8', () => _appendDigit('8')),
+                      _buildKeypadButton('9', () => _appendDigit('9')),
+                      _buildKeypadButton('-', _setZeroAndPrepareSubtract),
+                      _buildKeypadButton('AC', _clearAll, color: Colors.orange),
+                      _buildKeypadButton('0', () => _appendDigit('0')),
+                      _buildKeypadButton('=', _applyOperation),
+                      _buildKeypadButton('OK', _submit, color: Colors.blue),
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

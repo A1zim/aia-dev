@@ -16,7 +16,7 @@ class PaginatedResponse<T> {
 }
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8000/api"; // Adjust to your backend URL
+  static const String baseUrl = "http://10.0.2.2:8000//api";
   String? _accessToken;
   String? _refreshToken;
 

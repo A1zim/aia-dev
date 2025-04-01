@@ -470,7 +470,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                               text: TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: 'AIA',
+                                    text: 'MON',
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
@@ -479,7 +479,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Wallet',
+                                    text: 'ey',
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.normal,

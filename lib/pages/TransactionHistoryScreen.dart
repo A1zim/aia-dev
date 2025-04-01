@@ -410,7 +410,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'AIA',
+                                text: 'MON',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -419,7 +419,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                 ),
                               ),
                               TextSpan(
-                                text: 'Wallet',
+                                text: 'ey',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.normal,
