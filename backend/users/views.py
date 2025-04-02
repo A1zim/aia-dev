@@ -24,6 +24,7 @@ from django.db.models import Q
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
+import traceback
 
 class RegisterView(APIView):
     """Register a new user and send a verification email"""
@@ -417,144 +418,142 @@ class UserCurrencyViewSet(APIView):
             )
 
 class AddTransaction(APIView):
-    """Add a new transaction and update user balances"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """Process a new transaction and update user balances"""
         print(f"Adding transaction for user: {request.user.username}")
+        print(f"Request data: {request.data}")
         serializer = TransactionSerializer(data=request.data, context={'request': request})
 
         if serializer.is_valid():
-            with transaction.atomic():
-                category = serializer.validated_data['category']
-                amount = Decimal(str(serializer.validated_data['amount']))
-                trans_type = serializer.validated_data['type']
+            try:
+                with transaction.atomic():
+                    category = serializer.validated_data['category']
+                    amount = Decimal(str(serializer.validated_data['amount']))
+                    trans_type = serializer.validated_data['type']
 
-                # Explicitly set the user to the authenticated user
-                serializer.validated_data['user'] = request.user
-                transaction_obj = serializer.save()
+                    print(f"Validated data: {serializer.validated_data}")
 
-                user = request.user
-                category_amount, created = CategoryAmount.objects.get_or_create(
-                    user=user,
-                    category=category,
-                    type=trans_type,
-                    defaults={'amount': 0}
-                )
+                    serializer.validated_data['user'] = request.user
+                    transaction_obj = serializer.save()
+                    print(f"Transaction saved: {transaction_obj.id}")
 
-                if trans_type == 'income':
-                    user.income += amount
-                    user.balance += amount
-                else:  # expense
-                    user.expense += amount
-                    user.balance -= amount
+                    user = request.user
+                    category_amount, created = CategoryAmount.objects.get_or_create(
+                        user=user,
+                        category=category,
+                        type=trans_type,
+                        defaults={'amount': Decimal('0.00')}
+                    )
+                    print(f"CategoryAmount {'created' if created else 'retrieved'}: {category_amount.id}")
 
-                category_amount.amount += amount
-                user.save()
-                category_amount.save()
+                    if trans_type == 'income':
+                        user.income += amount
+                        user.balance += amount
+                    else:  # expense
+                        user.expense += amount
+                        user.balance -= amount
+
+                    category_amount.amount += amount
+                    user.save()
+                    print(f"User updated: income={user.income}, expense={user.expense}, balance={user.balance}")
+                    category_amount.save()
+                    print(f"CategoryAmount updated: {category_amount.amount}")
 
                 print(f"Transaction added for user {user.username}: {serializer.data}")
-            return api_response(
-                serializer.data,
-                message="Transaction added successfully",
-                status_code=status.HTTP_201_CREATED
-            )
-
-        print(f"Validation errors: {serializer.errors}")
-        return api_response(
-            serializer.errors,
-            message="Invalid transaction data",
-            success=False,
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                print(f"Error adding transaction: {str(e)}")
+                print(traceback.format_exc())
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            print(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class TransactionDetailView(APIView):
     """Update or delete a specific transaction"""
     permission_classes = [IsAuthenticated]
 
     def put(self, request, transaction_id):
-        """Update a transaction"""
-        try:
-            print(f"Updating transaction {transaction_id} for user: {request.user.username}")
-            transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
-            
-            # Log the incoming request data to verify the timestamp
-            print(f"Request data: {request.data}")
+        print(f"Updating transaction {transaction_id} for user: {request.user.username}")
+        transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
+        
+        # Log the incoming request data to verify the timestamp
+        print(f"Request data: {request.data}")
 
-            serializer = TransactionSerializer(
-                transaction_obj,
-                data=request.data,
-                partial=True,
-                context={'request': request}
-            )
+        serializer = TransactionSerializer(
+            transaction_obj,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
 
-            if serializer.is_valid():
-                with transaction.atomic():
-                    old_amount = transaction_obj.amount
-                    old_type = transaction_obj.type
-                    old_category = transaction_obj.category
+        if serializer.is_valid():
+            with transaction.atomic():
+                old_amount = transaction_obj.amount
+                old_type = transaction_obj.type
+                old_category = transaction_obj.category
 
-                    # Update the transaction
-                    serializer.save()
+                # Ensure timestamp is a date
+                if 'timestamp' in serializer.validated_data:
+                    timestamp = serializer.validated_data['timestamp']
+                    if isinstance(timestamp, datetime):
+                        serializer.validated_data['timestamp'] = timestamp.date()
 
-                    # Adjust user balances and category amounts
-                    user = request.user
-                    new_amount = Decimal(str(serializer.validated_data['amount']))
-                    new_type = serializer.validated_data['type']
-                    new_category = serializer.validated_data['category']
+                # Update the transaction
+                serializer.save()
 
-                    # Revert the old transaction's effect
-                    if old_type == 'income':
-                        user.income -= old_amount
-                        user.balance -= old_amount
-                    else:  # expense
-                        user.expense -= old_amount
-                        user.balance += old_amount
+                # Adjust user balances and category amounts
+                user = request.user
+                new_amount = Decimal(str(serializer.validated_data['amount']))
+                new_type = serializer.validated_data['type']
+                new_category = serializer.validated_data['category']
 
-                    # Apply the new transaction's effect
-                    if new_type == 'income':
-                        user.income += new_amount
-                        user.balance += new_amount
-                    else:  # expense
-                        user.expense += new_amount
-                        user.balance -= new_amount
+                # Revert the old transaction's effect
+                if old_type == 'income':
+                    user.income -= old_amount
+                    user.balance -= old_amount
+                else:  # expense
+                    user.expense -= old_amount
+                    user.balance += old_amount
 
-                    # Update CategoryAmount
-                    if old_category != new_category or old_type != new_type:
-                        # Revert old category amount
-                        old_category_amount = CategoryAmount.objects.get(
-                            user=user, category=old_category, type=old_type
-                        )
-                        old_category_amount.amount -= old_amount
-                        if old_category_amount.amount <= 0:
-                            old_category_amount.delete()
-                        else:
-                            old_category_amount.save()
+                # Apply the new transaction's effect
+                if new_type == 'income':
+                    user.income += new_amount
+                    user.balance += new_amount
+                else:  # expense
+                    user.expense += new_amount
+                    user.balance -= new_amount
 
-                        # Update or create new category amount
-                        new_category_amount, created = CategoryAmount.objects.get_or_create(
-                            user=user, category=new_category, type=new_type, defaults={'amount': 0}
-                        )
-                        new_category_amount.amount += new_amount
-                        new_category_amount.save()
+                # Update CategoryAmount
+                if old_category != new_category or old_type != new_type:
+                    old_category_amount = CategoryAmount.objects.get(
+                        user=user, category=old_category, type=old_type
+                    )
+                    old_category_amount.amount -= old_amount
+                    if old_category_amount.amount <= 0:
+                        old_category_amount.delete()
                     else:
-                        # Same category and type, just update the amount
-                        category_amount = CategoryAmount.objects.get(
-                            user=user, category=new_category, type=new_type
-                        )
-                        category_amount.amount = category_amount.amount - old_amount + new_amount
-                        category_amount.save()
+                        old_category_amount.save()
 
-                    user.save()
+                    new_category_amount, created = CategoryAmount.objects.get_or_create(
+                        user=user, category=new_category, type=new_type, defaults={'amount': 0}
+                    )
+                    new_category_amount.amount += new_amount
+                    new_category_amount.save()
+                else:
+                    category_amount = CategoryAmount.objects.get(
+                        user=user, category=new_category, type=new_type
+                    )
+                    category_amount.amount = category_amount.amount - old_amount + new_amount
+                    category_amount.save()
 
-                print(f"Transaction {transaction_id} updated for user {user.username}: {serializer.data}")
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            print(f"Validation errors: {serializer.errors}")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print(f"Error in TransactionDetailView.put: {str(e)}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                user.save()
+
+            print(f"Transaction {transaction_id} updated for user {user.username}: {serializer.data}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        print(f"Validation errors: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, transaction_id):
         """Delete a transaction"""

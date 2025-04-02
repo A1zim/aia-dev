@@ -60,146 +60,110 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       resizeToAvoidBottomInset: false, // Prevent resizing when keyboard appears
-      body: Stack(
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            child: _screens[_selectedIndex],
-          ),
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xFF121214) : Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildNavItem(
-                    index: 0,
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    label: AppLocalizations.of(context)!.home,
-                  ),
-                  _buildNavItem(
-                    index: 1,
-                    icon: Icons.history_outlined,
-                    selectedIcon: Icons.history,
-                    label: AppLocalizations.of(context)!.history,
-                  ),
-                  _buildNavItem(
-                    index: 2,
-                    icon: Icons.bar_chart,
-                    selectedIcon: Icons.bar_chart,
-                    label: AppLocalizations.of(context)!.reports,
-                  ),
-                  _buildNavItem(
-                    index: 3,
-                    icon: Icons.settings_outlined,
-                    selectedIcon: Icons.settings,
-                    label: AppLocalizations.of(context)!.settingsTitle,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: _screens[_selectedIndex],
       ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required int index,
-    required IconData icon,
-    required IconData selectedIcon,
-    required String label,
-  }) {
-    final isSelected = _selectedIndex == index;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final themeColor = isDark ? Colors.purpleAccent[100]! : Colors.blue; // Blue for light, Purple for dark
-    final unselectedColor = isDark ? Colors.purpleAccent! : Colors.blue[200]!; // Lighter shades for unselected
-
-    return GestureDetector(
-      onTap: () => _onItemTapped(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isSelected ? themeColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isSelected
-              ? [
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface, // Theme-adaptive background
+          border: Border(
+            top: BorderSide(
+              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300]!,
+              width: 1,
+            ),
+          ),
+          boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, -2), // Shadow above the navigation bar
             ),
-          ]
-              : [],
+          ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
-                );
-              },
-              child: Icon(
-                isSelected ? selectedIcon : icon,
-                key: ValueKey(isSelected),
-                color: isSelected ? Colors.white : unselectedColor,
-                size: 24,
-              ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed, // Ensures all items are visible
+          backgroundColor: Colors.transparent, // Make the BottomNavigationBar background transparent to show the Container's color
+          elevation: 0, // No additional elevation (shadow is handled by the Container)
+          showSelectedLabels: false, // Hide selected labels
+          showUnselectedLabels: false, // Hide unselected labels
+          items: [
+            _buildNavItem(
+              index: 0,
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
             ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOutCubic,
-              child: isSelected
-                  ? Row(
-                children: [
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              )
-                  : const SizedBox.shrink(),
+            _buildNavItem(
+              index: 1,
+              icon: Icons.history_outlined,
+              selectedIcon: Icons.history,
+            ),
+            _buildNavItem(
+              index: 2,
+              icon: Icons.bar_chart,
+              selectedIcon: Icons.bar_chart,
+            ),
+            _buildNavItem(
+              index: 3,
+              icon: Icons.settings_outlined,
+              selectedIcon: Icons.settings,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  BottomNavigationBarItem _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData selectedIcon,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = _selectedIndex == index;
+    final themeColor = isDark ? AppColors.darkAccent : AppColors.lightAccent; // Purple for dark, blue for light
+    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary; // Theme-adaptive unselected color
+
+    return BottomNavigationBarItem(
+      icon: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+        padding: const EdgeInsets.all(8), // Add padding for a nicer look
+        decoration: BoxDecoration(
+          color: isSelected ? themeColor.withOpacity(0.2) : Colors.transparent, // Subtle background for selected item
+          borderRadius: BorderRadius.circular(12), // Rounded highlight
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return ScaleTransition(
+              scale: animation,
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            );
+          },
+          child: Icon(
+            isSelected ? selectedIcon : icon,
+            key: ValueKey(isSelected),
+            color: isSelected ? themeColor : unselectedColor, // Theme-adaptive colors
+            size: 28, // Slightly larger icons for a nicer look
+          ),
+        ),
+      ),
+      label: '', // Empty label since we don't want text
     );
   }
 }

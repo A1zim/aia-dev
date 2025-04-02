@@ -167,7 +167,18 @@ class AppLocalizations {
       "transactionFailed" : "Transaction failed",
       "today" : "Today",
       "yesterday" : "Yesterday",
-
+      'manageCategories' : "Manage Categories",
+      'addCategory' : "Add Category",
+      'categoryName' : "Category Name",
+      "customDateRange": "Custom Date Range",
+      "custom": "Custom",
+      "lastWeek": "Last Week",
+      "lastMonth": "Last Month",
+      "last3Months": "Last 3 Months",
+      "categories": "Categories",
+      "dateRange":"Date Range",
+      "original" : "Original",
+      "pleaseSelectFilter" : "Please Select Filter"
     },
     'ky': {
       'appTitle': 'Жеке Финансы',
@@ -324,7 +335,18 @@ class AppLocalizations {
       "transactionFailed" : "Транзакция кабыл алынбады",
       "today" : "Бүгүн",
       "yesterday" : "Кечээ",
-
+      'manageCategories' : "Категорияларды башкаруу",
+      'addCategory' : "Категория кошуу",
+      'categoryName' : "Категориянын аты",
+      "customDateRange": "Өздүк дата аралыктары",
+      "custom": "Өздүк",
+      "lastWeek": "Акыркы жума",
+      "lastMonth": "Акыркы ай",
+      "last3Months": "Акыркы 3 ай",
+      "categories": "Категориялар",
+      "dateRange":"Дата аралыктыры",
+      "original" : "Нак оригинал",
+      "pleaseSelectFilter" : "Сураныч фильтрлерди тандаңыз"
     },
     'ru': {
       'appTitle': 'Личные Финансы',
@@ -337,7 +359,7 @@ class AppLocalizations {
       'logout': 'Выйти',
       'logoutConfirm': 'Вы уверены, что хотите выйти?',
       'cancel': 'Отмена',
-      'no':'нет',
+      'no': 'нет',
       'confirmLogout': 'Выйти',
       'currencyChanged': 'Валюта изменена на {currency}',
       'currencyChangeFailed': 'Не удалось обновить валюту: {error}',
@@ -370,7 +392,7 @@ class AppLocalizations {
       'oldPassword': 'Старый Пароль',
       'newPassword': 'Новый Пароль',
       'confirm': 'Подтвердить',
-      'yes':'Да',
+      'yes': 'Да',
       'save': 'Сохранить',
       'enterNewNickname': 'Введите новый никнейм',
       'notSet': 'Не установлено',
@@ -472,17 +494,30 @@ class AppLocalizations {
       "enterPassword": "Введите пароль",
       "dataCleared": "Все данные успешно очищены.",
       "clearDataFailed": "Не удалось очистить данные: %s",
-      "usernameTaken" : "Имя пользователя не доступно",
+      "usernameTaken": "Имя пользователя не доступно",
       "usernameAvailable": "Имя пользователя доступно",
       "codeInvalid": "Не правильный код",
       "codeInvalid": "Не правильный код",
       "fillAllFields": "Не правильный код",
       "enterValidCode": "Не правильный код",
-      "resetPasswordSent" : "Reset password sent",
-      "transactionFailed" : "transactionFailed",
-      "today" : "Today",
-      "yesterday" : "Yesterday",
-    },
+      "resetPasswordSent": "Сбросс пароля отправлен",
+      "transactionFailed": "Транзакция прервалась",
+      "today": "Сегодня",
+      "yesterday": "Вчера",
+      'manageCategories': "Управление категориями",
+      'addCategory': "Добавить категорию",
+      'categoryName': "Имя категории",
+      'selectDateRange': "Выберите промежуток",
+      "customDateRange": "Собственный промежуток",
+      "custom": "Своё",
+      "lastWeek": "Последняя неделя",
+      "lastMonth": "Последний месяц",
+      "last3Months": "Последние 3 месяцы",
+      "categories": "Категории",
+      "dateRange":"Промежуток",
+      "original" : "Оригинал",
+      "pleaseSelectFilter" : "Пожалуйста выберите фильтры"
+    }
   };
 
   // Getters for all static strings
@@ -657,6 +692,21 @@ class AppLocalizations {
   String get transactionFailed => _localizedValues[locale.languageCode]!['transactionFailed']!;
   String get today => _localizedValues[locale.languageCode]!['today']!;
   String get yesterday => _localizedValues[locale.languageCode]!['yesterday']!;
+
+  String get manageCategories => _localizedValues[locale.languageCode]!['manageCategories']!;
+  String get addCategory => _localizedValues[locale.languageCode]!['addCategory']!;
+  String get categoryName => _localizedValues[locale.languageCode]!['categoryName']!;
+  String get selectDateRange => _localizedValues[locale.languageCode]!['selectDateRange']!;
+  String get customDateRange => _localizedValues[locale.languageCode]!['customDateRange']!;
+  String get custom => _localizedValues[locale.languageCode]!['custom']!;
+  String get lastWeek => _localizedValues[locale.languageCode]!['lastWeek']!;
+  String get lastMonth => _localizedValues[locale.languageCode]!['lastMonth']!;
+  String get last3Months => _localizedValues[locale.languageCode]!['last3Months']!;
+  String get categories => _localizedValues[locale.languageCode]!['categories']!;
+  String get dateRange => _localizedValues[locale.languageCode]!['dateRange']!;
+  String get original => _localizedValues[locale.languageCode]!['original']!;
+  String get pleaseSelectFilter => _localizedValues[locale.languageCode]!['pleaseSelectFilter']!;
+
 
   // Add this method to your AppLocalizations class
   String translate(String key) {

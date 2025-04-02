@@ -16,7 +16,7 @@ class PaginatedResponse<T> {
 }
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8000//api";
+  static const String baseUrl = "http://10.0.2.2:8000/api"; // Adjust to your backend URL
   String? _accessToken;
   String? _refreshToken;
 
@@ -299,20 +299,22 @@ class ApiService {
   }
 
   // Add a new transaction
-  Future<void> addTransaction(Transaction transaction) async {
+  Future<void> addTransaction(Map<String, dynamic> transactionData) async {
     final response = await makeAuthenticatedRequest((token) async {
+      final requestBody = json.encode(transactionData);
+      print('Sending transaction: $requestBody'); // Log the exact JSON
       return await http.post(
         Uri.parse('$baseUrl/transactions/add/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode(transaction.toJson()),
+        body: requestBody,
       );
     });
 
     if (response.statusCode != 201) {
-      throw Exception('Failed to add transaction: ${json.decode(response.body)['error'] ?? response.body}');
+      throw Exception('Failed to add transaction: ${response.body}');
     }
   }
 
