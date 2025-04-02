@@ -1,3 +1,4 @@
+import datetime
 from rest_framework import serializers
 from .models import User, Transaction, CategoryAmount, UserCurrency
 
@@ -32,11 +33,8 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transaction
-        fields = [
-            'id', 'user', 'type', 'category', 'amount', 'description',
-            'timestamp', 'username', 'original_currency', 'original_amount'
-        ]
-        read_only_fields = ['id', 'user', 'timestamp', 'username']
+        fields = ['id', 'user', 'type', 'category', 'amount', 'description', 'timestamp', 'username', 'original_currency', 'original_amount']
+        read_only_fields = ['id', 'user', 'username']
 
     def get_username(self, obj):
         return obj.user.username
@@ -47,39 +45,30 @@ class TransactionSerializer(serializers.ModelSerializer):
         return value
 
     def validate_original_currency(self, value):
-        """Validate that the original_currency is one of the user's available currencies."""
         if not value:
-            return value  # Allow null/empty values
+            return value
         user = self.context['request'].user
         available_currencies = list(UserCurrency.objects.filter(user=user).values_list('currency', flat=True))
-        available_currencies.append('KGS')  # KGS is always available
+        available_currencies.append('KGS')
         if value not in available_currencies:
             raise serializers.ValidationError(
                 f"Invalid original currency. Choose from: {', '.join(available_currencies)}"
             )
         return value
 
+    def validate_timestamp(self, value):
+        print(f"Validating timestamp: {value}")
+        return value  # DRF should handle ISO 8601 parsing automatically
+
     def validate(self, data):
         transaction_type = data.get('type')
         category = data.get('category')
-
         income_categories = ['salary', 'gift', 'interest', 'other_income']
-        expense_categories = [
-            'food', 'transport', 'housing', 'utilities',
-            'entertainment', 'healthcare', 'education',
-            'shopping', 'other_expense'
-        ]
-
+        expense_categories = ['food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense']
         if transaction_type == 'income' and category not in income_categories:
-            raise serializers.ValidationError({
-                "category": f"Invalid category for income. Choose from: {', '.join(income_categories)}"
-            })
-
+            raise serializers.ValidationError({"category": f"Invalid category for income. Choose from: {', '.join(income_categories)}"})
         if transaction_type == 'expense' and category not in expense_categories:
-            raise serializers.ValidationError({
-                "category": f"Invalid category for expense. Choose from: {', '.join(expense_categories)}"
-            })
-
+            raise serializers.ValidationError({"category": f"Invalid category for expense. Choose from: {', '.join(expense_categories)}"})
         return data
 
 class CategoryAmountSerializer(serializers.ModelSerializer):

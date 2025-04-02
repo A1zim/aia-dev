@@ -4,6 +4,7 @@ import 'package:aia_wallet/services/currency_api_service.dart';
 import 'package:aia_wallet/services/notification_service.dart';
 import 'package:aia_wallet/models/transaction.dart';
 import 'package:aia_wallet/theme/styles.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
@@ -27,6 +28,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   String _displayCurrency = 'KGS';
+  late FocusNode _descriptionFocusNode;
+  late FocusNode _amountFocusNode;
 
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
@@ -38,9 +41,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   List<String> _incomeCategories = [
     'salary', 'gift', 'interest', 'other_income',
   ];
-
-  String? _operation;
-  double? _operationValue;
 
   late AnimationController _animationController;
   late Animation<double> _animation;
@@ -56,12 +56,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
+    _descriptionFocusNode = FocusNode();
+    _amountFocusNode = FocusNode();
+
     final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
     if (widget.transaction != null) {
       _descriptionController.text = widget.transaction!.description;
       _selectedType = widget.transaction!.type;
       _selectedCategory = widget.transaction!.category;
-      _selectedDate = DateTime.parse(widget.transaction!.timestamp); // Keep the original date
+      _selectedDate = DateTime.parse(widget.transaction!.timestamp);
       if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
         _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
         _displayCurrency = widget.transaction!.originalCurrency!;
@@ -80,7 +83,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
         _displayCurrency = currencyProvider.currency;
       }
     } else {
-      _amountController.text = '0';
+      _amountController.text = '';
       _displayCurrency = currencyProvider.currency;
     }
   }
@@ -90,19 +93,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     _descriptionController.dispose();
     _amountController.dispose();
     _animationController.dispose();
+    _descriptionFocusNode.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime today = DateTime(2025, 3, 31); // Today is March 31, 2025
+    final DateTime today = DateTime.now(); // Use current date as the max selectable date
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: today,
+      firstDate: DateTime(2000), // Minimum selectable date
+      lastDate: today, // Maximum selectable date is today
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
+        // Strip the time component, keeping only the date
         _selectedDate = DateTime(picked.year, picked.month, picked.day);
         print('Selected date updated to: $_selectedDate');
       });
@@ -110,12 +116,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   }
 
   Future<void> _submit() async {
-    if (_operation != null && _operationValue != null) {
-      _applyOperation();
-    }
-
     double finalAmount = double.tryParse(_amountController.text) ?? 0.0;
-
     if (finalAmount <= 0) {
       NotificationService.showNotification(
         context,
@@ -136,27 +137,32 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
             ? enteredAmount
             : enteredAmount * _currencyApiService.getConversionRate(transactionCurrency, 'KGS');
 
-        final transaction = Transaction(
-          id: widget.transaction?.id ?? 0,
-          user: widget.transaction?.user ?? 0,
-          type: _selectedType,
-          category: _selectedCategory,
-          amount: amountInKGS,
-          description: _descriptionController.text,
-          timestamp: widget.transaction != null
-              ? widget.transaction!.timestamp // Preserve original timestamp when editing
-              : _selectedDate.toIso8601String(), // Use selected date for new transactions
-          username: widget.transaction?.username ?? '',
-          originalCurrency: transactionCurrency,
-          originalAmount: enteredAmount,
-        );
+        amountInKGS = double.parse(amountInKGS.toStringAsFixed(2));
 
-        print('Submitting transaction with timestamp: ${transaction.timestamp}');
+        final Map<String, dynamic> transactionData = {
+          'type': _selectedType,
+          'category': _selectedCategory,
+          'amount': amountInKGS,
+          'description': _descriptionController.text,
+          'originalCurrency': transactionCurrency, // Match JSON key
+          'originalAmount': enteredAmount,         // Match JSON key
+          'timestamp': _selectedDate.toUtc().toIso8601String(), // Ensure UTC with 'Z'
+        };
+
+        print('Submitting transaction: $transactionData');
 
         if (widget.transaction == null) {
-          await _apiService.addTransaction(transaction);
+          // For new transactions, assume user and username are handled elsewhere (e.g., in ApiService)
+          await _apiService.addTransaction(transactionData);
         } else {
-          await _apiService.updateTransaction(widget.transaction!.id, transaction);
+          // For updates, include all required fields from the original transaction
+          transactionData['id'] = widget.transaction!.id;
+          transactionData['user'] = widget.transaction!.user; // Preserve original user
+          transactionData['username'] = widget.transaction!.username; // Preserve original username
+
+          // Create a Transaction object from the updated data
+          final Transaction updatedTransaction = Transaction.fromJson(transactionData);
+          await _apiService.updateTransaction(widget.transaction!.id, updatedTransaction);
         }
 
         if (mounted) {
@@ -170,9 +176,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
         }
       } catch (e) {
         if (mounted) {
+          print('Error submitting transaction: $e');
           NotificationService.showNotification(
             context,
-            message: AppLocalizations.of(context)!.transactionFailed,
+            message: '${AppLocalizations.of(context)!.transactionFailed}: $e',
             isError: true,
           );
         }
@@ -184,10 +191,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
 
   Color _getCategoryColor(String category) {
     const categoryColors = {
-      'food': Color(0xFFEF5350), 'transport': Color(0xFF42A5F5), 'housing': Color(0xFFAB47BC),
-      'utilities': Color(0xFF26C6DA), 'entertainment': Color(0xFFFFCA28), 'healthcare': Color(0xFF4CAF50),
-      'education': Color(0xFFFF8A65), 'shopping': Color(0xFFD4E157), 'other_expense': Color(0xFF90A4AE),
-      'salary': Color(0xFF66BB6A), 'gift': Color(0xFFF06292), 'interest': Color(0xFF29B6F6),
+      'food': Color(0xFFEF5350),
+      'transport': Color(0xFF42A5F5),
+      'housing': Color(0xFFAB47BC),
+      'utilities': Color(0xFF26C6DA),
+      'entertainment': Color(0xFFFFCA28),
+      'healthcare': Color(0xFF4CAF50),
+      'education': Color(0xFFFF8A65),
+      'shopping': Color(0xFFD4E157),
+      'other_expense': Color(0xFF90A4AE),
+      'salary': Color(0xFF66BB6A),
+      'gift': Color(0xFFF06292),
+      'interest': Color(0xFF29B6F6),
       'other_income': Color(0xFF78909C),
     };
     return categoryColors[category] ?? Colors.grey.withOpacity(0.8);
@@ -198,95 +213,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     return typeColors[type] ?? Colors.grey.withOpacity(0.8);
   }
 
-  Widget _buildKeypadButton(String label, VoidCallback onPressed, {Color? color}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color ?? (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-          border: Border.all(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: const [],
-        ),
-        child: Center(
-          child: label == '⌫'
-              ? Icon(Icons.backspace, size: 20, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-              : Text(
-            label,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color != null
-                  ? Colors.white
-                  : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _appendDigit(String digit) {
-    setState(() {
-      String currentText = _amountController.text;
-      _amountController.text = currentText == '0' ? digit : currentText + digit;
-    });
-  }
-
-  void _clearAll() => setState(() => _amountController.text = '0');
-
-  void _backspace() {
-    setState(() {
-      String currentText = _amountController.text;
-      _amountController.text = currentText.length > 1 ? currentText.substring(0, currentText.length - 1) : '0';
-    });
-  }
-
-  void _setZeroAndPrepareAdd() {
-    setState(() {
-      _operationValue = double.tryParse(_amountController.text) ?? 0.0;
-      _amountController.text = '0';
-      _operation = 'add';
-    });
-  }
-
-  void _setZeroAndPrepareSubtract() {
-    setState(() {
-      _operationValue = double.tryParse(_amountController.text) ?? 0.0;
-      _amountController.text = '0';
-      _operation = 'subtract';
-    });
-  }
-
-  void _applyOperation() {
-    setState(() {
-      double currentInput = double.tryParse(_amountController.text) ?? 0.0;
-      double originalAmount = _operationValue ?? 0.0;
-      double newAmount = 0.0;
-
-      if (_operation == 'add') {
-        newAmount = originalAmount + currentInput;
-      } else if (_operation == 'subtract') {
-        newAmount = originalAmount - currentInput;
-      }
-
-      _amountController.text = newAmount == 0 ? '0' : newAmount.toStringAsFixed(2);
-      _operationValue = null;
-      _operation = null;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final logoPath = themeProvider.getLogoPath(context);
-    List<String> _categories = _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
     double enteredAmount = double.tryParse(_amountController.text) ?? 0.0;
     final displayCurrencySymbol = _currencyApiService.getCurrencySymbol(_displayCurrency);
     final kgsSymbol = _currencyApiService.getCurrencySymbol('KGS');
+    List<String> _categories = _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
     return Scaffold(
       body: Container(
@@ -301,7 +237,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
         ),
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -332,7 +267,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'AIA',
+                                text: 'MON',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -341,7 +276,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                                 ),
                               ),
                               TextSpan(
-                                text: 'Wallet',
+                                text: 'ey',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.normal,
@@ -358,17 +293,150 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                 ),
               ),
             ),
-            Divider(
-              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
-              thickness: 1,
-            ),
             Container(
               margin: const EdgeInsets.only(top: 8.0),
               child: Center(
                 child: Text(
-                  widget.transaction == null ? AppLocalizations.of(context)!.addTransaction : AppLocalizations.of(context)!.editTransaction,
+                  widget.transaction == null
+                      ? AppLocalizations.of(context)!.addTransaction
+                      : AppLocalizations.of(context)!.editTransaction,
                   style: AppTextStyles.heading(context).copyWith(fontSize: 18),
                 ),
+              ),
+            ),
+            Divider(
+              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+              thickness: 1,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _selectDate(context), // Always enabled
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today,
+                      color: isDark ? AppColors.darkAccent : AppColors.lightAccent, // Keep color consistent
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    "${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}",
+                    style: AppTextStyles.body(context),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      return GestureDetector(
+                        onTap: widget.transaction != null
+                            ? null
+                            : () {
+                          setState(() {
+                            _selectedType = 'expense';
+                            _selectedCategory = 'food';
+                          });
+                          _animationController.forward(from: 0);
+                        },
+                        child: Container(
+                          width: 90,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: _selectedType == 'expense'
+                                ? _getTypeColor('expense').withOpacity(0.8 + 0.2 * _animation.value)
+                                : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.arrow_upward,
+                                size: 18,
+                                color: _selectedType == 'expense'
+                                    ? Colors.white
+                                    : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                AppLocalizations.of(context)!.expense,
+                                style: TextStyle(
+                                  color: _selectedType == 'expense'
+                                      ? Colors.white
+                                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                  AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      return GestureDetector(
+                        onTap: widget.transaction != null
+                            ? null
+                            : () {
+                          setState(() {
+                            _selectedType = 'income';
+                            _selectedCategory = 'salary';
+                          });
+                          _animationController.forward(from: 0);
+                        },
+                        child: Container(
+                          width: 90,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: _selectedType == 'income'
+                                ? _getTypeColor('income').withOpacity(0.8 + 0.2 * _animation.value)
+                                : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.arrow_downward,
+                                size: 18,
+                                color: _selectedType == 'income'
+                                    ? Colors.white
+                                    : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                AppLocalizations.of(context)!.income,
+                                style: TextStyle(
+                                  color: _selectedType == 'income'
+                                      ? Colors.white
+                                      : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -378,111 +446,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                   key: _formKey,
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AnimatedBuilder(
-                            animation: _animation,
-                            builder: (context, child) {
-                              return GestureDetector(
-                                onTap: widget.transaction != null
-                                    ? null
-                                    : () {
-                                  setState(() {
-                                    _selectedType = 'expense';
-                                    _selectedCategory = 'food';
-                                  });
-                                  _animationController.forward(from: 0);
-                                },
-                                child: Container(
-                                  width: 90,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
-                                    color: _selectedType == 'expense'
-                                        ? _getTypeColor('expense').withOpacity(0.8 + 0.2 * _animation.value)
-                                        : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.arrow_upward,
-                                        size: 18,
-                                        color: _selectedType == 'expense'
-                                            ? Colors.white
-                                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        AppLocalizations.of(context)!.expense,
-                                        style: TextStyle(
-                                          color: _selectedType == 'expense'
-                                              ? Colors.white
-                                              : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 16),
-                          AnimatedBuilder(
-                            animation: _animation,
-                            builder: (context, child) {
-                              return GestureDetector(
-                                onTap: widget.transaction != null
-                                    ? null
-                                    : () {
-                                  setState(() {
-                                    _selectedType = 'income';
-                                    _selectedCategory = 'salary';
-                                  });
-                                  _animationController.forward(from: 0);
-                                },
-                                child: Container(
-                                  width: 90,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
-                                    color: _selectedType == 'income'
-                                        ? _getTypeColor('income').withOpacity(0.8 + 0.2 * _animation.value)
-                                        : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.arrow_downward,
-                                        size: 18,
-                                        color: _selectedType == 'income'
-                                            ? Colors.white
-                                            : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        AppLocalizations.of(context)!.income,
-                                        style: TextStyle(
-                                          color: _selectedType == 'income'
-                                              ? Colors.white
-                                              : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         value: _selectedCategory,
                         decoration: AppInputStyles.dropdown(context, labelText: AppLocalizations.of(context)!.category),
@@ -490,7 +453,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                           value: category,
                           child: Row(
                             children: [
-                              Container(width: 12, height: 12, decoration: BoxDecoration(color: _getCategoryColor(category), shape: BoxShape.circle)),
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: _getCategoryColor(category),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
                               const SizedBox(width: 8),
                               Text(AppLocalizations.of(context)!.getCategoryName(category)),
                             ],
@@ -507,20 +477,38 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _descriptionController,
-                        decoration: AppInputStyles.textField(context).copyWith(labelText: AppLocalizations.of(context)!.description, prefixIcon: const Icon(Icons.description, size: 24)),
-                        validator: (value) => value == null || value.isEmpty ? AppLocalizations.of(context)!.descriptionRequired : null,
-                        textInputAction: TextInputAction.done,
+                        focusNode: _descriptionFocusNode,
+                        decoration: AppInputStyles.textField(context).copyWith(
+                          labelText: AppLocalizations.of(context)!.description,
+                          prefixIcon: const Icon(Icons.description, size: 24),
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? AppLocalizations.of(context)!.descriptionRequired
+                            : null,
+                        textInputAction: TextInputAction.next,
                         keyboardType: TextInputType.text,
                         textCapitalization: TextCapitalization.sentences,
-                        onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
+                        onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_amountFocusNode),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _amountController,
-                        decoration: AppInputStyles.textField(context).copyWith(labelText: '${AppLocalizations.of(context)!.amount} ($displayCurrencySymbol)', prefixIcon: const Icon(Icons.attach_money, size: 24)),
-                        keyboardType: TextInputType.number,
-                        validator: (value) => value == null || value.isEmpty ? AppLocalizations.of(context)!.amountRequired : double.tryParse(value) == null || double.parse(value) <= 0 ? AppLocalizations.of(context)!.amountInvalid : null,
-                        readOnly: true,
+                        focusNode: _amountFocusNode,
+                        decoration: AppInputStyles.textField(context).copyWith(
+                          labelText: '${AppLocalizations.of(context)!.amount} ($displayCurrencySymbol)',
+                          prefixIcon: const Icon(Icons.attach_money, size: 24),
+                        ),
+                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                        validator: (value) => value == null || value.isEmpty
+                            ? AppLocalizations.of(context)!.amountRequired
+                            : double.tryParse(value) == null || double.parse(value) <= 0
+                            ? AppLocalizations.of(context)!.amountInvalid
+                            : null,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _submit(),
                       ),
                       const SizedBox(height: 16),
                       if (_displayCurrency != 'KGS')
@@ -528,14 +516,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                           future: Future.value(_currencyApiService.getConversionRate(_displayCurrency, 'KGS')),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Padding(padding: EdgeInsets.only(top: 16.0), child: CircularProgressIndicator());
+                              return const Padding(
+                                padding: EdgeInsets.only(top: 16.0),
+                                child: CircularProgressIndicator(),
+                              );
                             }
                             if (snapshot.hasError) {
                               return Padding(
                                 padding: const EdgeInsets.only(top: 16.0),
                                 child: Text(
                                   AppLocalizations.of(context)!.currencyConversionError(snapshot.error.toString()),
-                                  style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error),
+                                  style: AppTextStyles.body(context).copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
                                 ),
                               );
                             }
@@ -545,57 +538,34 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                               padding: const EdgeInsets.only(top: 16.0),
                               child: Text(
                                 '${AppLocalizations.of(context)!.amountInKGS}: ${amountInKGS.toStringAsFixed(2)} $kgsSymbol',
-                                style: AppTextStyles.body(context).copyWith(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                                style: AppTextStyles.body(context).copyWith(
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                ),
                               ),
                             );
                           },
                         ),
-                      // Show date picker only when adding a new transaction
-                      if (widget.transaction == null)
-                        ListTile(
-                          title: Text("${AppLocalizations.of(context)!.date}: ${_selectedDate.toLocal().toString().split(' ')[0]}", style: AppTextStyles.body(context)),
-                          trailing: Icon(Icons.calendar_today, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
-                          onTap: () => _selectDate(context),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
-                          tileColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : Text(
+                            AppLocalizations.of(context)!.confirm,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                         ),
-                      if (widget.transaction == null) const SizedBox(height: 16),
+                      ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                padding: const EdgeInsets.all(8.0),
-                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-                child: GridView.count(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
-                  childAspectRatio: 1.5,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildKeypadButton('1', () => _appendDigit('1')),
-                    _buildKeypadButton('2', () => _appendDigit('2')),
-                    _buildKeypadButton('3', () => _appendDigit('3')),
-                    _buildKeypadButton('⌫', _backspace),
-                    _buildKeypadButton('4', () => _appendDigit('4')),
-                    _buildKeypadButton('5', () => _appendDigit('5')),
-                    _buildKeypadButton('6', () => _appendDigit('6')),
-                    _buildKeypadButton('+', _setZeroAndPrepareAdd),
-                    _buildKeypadButton('7', () => _appendDigit('7')),
-                    _buildKeypadButton('8', () => _appendDigit('8')),
-                    _buildKeypadButton('9', () => _appendDigit('9')),
-                    _buildKeypadButton('-', _setZeroAndPrepareSubtract),
-                    _buildKeypadButton('AC', _clearAll, color: Colors.orange),
-                    _buildKeypadButton('0', () => _appendDigit('0')),
-                    _buildKeypadButton('=', _applyOperation),
-                    _buildKeypadButton('OK', _submit, color: Colors.blue),
-                  ],
                 ),
               ),
             ),

@@ -345,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: 'AIA',
+                              text: 'MON',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -354,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                               ),
                             ),
                             TextSpan(
-                              text: 'Wallet',
+                              text: 'ey',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.normal,
@@ -371,10 +371,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               ),
             ),
           ),
-          Divider(
-            color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
-            thickness: 1,
-          ),
           Container(
             margin: const EdgeInsets.only(top: 8.0),
             child: Center(
@@ -383,6 +379,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 style: AppTextStyles.heading(context).copyWith(fontSize: 18),
               ),
             ),
+          ),
+          Divider(
+            color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+            thickness: 1,
           ),
           Expanded(
             child: Padding(

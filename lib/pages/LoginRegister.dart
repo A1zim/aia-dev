@@ -334,7 +334,7 @@ class _LoginRegisterState extends State<LoginRegister> with SingleTickerProvider
                                           text: TextSpan(
                                             children: [
                                               TextSpan(
-                                                text: 'AIA',
+                                                text: 'MON',
                                                 style: TextStyle(
                                                   fontSize: 24,
                                                   fontWeight: FontWeight.bold,
@@ -343,7 +343,7 @@ class _LoginRegisterState extends State<LoginRegister> with SingleTickerProvider
                                                 ),
                                               ),
                                               TextSpan(
-                                                text: 'Wallet',
+                                                text: 'ey',
                                                 style: TextStyle(
                                                   fontSize: 24,
                                                   fontWeight: FontWeight.normal,

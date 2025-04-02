@@ -258,19 +258,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     }
   }
 
-  Color _getCurrencyColor(String currency) {
-    final Map<String, Color> currencyColors = {
-      'KGS': const Color(0xFFEF5350),
-      'USD': const Color(0xFF4CAF50),
-      'EUR': const Color(0xFF42A5F5),
-      'JPY': const Color(0xFFFFCA28),
-      'GBP': const Color(0xFFAB47BC),
-      'AED': const Color(0xFF26C6DA),
-    };
-
-    return currencyColors[currency] ?? Colors.grey.withOpacity(0.8);
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -333,7 +320,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'AIA',
+                                text: 'MON',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -342,7 +329,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                 ),
                               ),
                               TextSpan(
-                                text: 'Wallet',
+                                text: 'ey',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.normal,
@@ -359,10 +346,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                 ),
               ),
             ),
-            Divider(
-              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
-              thickness: 1,
-            ),
             Container(
               margin: const EdgeInsets.only(top: 8.0),
               child: Center(
@@ -371,6 +354,10 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                   style: AppTextStyles.heading(context).copyWith(fontSize: 18),
                 ),
               ),
+            ),
+            Divider(
+              color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+              thickness: 1,
             ),
             Expanded(
               child: _isLoading
@@ -415,7 +402,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                         final country = _currencyToCountry[currency] ?? 'Unknown';
                         final rate = _exchangeRates[currency] ?? 1.0;
                         final isSelected = currencyProvider.currency == currency;
-                        final currencyColor = _getCurrencyColor(currency);
 
                         return Card(
                           elevation: 2,
@@ -426,15 +412,12 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: isSelected
-                                  ? currencyColor
-                                  : currencyColor.withOpacity(0.3),
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurface
+                                  : AppColors.lightSurface,
                               child: Text(
-                                currency,
-                                style: TextStyle(
-                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                _currencyApiService.getCurrencyFlag(currency),
+                                style: const TextStyle(fontSize: 24),
                               ),
                             ),
                             title: Text(
@@ -446,8 +429,9 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                             subtitle: Text(
                               '1 $currency = ${rate.toStringAsFixed(2)} KGS',
                               style: AppTextStyles.body(context).copyWith(
-                                color:
-                                isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
                               ),
                             ),
                             trailing: Row(
@@ -502,7 +486,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                 final currency = _filteredCurrencies[index];
                                 final country = _currencyToCountry[currency] ?? 'Unknown';
                                 final rate = _filteredExchangeRates[currency] ?? 1.0;
-                                final currencyColor = _getCurrencyColor(currency);
 
                                 return Card(
                                   elevation: 1,
@@ -513,15 +496,12 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                   color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: currencyColor.withOpacity(0.3),
+                                      backgroundColor: isDark
+                                          ? AppColors.darkSurface
+                                          : AppColors.lightSurface,
                                       child: Text(
-                                        currency,
-                                        style: TextStyle(
-                                          color: isDark
-                                              ? AppColors.darkTextPrimary
-                                              : AppColors.lightTextPrimary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        _currencyApiService.getCurrencyFlag(currency),
+                                        style: const TextStyle(fontSize: 24),
                                       ),
                                     ),
                                     title: Text(

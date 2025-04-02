@@ -111,7 +111,7 @@ class Transaction(models.Model):
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)  # Amount in KGS
     description = models.TextField(blank=True, null=True)
-    timestamp = models.DateTimeField(default=timezone.now)
+    timestamp = models.DateTimeField()
     original_currency = models.CharField(max_length=3, blank=True, null=True)  # e.g., EUR, USD
     original_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)  # Amount in original currency
     
@@ -126,7 +126,7 @@ class CategoryAmount(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='category_amounts')
     category = models.CharField(max_length=20)
     type = models.CharField(max_length=10)
-    amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     
     class Meta:
         unique_together = ['user', 'category', 'type']

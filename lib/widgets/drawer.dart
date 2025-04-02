@@ -49,11 +49,9 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
             (themeProvider.themeMode == ThemeMode.system &&
                 MediaQuery.of(context).platformBrightness == Brightness.dark);
       });
-    });
-
-    if (_userDataCache == null && !_isLoading) {
+      // Fetch user data when the drawer is opened
       _loadUserData();
-    }
+    });
   }
 
   @override
@@ -132,6 +130,8 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
               onPressed: () async {
                 final apiService = ApiService();
                 await apiService.clearTokens();
+                // Clear the user data cache on logout
+                _userDataCache = null;
                 Navigator.pop(context);
                 Navigator.pop(widget.parentContext);
                 await Future.delayed(const Duration(milliseconds: 300));
@@ -164,12 +164,12 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
     final isDark = themeProvider.themeMode == ThemeMode.dark ||
         (themeProvider.themeMode == ThemeMode.system &&
             MediaQuery.of(context).platformBrightness == Brightness.dark);
-    final themeColor = isDark ? Colors.purpleAccent : Colors.blue;
-    final unselectedColor = isDark ? Colors.purpleAccent[100]! : Colors.blue[200]!;
+    final themeColor = isDark ? AppColors.darkAccent : AppColors.lightAccent; // Purple for dark, blue for light
+    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary; // Theme-adaptive unselected color
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.7,
-      backgroundColor: isDark ? Color(0xFF121214)  : Colors.white,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground, // Systemic background
       child: _userDataCache == null && _isLoading
           ? _buildLoadingState(isDark, themeColor)
           : _buildDrawerContent(
@@ -200,8 +200,8 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [Colors.purple[900]!, Colors.purple[700]!]
-                  : [Colors.blue[700]!, Colors.blue[500]!],
+                  ? [AppColors.darkAccent.withOpacity(0.8), AppColors.darkAccent] // Systemic gradient for dark
+                  : [AppColors.lightAccent.withOpacity(0.8), AppColors.lightAccent], // Systemic gradient for light
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -309,8 +309,8 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [Colors.purple[900]!, Colors.purple[700]!]
-                  : [Colors.blue[700]!, Colors.blue[500]!],
+                  ? [AppColors.darkAccent.withOpacity(0.8), AppColors.darkAccent] // Systemic gradient for dark
+                  : [AppColors.lightAccent.withOpacity(0.8), AppColors.lightAccent], // Systemic gradient for light
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
