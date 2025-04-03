@@ -16,7 +16,7 @@ class PaginatedResponse<T> {
 }
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8000/api"; // Adjust to your backend URL
+  static const String baseUrl = "http://localhost:8000/api";
   String? _accessToken;
   String? _refreshToken;
 
@@ -129,7 +129,7 @@ class ApiService {
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
-        return data; // Return the response data which includes user info
+        return data;
       } else {
         final errorData = json.decode(response.body);
         throw Exception('${errorData['error'] ?? 'Registration failed'}: ${errorData['message'] ?? 'Unknown error'}');
@@ -173,7 +173,6 @@ class ApiService {
     }
   }
 
-  // Get user data
   Future<Map<String, dynamic>> getUserData() async {
     final response = await makeAuthenticatedRequest((token) => http.get(
       Uri.parse('$baseUrl/users/me'),
@@ -190,7 +189,6 @@ class ApiService {
     }
   }
 
-  // Update user profile (e.g., nickname)
   Future<void> updateUserProfile({String? nickname}) async {
     final response = await makeAuthenticatedRequest((token) async {
       return await http.patch(
@@ -210,7 +208,6 @@ class ApiService {
     }
   }
 
-  // Change user password
   Future<void> changePassword(String oldPassword, String newPassword) async {
     final response = await makeAuthenticatedRequest((token) async {
       return await http.post(
@@ -246,7 +243,6 @@ class ApiService {
     }
   }
 
-  // Get list of transactions
   Future<PaginatedResponse<Transaction>> getTransactions({
     int page = 1,
     int pageSize = 20,
@@ -298,11 +294,10 @@ class ApiService {
     throw Exception('Failed to fetch transactions: ${json.decode(response.body)['error'] ?? response.body}');
   }
 
-  // Add a new transaction
-  Future<void> addTransaction(Map<String, dynamic> transactionData) async {
+  Future<Map<String, dynamic>> addTransaction(Map<String, dynamic> transactionData) async {
     final response = await makeAuthenticatedRequest((token) async {
       final requestBody = json.encode(transactionData);
-      print('Sending transaction: $requestBody'); // Log the exact JSON
+      print('Sending transaction: $requestBody');
       return await http.post(
         Uri.parse('$baseUrl/transactions/add/'),
         headers: {
@@ -316,15 +311,13 @@ class ApiService {
     if (response.statusCode != 201) {
       throw Exception('Failed to add transaction: ${response.body}');
     }
+    return json.decode(response.body);
   }
 
-  // Update an existing transaction
-  Future<void> updateTransaction(int id, Transaction transaction) async {
+  Future<Map<String, dynamic>> updateTransaction(int id, Transaction transaction) async {
     final response = await makeAuthenticatedRequest((token) async {
-      // Log the request body to verify the timestamp
       final requestBody = json.encode(transaction.toJson());
       print('Updating transaction $id with body: $requestBody');
-
       return await http.put(
         Uri.parse('$baseUrl/transactions/$id/'),
         headers: {
@@ -338,9 +331,9 @@ class ApiService {
     if (response.statusCode != 200) {
       throw Exception('Failed to update transaction: ${json.decode(response.body)['error'] ?? response.body}');
     }
+    return json.decode(response.body);
   }
 
-  // Delete a transaction
   Future<void> deleteTransaction(int id) async {
     final response = await makeAuthenticatedRequest((token) => http.delete(
       Uri.parse('$baseUrl/transactions/$id/'),
@@ -355,7 +348,6 @@ class ApiService {
     }
   }
 
-  // Get financial summary
   Future<Map<String, dynamic>> getFinancialSummary() async {
     final response = await makeAuthenticatedRequest((token) => http.get(
       Uri.parse('$baseUrl/finances/summary/'),
@@ -371,7 +363,6 @@ class ApiService {
     throw Exception('Failed to fetch financial summary: ${json.decode(response.body)['error'] ?? response.body}');
   }
 
-  // Get financial reports with optional filters
   Future<Map<String, dynamic>> getReports({
     String? type,
     List<String>? categories,
@@ -423,7 +414,6 @@ class ApiService {
     throw Exception('Failed to fetch user currencies: ${json.decode(response.body)['error'] ?? response.body}');
   }
 
-  // Add a currency to the user's list
   Future<void> addUserCurrency(String currency) async {
     final response = await makeAuthenticatedRequest((token) async {
       return await http.post(
@@ -441,7 +431,6 @@ class ApiService {
     }
   }
 
-  // Delete a currency from the user's list
   Future<void> deleteUserCurrency(String currency) async {
     final response = await makeAuthenticatedRequest((token) => http.delete(
       Uri.parse('$baseUrl/currencies/$currency/'),
@@ -456,9 +445,10 @@ class ApiService {
     }
   }
 
+  // Get list of all categories (default + custom)
   Future<List<Map<String, dynamic>>> getCategories() async {
     final response = await makeAuthenticatedRequest((token) => http.get(
-      Uri.parse('$baseUrl/categories/'), // No ?flat=true for detailed response
+      Uri.parse('$baseUrl/categories/'), // Fetch detailed categories (flat=false)
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -466,29 +456,12 @@ class ApiService {
     ));
 
     if (response.statusCode == 200) {
-      List<dynamic> customCategories = json.decode(response.body);
-      // Add default categories manually since ?flat=false only returns custom
-      List<Map<String, dynamic>> defaultCategories = [
-        {'id': null, 'name': 'food', 'type': 'expense'},
-        {'id': null, 'name': 'transport', 'type': 'expense'},
-        {'id': null, 'name': 'housing', 'type': 'expense'},
-        {'id': null, 'name': 'utilities', 'type': 'expense'},
-        {'id': null, 'name': 'entertainment', 'type': 'expense'},
-        {'id': null, 'name': 'healthcare', 'type': 'expense'},
-        {'id': null, 'name': 'education', 'type': 'expense'},
-        {'id': null, 'name': 'shopping', 'type': 'expense'},
-        {'id': null, 'name': 'other_expense', 'type': 'expense'},
-        {'id': null, 'name': 'salary', 'type': 'income'},
-        {'id': null, 'name': 'gift', 'type': 'income'},
-        {'id': null, 'name': 'interest', 'type': 'income'},
-        {'id': null, 'name': 'other_income', 'type': 'income'},
-      ];
-      return [...defaultCategories, ...customCategories.map((cat) => cat as Map<String, dynamic>)];
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
     }
     throw Exception('Failed to fetch categories: ${response.body}');
   }
 
-  // Get list of custom categories (detailed)
+  // Get list of custom categories only
   Future<List<Map<String, dynamic>>> getCustomCategories() async {
     final response = await makeAuthenticatedRequest((token) => http.get(
       Uri.parse('$baseUrl/categories/custom/'),
@@ -504,7 +477,6 @@ class ApiService {
     throw Exception('Failed to fetch custom categories: ${response.body}');
   }
 
-  // Add a custom category
   Future<Map<String, dynamic>> addCustomCategory(String name, String type) async {
     final response = await makeAuthenticatedRequest((token) async {
       return await http.post(
@@ -518,12 +490,11 @@ class ApiService {
     });
 
     if (response.statusCode == 201) {
-      return json.decode(response.body); // Return the created category
+      return json.decode(response.body);
     }
     throw Exception('Failed to add custom category: ${response.body}');
   }
 
-  // Delete a custom category
   Future<void> deleteCustomCategory(int id) async {
     final response = await makeAuthenticatedRequest((token) => http.delete(
       Uri.parse('$baseUrl/categories/custom/$id/'),
