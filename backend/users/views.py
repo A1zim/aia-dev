@@ -1,3 +1,4 @@
+import logging
 import random
 import string
 from decimal import Decimal
@@ -8,12 +9,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum, Q, Case, When, Value, CharField
 from datetime import datetime
 
-from .models import User, Transaction, CategoryAmount, UserCurrency, VerificationCode
-from .serializers import UserSerializer, TransactionSerializer, CategoryAmountSerializer, UserCurrencySerializer
+from .models import User, Transaction, CategoryAmount, UserCurrency, VerificationCode, UserCategory
+from .serializers import UserSerializer, TransactionSerializer, CategoryAmountSerializer, UserCurrencySerializer, UserCategorySerializer
 from .utils import api_response
 from .pagination import StandardResultsSetPagination
 
@@ -417,58 +419,123 @@ class UserCurrencyViewSet(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class UserCategoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.query_params.get('flat', 'false').lower() == 'true':
+            default_categories = [choice[0] for choice in Transaction.DEFAULT_CATEGORY_CHOICES]
+            custom_categories = list(UserCategory.objects.filter(user=request.user).values_list('name', flat=True))
+            all_categories = list(set(default_categories + custom_categories))
+            logger.info(f"Returning flat categories for user {request.user.username}: {all_categories}")
+            return Response(all_categories)
+        else:
+            default_categories = [
+                {'id': None, 'name': choice[0], 'type': 'income' if choice[0] in ['salary', 'gift', 'interest', 'other_income'] else 'expense'}
+                for choice in Transaction.DEFAULT_CATEGORY_CHOICES
+            ]
+            custom_categories = UserCategory.objects.filter(user=request.user)
+            serializer = UserCategorySerializer(custom_categories, many=True)
+            all_categories = default_categories + serializer.data
+            logger.info(f"Returning all categories for user {request.user.username}: {all_categories}")
+            return Response(all_categories)
+
+    def post(self, request):
+        """Add a new custom category"""
+        name = request.data.get('name')
+        trans_type = request.data.get('type', 'expense')
+        if not name:
+            return Response({'error': 'Category name is required'}, status=400)
+        if trans_type not in dict(Transaction.TRANSACTION_TYPES):
+            return Response({'error': f'Invalid type. Choose from: {Transaction.TRANSACTION_TYPES}'}, status=400)
+
+        try:
+            category, created = UserCategory.objects.get_or_create(
+                user=request.user,
+                name=name,
+                defaults={'type': trans_type}
+            )
+            if not created:
+                return Response({'error': 'Category already exists'}, status=400)
+            logger.info(f"Added custom category '{name}' for user {request.user.username}")
+            serializer = UserCategorySerializer(category)
+            return Response(serializer.data, status=201)
+        except Exception as e:
+            logger.error(f"Error adding category: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=500)
+
+    def delete(self, request, category_id=None):
+        """Delete a custom category and reassign its transactions"""
+        if not category_id:
+            return Response({'error': 'Category ID required'}, status=400)
+        
+        category = get_object_or_404(UserCategory, id=category_id, user=request.user)
+        category_name = category.name
+        category_type = category.type
+
+        try:
+            # Determine the default category to reassign to
+            new_default_category = 'other_income' if category_type == 'income' else 'other_expense'
+
+            # Get transactions associated with this custom category
+            transactions = Transaction.objects.filter(user=request.user, custom_category=category)
+            if transactions.exists():
+                # Update each transaction
+                for transaction in transactions:
+                    # Append the original category name to the description
+                    new_description = f"{transaction.description or ''} ({category_name})".strip()
+                    transaction.description = new_description
+                    # Reassign to the appropriate "other" category
+                    transaction.default_category = new_default_category
+                    transaction.custom_category = None
+                    transaction.save()
+                logger.info(f"Reassigned {transactions.count()} transactions from '{category_name}' to '{new_default_category}' for user {request.user.username}")
+
+            # Delete the category
+            category.delete()
+            logger.info(f"Deleted custom category '{category_name}' for user {request.user.username}")
+            return Response(status=204)
+        except Exception as e:
+            logger.error(f"Error deleting category '{category_name}': {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=500)
+    
+
 class AddTransaction(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print(f"Adding transaction for user: {request.user.username}")
-        print(f"Request data: {request.data}")
+        logger.debug(f"Received data: {request.data}")
         serializer = TransactionSerializer(data=request.data, context={'request': request})
-
         if serializer.is_valid():
-            try:
-                with transaction.atomic():
-                    category = serializer.validated_data['category']
-                    amount = Decimal(str(serializer.validated_data['amount']))
-                    trans_type = serializer.validated_data['type']
+            with transaction.atomic():
+                serializer.validated_data['user'] = request.user
+                transaction_obj = serializer.save()
+                category = transaction_obj.get_category()
+                trans_type = transaction_obj.type
+                amount = Decimal(str(transaction_obj.amount))
 
-                    print(f"Validated data: {serializer.validated_data}")
+                user = request.user
+                category_amount, created = CategoryAmount.objects.get_or_create(
+                    user=user,
+                    category=category,
+                    type=trans_type,
+                    defaults={'amount': Decimal('0.00')}
+                )
 
-                    serializer.validated_data['user'] = request.user
-                    transaction_obj = serializer.save()
-                    print(f"Transaction saved: {transaction_obj.id}")
+                if trans_type == 'income':
+                    user.income += amount
+                    user.balance += amount
+                else:
+                    user.expense += amount
+                    user.balance -= amount
 
-                    user = request.user
-                    category_amount, created = CategoryAmount.objects.get_or_create(
-                        user=user,
-                        category=category,
-                        type=trans_type,
-                        defaults={'amount': Decimal('0.00')}
-                    )
-                    print(f"CategoryAmount {'created' if created else 'retrieved'}: {category_amount.id}")
+                category_amount.amount += amount
+                user.save()
+                category_amount.save()
 
-                    if trans_type == 'income':
-                        user.income += amount
-                        user.balance += amount
-                    else:  # expense
-                        user.expense += amount
-                        user.balance -= amount
-
-                    category_amount.amount += amount
-                    user.save()
-                    print(f"User updated: income={user.income}, expense={user.expense}, balance={user.balance}")
-                    category_amount.save()
-                    print(f"CategoryAmount updated: {category_amount.amount}")
-
-                print(f"Transaction added for user {user.username}: {serializer.data}")
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                print(f"Error adding transaction: {str(e)}")
-                print(traceback.format_exc())
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            print(f"Validation errors: {serializer.errors}")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        logger.error(f"Validation failed: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class TransactionDetailView(APIView):
     """Update or delete a specific transaction"""
@@ -752,13 +819,14 @@ class FinancialSummary(APIView):  # Changed from ApiView to APIView
 
 
 class GetCategories(APIView):
-    """Get available transaction categories"""
+    """Get all available transaction categories (default + custom)"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        categories = [choice[0] for choice in Transaction._meta.get_field('category').choices]
-        print(f"Returning categories for user {request.user.username}: {categories}")
-        return Response(categories)
+        default_categories = [choice[0] for choice in Transaction.DEFAULT_CATEGORY_CHOICES]
+        custom_categories = UserCategory.objects.filter(user=request.user).values_list('name', flat=True)
+        all_categories = default_categories + list(custom_categories)
+        return Response(all_categories)
 
 
 class DiagramByPercent(APIView):  # Changed from ApiView to APIView
@@ -840,6 +908,13 @@ class IncomeDiagramByPercent(DiagramByPercent):
             )
 
 
+logger = logging.getLogger(__name__)
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'per_page'
+    max_page_size = 100
+
 class TransactionListView(generics.ListAPIView):
     """List all transactions with pagination and filtering support"""
     serializer_class = TransactionSerializer
@@ -847,40 +922,40 @@ class TransactionListView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        """
-        Return filtered queryset of transactions
-        Supports filtering by:
-        - type (income/expense)
-        - category
-        - date_from, date_to
-        - min_amount, max_amount
-        """
-        print(f"Fetching transactions for user: {self.request.user.username}")
+        """Return filtered queryset of transactions"""
+        logger.info(f"Fetching transactions for user: {self.request.user.username}")
         queryset = Transaction.objects.filter(user=self.request.user)
 
-        queryset = self._filter_by_transaction_type(queryset)
-        queryset = self._filter_by_category(queryset)
-        queryset = self._filter_by_date_range(queryset)
-        queryset = self._filter_by_amount_range(queryset)
+        try:
+            queryset = self._filter_by_transaction_type(queryset)
+            queryset = self._filter_by_category(queryset)
+            queryset = self._filter_by_date_range(queryset)
+            queryset = self._filter_by_amount_range(queryset)
 
-        sort_by = self.request.query_params.get('sort_by', '-timestamp')
-        if sort_by not in ['timestamp', '-timestamp', 'amount', '-amount', 'name', '-name']:
-            sort_by = '-timestamp'
+            sort_by = self.request.query_params.get('sort_by', '-timestamp')
+            if sort_by not in ['timestamp', '-timestamp', 'amount', '-amount']:
+                sort_by = '-timestamp'
 
-        return queryset.order_by(sort_by)
+            return queryset.order_by(sort_by)
+        except Exception as e:
+            logger.error(f"Error in get_queryset: {str(e)}", exc_info=True)
+            raise
 
     def _filter_by_transaction_type(self, queryset):
         """Filter transactions by type (income/expense)"""
         trans_type = self.request.query_params.get('type')
-        if trans_type and trans_type in dict(Transaction.TYPE_CHOICES):
+        if trans_type and trans_type in dict(Transaction.TRANSACTION_TYPES):
             return queryset.filter(type=trans_type)
         return queryset
 
     def _filter_by_category(self, queryset):
-        """Filter transactions by category"""
+        """Filter transactions by category (default or custom)"""
         category = self.request.query_params.get('category')
-        if category and category in dict(Transaction.CATEGORY_CHOICES):
-            return queryset.filter(category=category)
+        if category:
+            return queryset.filter(
+                Q(default_category=category) |
+                Q(custom_category__name=category)
+            )
         return queryset
 
     def _filter_by_date_range(self, queryset):
@@ -888,7 +963,7 @@ class TransactionListView(generics.ListAPIView):
         date_from = self.request.query_params.get('date_from')
         if date_from:
             try:
-                date_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+                date_from = datetime.datetime.strptime(date_from, '%Y-%m-%d').date()
                 queryset = queryset.filter(timestamp__date__gte=date_from)
             except ValueError:
                 pass
@@ -896,7 +971,7 @@ class TransactionListView(generics.ListAPIView):
         date_to = self.request.query_params.get('date_to')
         if date_to:
             try:
-                date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+                date_to = datetime.datetime.strptime(date_to, '%Y-%m-%d').date()
                 queryset = queryset.filter(timestamp__date__lte=date_to)
             except ValueError:
                 pass
@@ -924,36 +999,23 @@ class TransactionListView(generics.ListAPIView):
         return queryset
 
     def list(self, request, *args, **kwargs):
-        """Override list method to add metadata for Flutter consumption"""
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
+        """Override list method to add metadata"""
+        try:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
 
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            response = self.get_paginated_response(serializer.data)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                response = self.get_paginated_response(serializer.data)
+                logger.info(f"Returning transactions for user {request.user.username}: {response.data}")
+                return response
 
-            include_summary = request.query_params.get('include_summary') == 'true'
-            if include_summary:
-                total_income = Transaction.objects.filter(
-                    user=request.user, type='income'
-                ).aggregate(Sum('amount'))['amount__sum'] or 0
-
-                total_expense = Transaction.objects.filter(
-                    user=request.user, type='expense'
-                ).aggregate(Sum('amount'))['amount__sum'] or 0
-
-                response.data['summary'] = {
-                    'total_income': float(total_income),
-                    'total_expense': float(total_expense),
-                    'balance': float(total_income - total_expense)
-                }
-
-            print(f"Returning transactions for user {request.user.username}: {response.data}")
-            return response
-
-        serializer = self.get_serializer(queryset, many=True)
-        print(f"Returning transactions for user {request.user.username}: {serializer.data}")
-        return Response(serializer.data)
+            serializer = self.get_serializer(queryset, many=True)
+            logger.info(f"Returning transactions for user {request.user.username}: {serializer.data}")
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error in TransactionListView.list: {str(e)}", exc_info=True)
+            raise
 
 
 class TransactionDetailView(APIView):  # Changed from ApiView to APIView
@@ -1074,99 +1136,114 @@ class ReportView(APIView):
 
     def get(self, request):
         try:
-            print(f"Fetching report for user: {request.user.username}")
+            logger.info(f"Fetching report for user: {request.user.username}")
             queryset = Transaction.objects.filter(user=request.user)
-            print(f"Initial queryset count: {queryset.count()}")
+            logger.info(f"Initial queryset count: {queryset.count()}")
 
-            # Get TYPE_CHOICES and CATEGORY_CHOICES from the model fields
+            # Get TYPE_CHOICES from the model
             type_choices = [choice[0] for choice in Transaction._meta.get_field('type').choices]
-            category_choices = [choice[0] for choice in Transaction._meta.get_field('category').choices]
 
-            # Apply filters similar to TransactionListView
+            # Get all possible categories (default + custom for the user)
+            default_category_choices = [choice[0] for choice in Transaction._meta.get_field('default_category').choices]
+            custom_category_choices = list(UserCategory.objects.filter(user=request.user).values_list('name', flat=True))
+            all_category_choices = default_category_choices + custom_category_choices
+
+            # Apply filters
             date_from = request.query_params.get('date_from')
             if date_from:
-                print(f"Applying date_from filter: {date_from}")
+                logger.info(f"Applying date_from filter: {date_from}")
                 try:
                     date_from = datetime.strptime(date_from, '%Y-%m-%d').date()
                     queryset = queryset.filter(timestamp__date__gte=date_from)
-                    print(f"After date_from filter, queryset count: {queryset.count()}")
+                    logger.info(f"After date_from filter, queryset count: {queryset.count()}")
                 except ValueError as e:
-                    print(f"Invalid date_from format: {e}")
+                    logger.info(f"Invalid date_from format: {e}")
                     return Response({'error': 'Invalid date_from format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
             date_to = request.query_params.get('date_to')
             if date_to:
-                print(f"Applying date_to filter: {date_to}")
+                logger.info(f"Applying date_to filter: {date_to}")
                 try:
                     date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
                     queryset = queryset.filter(timestamp__date__lte=date_to)
-                    print(f"After date_to filter, queryset count: {queryset.count()}")
+                    logger.info(f"After date_to filter, queryset count: {queryset.count()}")
                 except ValueError as e:
-                    print(f"Invalid date_to format: {e}")
+                    logger.info(f"Invalid date_to format: {e}")
                     return Response({'error': 'Invalid date_to format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
             trans_type = request.query_params.get('type')
             if trans_type:
                 if trans_type not in type_choices:
-                    print(f"Invalid transaction type: {trans_type}")
+                    logger.info(f"Invalid transaction type: {trans_type}")
                     return Response(
                         {'error': f'Invalid transaction type. Choose from: {type_choices}'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                print(f"Applying type filter: {trans_type}")
+                logger.info(f"Applying type filter: {trans_type}")
                 queryset = queryset.filter(type=trans_type)
-                print(f"After type filter, queryset count: {queryset.count()}")
+                logger.info(f"After type filter, queryset count: {queryset.count()}")
             else:
-                print("No type filter applied")
+                logger.info("No type filter applied")
 
             category = request.query_params.get('category')
             if category:
-                print(f"Applying category filter: {category}")
+                logger.info(f"Applying category filter: {category}")
                 categories = category.split(',')
-                invalid_categories = [cat for cat in categories if cat not in category_choices]
+                invalid_categories = [cat for cat in categories if cat not in all_category_choices]
                 if invalid_categories:
-                    print(f"Invalid categories: {invalid_categories}")
+                    logger.info(f"Invalid categories: {invalid_categories}")
                     return Response(
-                        {'error': f'Invalid categories: {invalid_categories}. Choose from: {category_choices}'},
+                        {'error': f'Invalid categories: {invalid_categories}. Choose from: {all_category_choices}'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                queryset = queryset.filter(category__in=categories)
-                print(f"After category filter, queryset count: {queryset.count()}")
+                queryset = queryset.filter(
+                    Q(default_category__in=categories) |
+                    Q(custom_category__name__in=categories)
+                )
+                logger.info(f"After category filter, queryset count: {queryset.count()}")
 
             # Calculate totals
-            print("Calculating totals...")
+            logger.info("Calculating totals...")
             total_income = queryset.filter(type='income').aggregate(Sum('amount'))['amount__sum'] or 0
             total_expense = queryset.filter(type='expense').aggregate(Sum('amount'))['amount__sum'] or 0
-            print(f"Total income: {total_income}, Total expense: {total_expense}")
+            logger.info(f"Total income: {total_income}, Total expense: {total_expense}")
 
-            # Group by category
-            print("Grouping by category...")
+            # Group by effective category
+            logger.info("Grouping by category...")
             income_by_category = {}
             expense_by_category = {}
-            for cat in category_choices:
-                income_amount = queryset.filter(type='income', category=cat).aggregate(Sum('amount'))['amount__sum'] or 0
-                expense_amount = queryset.filter(type='expense', category=cat).aggregate(Sum('amount'))['amount__sum'] or 0
+            annotated_queryset = queryset.annotate(
+                effective_category=Case(
+                    When(custom_category__isnull=False, then='custom_category__name'),
+                    When(default_category__isnull=False, then='default_category'),
+                    default=Value('Uncategorized'),
+                    output_field=CharField(),
+                )
+            )
+            for cat in all_category_choices + ['Uncategorized']:
+                income_amount = annotated_queryset.filter(type='income', effective_category=cat).aggregate(Sum('amount'))['amount__sum'] or 0
+                expense_amount = annotated_queryset.filter(type='expense', effective_category=cat).aggregate(Sum('amount'))['amount__sum'] or 0
                 if income_amount > 0:
                     income_by_category[cat] = float(income_amount)
                 if expense_amount > 0:
                     expense_by_category[cat] = float(expense_amount)
-            print(f"Income by category: {income_by_category}")
-            print(f"Expense by category: {expense_by_category}")
+            logger.info(f"Income by category: {income_by_category}")
+            logger.info(f"Expense by category: {expense_by_category}")
 
             # Serialize transactions
-            print("Serializing transactions...")
+            logger.info("Serializing transactions...")
             transactions = TransactionSerializer(queryset, many=True).data
-            print(f"Serialized transactions: {transactions}")
+            logger.info(f"Serialized transactions: {transactions}")
 
             report = {
                 'total_income': float(total_income),
-                'total_expense': float(total_expense),
+                'total_expense': float(expense_amount),
                 'income_by_category': income_by_category,
                 'expense_by_category': expense_by_category,
                 'transactions': transactions
             }
-            print(f"Returning report for user {request.user.username}: {report}")
+            logger.info(f"Returning report for user {request.user.username}: {report}")
             return Response(report)
         except Exception as e:
-            print(f"Error in ReportView: {str(e)}")
+            logger.error(f"Error in ReportView: {str(e)}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

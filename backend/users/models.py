@@ -1,3 +1,4 @@
+# models.py
 import string
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -6,13 +7,12 @@ from django.utils import timezone
 from decimal import Decimal
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
 import random
 
 class User(AbstractUser):
     """Extended user model with financial tracking and verification capabilities"""
     username = models.CharField(
-        max_length=18,  # Set max length to 18
+        max_length=18,
         unique=True,
         help_text='Required. 18 characters or fewer. Letters, digits and @/./+/-/_ only.',
         error_messages={
@@ -55,7 +55,7 @@ class VerificationCode(models.Model):
         if not self.code:
             self.code = ''.join(random.choices(string.digits, k=6))
         if not self.expires_at:
-            self.expires_at = timezone.now() + timezone.timedelta(minutes=15)  # Code expires in 15 minutes
+            self.expires_at = timezone.now() + timezone.timedelta(minutes=15)
         super().save(*args, **kwargs)
 
     def is_expired(self):
@@ -75,7 +75,6 @@ class UserCurrency(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.currency}"
 
-# Automatically add default currencies for a new user
 @receiver(post_save, sender=User)
 def create_default_currencies(sender, instance, created, **kwargs):
     if created:
@@ -83,14 +82,27 @@ def create_default_currencies(sender, instance, created, **kwargs):
         for currency in default_currencies:
             UserCurrency.objects.create(user=instance, currency=currency)
 
+class UserCategory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='custom_categories')
+    name = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    type = models.CharField(
+        max_length=10,
+        choices=(('income', 'Income'), ('expense', 'Expense')),
+        default='expense'
+    )
+
+    class Meta:
+        unique_together = ['user', 'name']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name} ({self.type})"
+
 class Transaction(models.Model):
     TRANSACTION_TYPES = (
         ('income', 'Income'),
         ('expense', 'Expense'),
     )
-    TYPE_CHOICES = TRANSACTION_TYPES  # Add this as a temporary workaround
-    
-    CATEGORY_CHOICES = (
+    DEFAULT_CATEGORY_CHOICES = (
         ('salary', 'Salary'),
         ('gift', 'Gift'),
         ('interest', 'Interest'),
@@ -108,28 +120,35 @@ class Transaction(models.Model):
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Amount in KGS
+    default_category = models.CharField(max_length=20, choices=DEFAULT_CATEGORY_CHOICES, null=True, blank=True)
+    custom_category = models.ForeignKey(UserCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
     description = models.TextField(blank=True, null=True)
     timestamp = models.DateTimeField()
-    original_currency = models.CharField(max_length=3, blank=True, null=True)  # e.g., EUR, USD
-    original_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)  # Amount in original currency
-    
+    original_currency = models.CharField(max_length=3, blank=True, null=True)
+    original_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+
+    def get_category(self):
+        if self.custom_category:
+            return self.custom_category.name
+        return self.default_category if self.default_category else 'Uncategorized'
+
     def __str__(self):
-        return f"{self.type.title()} - {self.category} (${self.amount})"
-    
+        category = self.get_category()
+        return f"{self.type.title()} - {category} (${self.amount})"
+
     class Meta:
         ordering = ['-timestamp']
-        
+
 class CategoryAmount(models.Model):
-    """Track total amounts by category"""
+    """Track total amounts by category (both default and custom)"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='category_amounts')
-    category = models.CharField(max_length=20)
+    category = models.CharField(max_length=20)  # Stores the category name (default or custom)
     type = models.CharField(max_length=10)
     amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
-    
+
     class Meta:
         unique_together = ['user', 'category', 'type']
-        
+
     def __str__(self):
         return f"{self.user.username} - {self.category} ({self.type}): ${self.amount}"

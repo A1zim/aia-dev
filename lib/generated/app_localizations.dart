@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // For debugPrint
 
 class AppLocalizations {
   AppLocalizations(this.locale);
@@ -23,7 +24,7 @@ class AppLocalizations {
       'logout': 'Logout',
       'logoutConfirm': 'Are you sure you want to logout?',
       'cancel': 'Cancel',
-      'no':'No',
+      'no': 'No',
       'confirmLogout': 'Logout',
       'currencyChanged': 'Currency changed to {currency}',
       'currencyChangeFailed': 'Failed to update currency: {error}',
@@ -41,8 +42,8 @@ class AppLocalizations {
       'date': 'Date',
       'add': 'Add',
       'update': 'Update',
-      'transactionAdded': 'Transaction added successfully!',
-      'transactionUpdated': 'Transaction updated successfully!',
+      'transactionAdded': 'Transaction added successfully',
+      'transactionUpdated': 'Transaction updated successfully',
       'networkError': 'Network error: Unable to reach the server. Please check your internet connection.',
       'languageEnglish': 'English',
       'languageKyrgyz': 'Kyrgyz',
@@ -56,7 +57,7 @@ class AppLocalizations {
       'oldPassword': 'Old Password',
       'newPassword': 'New Password',
       'confirm': 'Confirm',
-      'yes':'Yes',
+      'yes': 'Yes',
       'save': 'Save',
       'enterNewNickname': 'Enter new nickname',
       'notSet': 'Not set',
@@ -66,10 +67,10 @@ class AppLocalizations {
       'balance': 'Balance',
       'income': 'Income',
       'expenses': 'Expenses',
-      'nicknameUpdated': 'Nickname updated successfully! 🎉',
-      'nicknameUpdateFailed': 'Failed to update nickname: {error} 😓',
-      'passwordChanged': 'Password changed successfully! 🔒',
-      'passwordChangeFailed': 'Failed to change password: {error} 😓',
+      'nicknameUpdated': 'Nickname updated successfully',
+      'nicknameUpdateFailed': 'Failed to update nickname: {error}',
+      'passwordChanged': 'Password changed successfully',
+      'passwordChangeFailed': 'Failed to change password: {error}',
       'summaryLoadFailed': 'Failed to load summary: {error}',
       'manageCurrencies': 'Manage Currencies',
       'deleteCurrency': 'Delete Currency',
@@ -97,7 +98,7 @@ class AppLocalizations {
       'expense': 'Expense',
       'incomeFilter': 'Income',
       'undo': 'Undo',
-      'welcomeBack': 'Welcome!',
+      'welcomeBack': 'Welcome',
       'createAccount': 'Create Account',
       'verifyYourEmail': 'Verify Your Email',
       'login': 'Login',
@@ -116,10 +117,10 @@ class AppLocalizations {
       'forgotPasswordTitle': 'Forgot Password',
       'forgotPasswordPrompt': 'Enter your email to receive a 6-digit code.',
       'sendCode': 'Send Code',
-      'loginSuccessful': 'Login successful! 🎉',
-      'codeSentToEmail': 'A 6-digit code has been sent to your email. 📧',
-      'emailVerified': 'Email verified successfully! Logging you in... 🎉',
-      'codeSentForLogin': 'A 6-digit code has been sent to your email. Use it to log in! 📧',
+      'loginSuccessful': 'Login successful',
+      'codeSentToEmail': 'A 6-digit code has been sent to your email.',
+      'emailVerified': 'Email verified successfully. Logging you in...',
+      'codeSentForLogin': 'A 6-digit code has been sent to your email. Use it to log in',
       'backToRegistration': 'Back to Registration',
       'enterCodePrompt': 'Enter the 6-digit code sent to {email}',
       'codeRequired': 'Please enter the full 6-digit code',
@@ -158,27 +159,38 @@ class AppLocalizations {
       "enterPassword": "Enter Password",
       "dataCleared": "All data has been cleared successfully.",
       "clearDataFailed": "Failed to clear data: %s",
-      "usernameTaken" : "Username is available",
+      "usernameTaken": "Username is available",
       "usernameAvailable": "Username is already taken",
       "codeInvalid": "Invalid code",
       "fillAllFields": "Fill all fields",
       "enterValidCode": "Enter valid code",
-      "resetPasswordSent" : "Reset password sent",
-      "transactionFailed" : "Transaction failed",
-      "today" : "Today",
-      "yesterday" : "Yesterday",
-      'manageCategories' : "Manage Categories",
-      'addCategory' : "Add Category",
-      'categoryName' : "Category Name",
+      "resetPasswordSent": "Reset password sent",
+      "transactionFailed": "Transaction failed",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      'manageCategories': "Manage Categories",
+      'addCategory': "Add Category",
+      'categoryName': "Category Name",
       "customDateRange": "Custom Date Range",
       "custom": "Custom",
       "lastWeek": "Last Week",
       "lastMonth": "Last Month",
       "last3Months": "Last 3 Months",
       "categories": "Categories",
-      "dateRange":"Date Range",
-      "original" : "Original",
-      "pleaseSelectFilter" : "Please Select Filter"
+      "dateRange": "Date Range",
+      "original": "Original",
+      "pleaseSelectFilter": "Please Select Filter",
+      "categoryNameRequired": "Please enter a category name",
+      "newCategory": "New Category",
+      "categoryDeleted": "Category Deleted",
+      // New category-related strings
+      "categoriesLoadFailed": "Failed to load categories: {error}",
+      "categoryAdded": "Category '{name}' added successfully",
+      "categoryAddFailed": "Failed to add category: {error}",
+      "cannotDeleteDefault": "Cannot delete default category '{name}'",
+      "deleteCategory": "Delete Category",
+      "deleteCategoryConfirm": "Are you sure you want to delete '{name}'?",
+      "categoryDeleteFailed": "Failed to delete category: {error}",
     },
     'ky': {
       'appTitle': 'Жеке Финансы',
@@ -191,7 +203,7 @@ class AppLocalizations {
       'logout': 'Чыгуу',
       'logoutConfirm': 'Чыгууну каалайсызбы?',
       'cancel': 'Калтыруу',
-      'no':'Жок',
+      'no': 'Жок',
       'confirmLogout': 'Чыгуу',
       'currencyChanged': 'Валюта {currency} болуп өзгөртүлдү',
       'currencyChangeFailed': 'Валютаны өзгөртүү ишке ашкан жок: {error}',
@@ -209,8 +221,8 @@ class AppLocalizations {
       'date': 'Дата',
       'add': 'Кошуу',
       'update': 'Жаңыртуу',
-      'transactionAdded': 'Транзакция ийгиликтүү кошулду!',
-      'transactionUpdated': 'Транзакция ийгиликтүү жаңыртылды!',
+      'transactionAdded': 'Транзакция ийгиликтүү кошулду',
+      'transactionUpdated': 'Транзакция ийгиликтүү жаңыртылды',
       'networkError': 'Тармак катасы: Серверге жетүү мүмкүн эмес. Интернет байланышыңызды текшериңиз.',
       'languageEnglish': 'Англисче',
       'languageKyrgyz': 'Кыргызча',
@@ -224,7 +236,7 @@ class AppLocalizations {
       'oldPassword': 'Эски Сырсөз',
       'newPassword': 'Жаңы Сырсөз',
       'confirm': 'Ырастоо',
-      'yes':'Ооба',
+      'yes': 'Ооба',
       'save': 'Сактоо',
       'enterNewNickname': 'Жаңы никнейм киргизиңиз',
       'notSet': 'Орнотулган жок',
@@ -234,10 +246,10 @@ class AppLocalizations {
       'balance': 'Баланс',
       'income': 'Киреше',
       'expenses': 'Чыгашалар',
-      'nicknameUpdated': 'Никнейм ийгиликтүү жаңыртылды! 🎉',
-      'nicknameUpdateFailed': 'Никнеймди жаңыртуу ишке ашкан жок: {error} 😓',
-      'passwordChanged': 'Сырсөз ийгиликтүү өзгөртүлдү! 🔒',
-      'passwordChangeFailed': 'Сырсөздү өзгөртүү ишке ашкан жок: {error} 😓',
+      'nicknameUpdated': 'Никнейм ийгиликтүү жаңыртылды',
+      'nicknameUpdateFailed': 'Никнеймди жаңыртуу ишке ашкан жок: {error}',
+      'passwordChanged': 'Сырсөз ийгиликтүү өзгөртүлдү',
+      'passwordChangeFailed': 'Сырсөздү өзгөртүү ишке ашкан жок: {error}',
       'summaryLoadFailed': 'Жыйынтыкты жүктөө ишке ашкан жок: {error}',
       'manageCurrencies': 'Валюталарды Башкаруу',
       'deleteCurrency': 'Валютаны Жок Кылуу',
@@ -265,7 +277,7 @@ class AppLocalizations {
       'expense': 'Чыгаша',
       'incomeFilter': 'Киреше',
       'undo': 'Жокко чыгаруу',
-      'welcomeBack': 'Кош Келдиңиз!',
+      'welcomeBack': 'Кош Келдиңиз',
       'createAccount': 'Каттоо Эсебин Түзүү',
       'verifyYourEmail': 'Электрондук Почтаңызды Ырастаңыз',
       'login': 'Кирүү',
@@ -275,7 +287,7 @@ class AppLocalizations {
       'usernameTooShort': 'Колдонуучунун аты кеминде 3 символдон турган болушу керек',
       'password': 'Сырсөз',
       'passwordRequired': 'Сураныч, сырсөздү киргизиңиз',
-      'passwordTooShort': 'Сырсөз кеминде 6 символдон турган болушу керек',
+      'passwordTooShort': 'Сырсöз кеминде 6 символдон турган болушу керек',
       'emailRequired': 'Сураныч, электрондук почтаны киргизиңиз',
       'emailInvalid': 'Сураныч, жарактуу электрондук почтаны киргизиңиз',
       'dontHaveAccount': 'Каттоо эсебиңиз жокпу? Катталыңыз',
@@ -284,10 +296,10 @@ class AppLocalizations {
       'forgotPasswordTitle': 'Сырсөздү Унуттум',
       'forgotPasswordPrompt': '6 орундуу код алуу үчүн электрондук почтаңызды киргизиңиз.',
       'sendCode': 'Код Жөнөтүү',
-      'loginSuccessful': 'Кирүү ийгиликтүү болду! 🎉',
-      'codeSentToEmail': '6 орундуу код сиздин электрондук почтаңызга жөнөтүлдү. 📧',
-      'emailVerified': 'Электрондук почта ийгиликтүү ырасталды! Сизди киргизүүдө... 🎉',
-      'codeSentForLogin': '6 орундуу код сиздин электрондук почтаңызга жөнөтүлдү. Аны кирүү үчүн колдонуңуз! 📧',
+      'loginSuccessful': 'Кирүү ийгиликтүү болду',
+      'codeSentToEmail': '6 орундуу код сиздин электрондук почтаңызга жөнөтүлдү.',
+      'emailVerified': 'Электрондук почта ийгиликтүү ырасталды. Сизди киргизүүдө...',
+      'codeSentForLogin': '6 орундуу код сиздин электрондук почтаңызга жөнөтүлдү. Аны кирүү үчүн колдонуңуз',
       'backToRegistration': 'Каттоого Кайтуу',
       'enterCodePrompt': '{email} жөнөтүлгөн 6 орундуу кодду киргизиңиз',
       'codeRequired': 'Сураныч, толук 6 орундуу кодду киргизиңиз',
@@ -326,27 +338,38 @@ class AppLocalizations {
       "enterPassword": "Сырсөздү киргизиңиз",
       "dataCleared": "Бардык маалымат ийгиликтүү тазаланды.",
       "clearDataFailed": "Маалыматты тазалоо ишке ашкан жок: %s",
-      "usernameTaken" : "Бул ысым бош эмес",
+      "usernameTaken": "Бул ысым бош эмес",
       "usernameAvailable": "Бул ысымды колдонсо болот",
       "codeInvalid": "Туура эмес код",
       "fillAllFields": "Бардык полелерди киргизиңиз",
       "enterValidCode": "Туура кодду жаз",
-      "resetPasswordSent" : "Сыр сөз алмаштыргыч жиберилди",
-      "transactionFailed" : "Транзакция кабыл алынбады",
-      "today" : "Бүгүн",
-      "yesterday" : "Кечээ",
-      'manageCategories' : "Категорияларды башкаруу",
-      'addCategory' : "Категория кошуу",
-      'categoryName' : "Категориянын аты",
+      "resetPasswordSent": "Сыр сөз алмаштыргыч жиберилди",
+      "transactionFailed": "Транзакция кабыл алынбады",
+      "today": "Бүгүн",
+      "yesterday": "Кечээ",
+      'manageCategories': "Категорияларды башкаруу",
+      'addCategory': "Категория кошуу",
+      'categoryName': "Категориянын аты",
       "customDateRange": "Өздүк дата аралыктары",
       "custom": "Өздүк",
       "lastWeek": "Акыркы жума",
       "lastMonth": "Акыркы ай",
       "last3Months": "Акыркы 3 ай",
       "categories": "Категориялар",
-      "dateRange":"Дата аралыктыры",
-      "original" : "Нак оригинал",
-      "pleaseSelectFilter" : "Сураныч фильтрлерди тандаңыз"
+      "dateRange": "Дата аралыктыры",
+      "original": "Нак оригинал",
+      "pleaseSelectFilter": "Сураныч фильтрлерди тандаңыз",
+      "categoryNameRequired": "Категориянын атын жазыңыз",
+      "newCategory": "Жаңы категория",
+      "categoryDeleted": "Категория жок кылынды",
+      // New category-related strings
+      "categoriesLoadFailed": "Категорияларды жүктөө ишке ашкан жок: {error}",
+      "categoryAdded": "Категория '{name}' ийгиликтүү кошулду",
+      "categoryAddFailed": "Категорияны кошуу ишке ашкан жок: {error}",
+      "cannotDeleteDefault": "Демейки категория '{name}' жок кылынбайт",
+      "deleteCategory": "Категорияны жок кылуу",
+      "deleteCategoryConfirm": "'{name}' жок кылууну каалайсызбы?",
+      "categoryDeleteFailed": "Категорияны жок кылуу ишке ашкан жок: {error}",
     },
     'ru': {
       'appTitle': 'Личные Финансы',
@@ -359,7 +382,7 @@ class AppLocalizations {
       'logout': 'Выйти',
       'logoutConfirm': 'Вы уверены, что хотите выйти?',
       'cancel': 'Отмена',
-      'no': 'нет',
+      'no': 'Нет',
       'confirmLogout': 'Выйти',
       'currencyChanged': 'Валюта изменена на {currency}',
       'currencyChangeFailed': 'Не удалось обновить валюту: {error}',
@@ -377,8 +400,8 @@ class AppLocalizations {
       'date': 'Дата',
       'add': 'Добавить',
       'update': 'Обновить',
-      'transactionAdded': 'Транзакция успешно добавлена!',
-      'transactionUpdated': 'Транзакция успешно обновлена!',
+      'transactionAdded': 'Транзакция успешно добавлена',
+      'transactionUpdated': 'Транзакция успешно обновлена',
       'networkError': 'Ошибка сети: Не удалось подключиться к серверу. Проверьте ваше интернет-соединение.',
       'languageEnglish': 'Английский',
       'languageKyrgyz': 'Киргизский',
@@ -402,10 +425,10 @@ class AppLocalizations {
       'balance': 'Баланс',
       'income': 'Доход',
       'expenses': 'Расходы',
-      'nicknameUpdated': 'Никнейм успешно обновлен! 🎉',
-      'nicknameUpdateFailed': 'Не удалось обновить никнейм: {error} 😓',
-      'passwordChanged': 'Пароль успешно изменен! 🔒',
-      'passwordChangeFailed': 'Не удалось изменить пароль: {error} 😓',
+      'nicknameUpdated': 'Никнейм успешно обновлен',
+      'nicknameUpdateFailed': 'Не удалось обновить никнейм: {error}',
+      'passwordChanged': 'Пароль успешно изменен',
+      'passwordChangeFailed': 'Не удалось изменить пароль: {error}',
       'summaryLoadFailed': 'Не удалось загрузить сводку: {error}',
       'manageCurrencies': 'Управление Валютами',
       'deleteCurrency': 'Удалить Валюту',
@@ -433,7 +456,7 @@ class AppLocalizations {
       'expense': 'Расход',
       'incomeFilter': 'Доход',
       'undo': 'Отменить',
-      'welcomeBack': 'Добро пожаловать!',
+      'welcomeBack': 'Добро пожаловать',
       'createAccount': 'Создать Аккаунт',
       'verifyYourEmail': 'Подтвердите Вашу Электронную Почту',
       'login': 'Войти',
@@ -452,10 +475,10 @@ class AppLocalizations {
       'forgotPasswordTitle': 'Забыли Пароль',
       'forgotPasswordPrompt': 'Введите вашу электронную почту для получения 6-значного кода.',
       'sendCode': 'Отправить Код',
-      'loginSuccessful': 'Вход выполнен успешно! 🎉',
-      'codeSentToEmail': '6-значный код отправлен на вашу электронную почту. 📧',
-      'emailVerified': 'Электронная почта успешно подтверждена! Выполняется вход... 🎉',
-      'codeSentForLogin': '6-значный код отправлен на вашу электронную почту. Используйте его для входа! 📧',
+      'loginSuccessful': 'Вход выполнен успешно',
+      'codeSentToEmail': '6-значный код отправлен на вашу электронную почту.',
+      'emailVerified': 'Электронная почта успешно подтверждена. Выполняется вход...',
+      'codeSentForLogin': '6-значный код отправлен на вашу электронную почту. Используйте его для входа',
       'backToRegistration': 'Вернуться к Регистрации',
       'enterCodePrompt': 'Введите 6-значный код, отправленный на {email}',
       'codeRequired': 'Пожалуйста, введите полный 6-значный код',
@@ -496,27 +519,36 @@ class AppLocalizations {
       "clearDataFailed": "Не удалось очистить данные: %s",
       "usernameTaken": "Имя пользователя не доступно",
       "usernameAvailable": "Имя пользователя доступно",
-      "codeInvalid": "Не правильный код",
-      "codeInvalid": "Не правильный код",
-      "fillAllFields": "Не правильный код",
-      "enterValidCode": "Не правильный код",
-      "resetPasswordSent": "Сбросс пароля отправлен",
+      "codeInvalid": "Неправильный код",
+      "fillAllFields": "Заполните все поля",
+      "enterValidCode": "Введите правильный код",
+      "resetPasswordSent": "Сброс пароля отправлен",
       "transactionFailed": "Транзакция прервалась",
       "today": "Сегодня",
       "yesterday": "Вчера",
       'manageCategories': "Управление категориями",
       'addCategory': "Добавить категорию",
       'categoryName': "Имя категории",
-      'selectDateRange': "Выберите промежуток",
       "customDateRange": "Собственный промежуток",
       "custom": "Своё",
       "lastWeek": "Последняя неделя",
       "lastMonth": "Последний месяц",
-      "last3Months": "Последние 3 месяцы",
+      "last3Months": "Последние 3 месяца",
       "categories": "Категории",
-      "dateRange":"Промежуток",
-      "original" : "Оригинал",
-      "pleaseSelectFilter" : "Пожалуйста выберите фильтры"
+      "dateRange": "Промежуток",
+      "original": "Оригинал",
+      "pleaseSelectFilter": "Пожалуйста, выберите фильтры",
+      "categoryNameRequired": "Название категории необходимо",
+      "newCategory": "Новая категория",
+      "categoryDeleted": "Категория удалена",
+      // New category-related strings
+      "categoriesLoadFailed": "Не удалось загрузить категории: {error}",
+      "categoryAdded": "Категория '{name}' успешно добавлена",
+      "categoryAddFailed": "Не удалось добавить категорию: {error}",
+      "cannotDeleteDefault": "Нельзя удалить стандартную категорию '{name}'",
+      "deleteCategory": "Удалить категорию",
+      "deleteCategoryConfirm": "Вы уверены, что хотите удалить '{name}'?",
+      "categoryDeleteFailed": "Не удалось удалить категорию: {error}",
     }
   };
 
@@ -662,6 +694,51 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['failedToLoadCategories']!.replaceAll('{error}', error);
   String currencyConversionError(String error) =>
       _localizedValues[locale.languageCode]!['currencyConversionError']!.replaceAll('{error}', error);
+  String get clear => _localizedValues[locale.languageCode]!['clear']!;
+  String get clearData => _localizedValues[locale.languageCode]!['clearData']!;
+  String get clearDataConfirm => _localizedValues[locale.languageCode]!['clearDataConfirm']!;
+  String get enterPassword => _localizedValues[locale.languageCode]!['enterPassword']!;
+  String get dataCleared => _localizedValues[locale.languageCode]!['dataCleared']!;
+  String clearDataFailed(String error) =>
+      _localizedValues[locale.languageCode]!['clearDataFailed']!.replaceAll('%s', error);
+  String get usernameTaken => _localizedValues[locale.languageCode]!['usernameTaken']!;
+  String get usernameAvailable => _localizedValues[locale.languageCode]!['usernameAvailable']!;
+  String get codeInvalid => _localizedValues[locale.languageCode]!['codeInvalid']!;
+  String get fillAllFields => _localizedValues[locale.languageCode]!['fillAllFields']!;
+  String get enterValidCode => _localizedValues[locale.languageCode]!['enterValidCode']!;
+  String get resetPasswordSent => _localizedValues[locale.languageCode]!['resetPasswordSent']!;
+  String get transactionFailed => _localizedValues[locale.languageCode]!['transactionFailed']!;
+  String get today => _localizedValues[locale.languageCode]!['today']!;
+  String get yesterday => _localizedValues[locale.languageCode]!['yesterday']!;
+  String get manageCategories => _localizedValues[locale.languageCode]!['manageCategories']!;
+  String get addCategory => _localizedValues[locale.languageCode]!['addCategory']!;
+  String get categoryName => _localizedValues[locale.languageCode]!['categoryName']!;
+  String get customDateRange => _localizedValues[locale.languageCode]!['customDateRange']!;
+  String get custom => _localizedValues[locale.languageCode]!['custom']!;
+  String get lastWeek => _localizedValues[locale.languageCode]!['lastWeek']!;
+  String get lastMonth => _localizedValues[locale.languageCode]!['lastMonth']!;
+  String get last3Months => _localizedValues[locale.languageCode]!['last3Months']!;
+  String get categories => _localizedValues[locale.languageCode]!['categories']!;
+  String get dateRange => _localizedValues[locale.languageCode]!['dateRange']!;
+  String get original => _localizedValues[locale.languageCode]!['original']!;
+  String get pleaseSelectFilter => _localizedValues[locale.languageCode]!['pleaseSelectFilter']!;
+  String get categoryNameRequired => _localizedValues[locale.languageCode]!['categoryNameRequired']!;
+  String get newCategory => _localizedValues[locale.languageCode]!['newCategory']!;
+  String get categoryDeleted => _localizedValues[locale.languageCode]!['categoryDeleted']!;
+  // New category-related getters
+  String categoriesLoadFailed(String error) =>
+      _localizedValues[locale.languageCode]!['categoriesLoadFailed']!.replaceAll('{error}', error);
+  String categoryAdded(String name) =>
+      _localizedValues[locale.languageCode]!['categoryAdded']!.replaceAll('{name}', name);
+  String categoryAddFailed(String error) =>
+      _localizedValues[locale.languageCode]!['categoryAddFailed']!.replaceAll('{error}', error);
+  String cannotDeleteDefault(String name) =>
+      _localizedValues[locale.languageCode]!['cannotDeleteDefault']!.replaceAll('{name}', name);
+  String get deleteCategory => _localizedValues[locale.languageCode]!['deleteCategory']!;
+  String deleteCategoryConfirm(String name) =>
+      _localizedValues[locale.languageCode]!['deleteCategoryConfirm']!.replaceAll('{name}', name);
+  String categoryDeleteFailed(String error) =>
+      _localizedValues[locale.languageCode]!['categoryDeleteFailed']!.replaceAll('{error}', error);
 
   // Getters for category translations
   String get food => _localizedValues[locale.languageCode]!['food']!;
@@ -677,55 +754,6 @@ class AppLocalizations {
   String get gift => _localizedValues[locale.languageCode]!['gift']!;
   String get interest => _localizedValues[locale.languageCode]!['interest']!;
   String get otherIncome => _localizedValues[locale.languageCode]!['other_income']!;
-  String get clear => _localizedValues[locale.languageCode]!['clear']!;
-  String get clearData => _localizedValues[locale.languageCode]!['clearData']!;
-  String get clearDataConfirm => _localizedValues[locale.languageCode]!['clearDataConfirm']!;
-  String get enterPassword => _localizedValues[locale.languageCode]!['enterPassword']!;
-  String get dataCleared => _localizedValues[locale.languageCode]!['dataCleared']!;
-  String get clearDataFailed => _localizedValues[locale.languageCode]!['clearDataFailed']!;
-  String get usernameTaken => _localizedValues[locale.languageCode]!['usernameTaken']!;
-  String get usernameAvailable => _localizedValues[locale.languageCode]!['usernameAvailable']!;
-  String get codeInvalid => _localizedValues[locale.languageCode]!['codeInvalid']!;
-  String get fillAllFields => _localizedValues[locale.languageCode]!['fillAllFields']!;
-  String get enterValidCode => _localizedValues[locale.languageCode]!['enterValidCode']!;
-  String get resetPasswordSent => _localizedValues[locale.languageCode]!['resetPasswordSent']!;
-  String get transactionFailed => _localizedValues[locale.languageCode]!['transactionFailed']!;
-  String get today => _localizedValues[locale.languageCode]!['today']!;
-  String get yesterday => _localizedValues[locale.languageCode]!['yesterday']!;
-
-  String get manageCategories => _localizedValues[locale.languageCode]!['manageCategories']!;
-  String get addCategory => _localizedValues[locale.languageCode]!['addCategory']!;
-  String get categoryName => _localizedValues[locale.languageCode]!['categoryName']!;
-  String get selectDateRange => _localizedValues[locale.languageCode]!['selectDateRange']!;
-  String get customDateRange => _localizedValues[locale.languageCode]!['customDateRange']!;
-  String get custom => _localizedValues[locale.languageCode]!['custom']!;
-  String get lastWeek => _localizedValues[locale.languageCode]!['lastWeek']!;
-  String get lastMonth => _localizedValues[locale.languageCode]!['lastMonth']!;
-  String get last3Months => _localizedValues[locale.languageCode]!['last3Months']!;
-  String get categories => _localizedValues[locale.languageCode]!['categories']!;
-  String get dateRange => _localizedValues[locale.languageCode]!['dateRange']!;
-  String get original => _localizedValues[locale.languageCode]!['original']!;
-  String get pleaseSelectFilter => _localizedValues[locale.languageCode]!['pleaseSelectFilter']!;
-
-
-  // Add this method to your AppLocalizations class
-  String translate(String key) {
-    // First try to get the translation from the localized values
-    if (_localizedValues[locale.languageCode]?.containsKey(key) ?? false) {
-      return _localizedValues[locale.languageCode]![key]!;
-    }
-
-    // If not found, try the English version as fallback
-    if (_localizedValues['en']?.containsKey(key) ?? false) {
-      return _localizedValues['en']![key]!;
-    }
-
-    // If still not found, return the key itself with a warning
-    debugPrint('Translation not found for key: $key');
-    return key;
-  }
-
-
 
   // Method to get the localized category name dynamically
   String getCategoryName(String category) {
@@ -759,6 +787,18 @@ class AppLocalizations {
       default:
         return unknown;
     }
+  }
+
+  // Generic translation method with fallback
+  String translate(String key) {
+    if (_localizedValues[locale.languageCode]?.containsKey(key) ?? false) {
+      return _localizedValues[locale.languageCode]![key]!;
+    }
+    if (_localizedValues['en']?.containsKey(key) ?? false) {
+      return _localizedValues['en']![key]!;
+    }
+    debugPrint('Translation not found for key: $key');
+    return key;
   }
 }
 

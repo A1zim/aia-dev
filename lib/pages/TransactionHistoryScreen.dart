@@ -43,6 +43,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   Map<String, List<Transaction>> _groupedTransactions = {};
   List<String> _dateKeys = [];
 
+  // Define default categories for translation check
+  static const List<String> _defaultCategories = [
+    'food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense',
+    'salary', 'gift', 'interest', 'other_income',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -57,8 +63,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   }
 
   void _scrollListener() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8 &&
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8 &&
         !_isLoadingMore &&
         _hasMoreTransactions) {
       _loadMoreTransactions();
@@ -73,7 +78,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         _currentPage = 1;
         _hasMoreTransactions = true;
         _isLoadingMore = false;
-        _expandedIndices.clear(); // Clear expanded indices on reset
+        _expandedIndices.clear();
       });
     }
 
@@ -512,7 +517,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 child: _filteredTransactions.isEmpty
                     ? Column(
                   children: [
-                    _buildFilterSection(), // Filter section always visible
+                    _buildFilterSection(),
                     Expanded(
                       child: Center(
                         child: Text(
@@ -536,7 +541,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                     itemCount: _dateKeys.length + 1 + (_isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index == 0) {
-                        return _buildFilterSection(); // Filter section at the top of the scrollable list
+                        return _buildFilterSection();
                       }
                       if (index == _dateKeys.length + 1 && _isLoadingMore) {
                         return const Center(
@@ -557,7 +562,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                             child: Text(
                               dateKey,
                               style: AppTextStyles.body(context).copyWith(
-                                fontSize: 14, // Smaller date size
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                               ),
@@ -793,7 +798,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                 Text(
                                   startDateLabel,
                                   style: AppTextStyles.body(context).copyWith(
-                                    fontSize: 14, // Smaller date state
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -839,7 +844,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                                 Text(
                                   endDateLabel,
                                   style: AppTextStyles.body(context).copyWith(
-                                    fontSize: 14, // Smaller date state
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -870,10 +875,19 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       currencyProvider.currency,
     );
 
+    // Determine if the category is default or custom and get the display name
+    String getCategoryDisplayName() {
+      final categoryName = transaction.category ?? 'other_${transaction.type}';
+      if (_defaultCategories.contains(categoryName)) {
+        return AppLocalizations.of(context)!.getCategoryName(categoryName).capitalize();
+      }
+      return categoryName.capitalize();
+    }
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // Restored original border radius
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       child: GestureDetector(
         onTap: () {
@@ -910,12 +924,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            transaction.description,
+                            transaction.description ?? 'No description',
                             style: AppTextStyles.body(context).copyWith(fontWeight: FontWeight.bold),
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            AppLocalizations.of(context)!.getCategoryName(transaction.category),
+                            getCategoryDisplayName(),
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                             ),
@@ -952,13 +966,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       children: [
                         _buildDetailRow(
                           AppLocalizations.of(context)!.description,
-                          transaction.description,
+                          transaction.description ?? 'No description',
                           context,
                         ),
                         const SizedBox(height: 8),
                         _buildDetailRow(
                           AppLocalizations.of(context)!.category,
-                          AppLocalizations.of(context)!.getCategoryName(transaction.category),
+                          getCategoryDisplayName(),
                           context,
                         ),
                         const SizedBox(height: 8),
@@ -1067,4 +1081,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       ],
     );
   }
+}
+
+extension StringExtension on String {
+  String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
 }
