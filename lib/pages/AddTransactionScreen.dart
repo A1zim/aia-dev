@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
+import 'dart:convert';
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -24,7 +25,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   String _selectedType = 'expense';
-  String _selectedCategory = 'food';
+  Map<String, dynamic>? _selectedCategory; // {id, name, type}
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   String _displayCurrency = 'KGS';
@@ -34,11 +35,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
 
-  List<String> _expenseCategories = [
-    'food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense',
-  ];
+  List<Map<String, dynamic>> _allCategories = [];
+  List<Map<String, dynamic>> _expenseCategories = [];
+  List<Map<String, dynamic>> _incomeCategories = [];
 
-  List<String> _incomeCategories = [
+  static const List<String> _defaultCategories = [
+    'food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense',
     'salary', 'gift', 'interest', 'other_income',
   ];
 
@@ -59,11 +61,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     _descriptionFocusNode = FocusNode();
     _amountFocusNode = FocusNode();
 
+    _fetchCategories();
+
     final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
     if (widget.transaction != null) {
-      _descriptionController.text = widget.transaction!.description;
+      _descriptionController.text = widget.transaction!.description ?? '';
       _selectedType = widget.transaction!.type;
-      _selectedCategory = widget.transaction!.category;
       _selectedDate = DateTime.parse(widget.transaction!.timestamp);
       if (widget.transaction!.originalAmount != null && widget.transaction!.originalCurrency != null) {
         _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
@@ -82,9 +85,74 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
         _amountController.text = amountInCurrentCurrency.toStringAsFixed(2);
         _displayCurrency = currencyProvider.currency;
       }
+      // Initialize _selectedCategory for editing
+      _selectedCategory = widget.transaction!.customCategory != null
+          ? {'id': widget.transaction!.customCategory, 'name': widget.transaction!.getCategory(), 'type': _selectedType}
+          : {'id': null, 'name': widget.transaction!.defaultCategory ?? 'other_expense', 'type': _selectedType};
     } else {
       _amountController.text = '';
       _displayCurrency = currencyProvider.currency;
+    }
+  }
+
+  Future<void> _fetchCategories() async {
+    try {
+      final customCategories = await _apiService.getCustomCategories();
+      print('Fetched custom categories: $customCategories');
+      setState(() {
+        _allCategories = [];
+        final seenNames = <String>{};
+
+        // Add default categories first
+        final defaultCategories = _defaultCategories.map((name) => {
+          'id': null,
+          'name': name,
+          'type': ['salary', 'gift', 'interest', 'other_income'].contains(name) ? 'income' : 'expense',
+        }).toList();
+
+        for (var category in defaultCategories) {
+          seenNames.add(category['name']!);
+          _allCategories.add(category);
+        }
+
+        // Add custom categories, skipping duplicates
+        for (var category in customCategories) {
+          if (!seenNames.contains(category['name'])) {
+            _allCategories.add(category);
+            seenNames.add(category['name']);
+          }
+        }
+
+        _expenseCategories = _allCategories.where((cat) => cat['type'] == 'expense').toList();
+        _incomeCategories = _allCategories.where((cat) => cat['type'] == 'income').toList();
+
+        // Ensure _selectedCategory is valid after loading categories
+        if (_selectedCategory == null || !_allCategories.any((cat) => cat['name'] == _selectedCategory!['name'])) {
+          _selectedCategory = _selectedType == 'expense' ? _expenseCategories.first : _incomeCategories.first;
+        } else {
+          _selectedCategory = _allCategories.firstWhere(
+                (cat) => cat['name'] == _selectedCategory!['name'],
+            orElse: () => _selectedType == 'expense' ? _expenseCategories.first : _incomeCategories.first,
+          );
+        }
+      });
+    } catch (e) {
+      print('Error fetching categories: $e');
+      setState(() {
+        _allCategories = _defaultCategories.map((name) => {
+          'id': null,
+          'name': name,
+          'type': ['salary', 'gift', 'interest', 'other_income'].contains(name) ? 'income' : 'expense',
+        }).toList();
+        _expenseCategories = _allCategories.where((cat) => cat['type'] == 'expense').toList();
+        _incomeCategories = _allCategories.where((cat) => cat['type'] == 'income').toList();
+        _selectedCategory = _selectedType == 'expense' ? _expenseCategories.first : _incomeCategories.first;
+      });
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.failedToLoadCategories(e.toString()),
+        isError: true,
+      );
     }
   }
 
@@ -99,18 +167,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime today = DateTime.now(); // Use current date as the max selectable date
+    final DateTime today = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime(2000), // Minimum selectable date
-      lastDate: today, // Maximum selectable date is today
+      firstDate: DateTime(2000),
+      lastDate: today,
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
-        // Strip the time component, keeping only the date
         _selectedDate = DateTime(picked.year, picked.month, picked.day);
-        print('Selected date updated to: $_selectedDate');
       });
     }
   }
@@ -135,32 +201,27 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
         final double enteredAmount = double.parse(_amountController.text);
         double amountInKGS = transactionCurrency == 'KGS'
             ? enteredAmount
-            : enteredAmount * _currencyApiService.getConversionRate(transactionCurrency, 'KGS');
+            : enteredAmount / _currencyApiService.getConversionRate('KGS', transactionCurrency); // Corrected conversion
 
         amountInKGS = double.parse(amountInKGS.toStringAsFixed(2));
 
         final Map<String, dynamic> transactionData = {
           'type': _selectedType,
-          'category': _selectedCategory,
-          'amount': amountInKGS,
+          'default_category': _selectedCategory!['id'] == null ? _selectedCategory!['name'] : null,
+          'custom_category': _selectedCategory!['id'] != null ? _selectedCategory!['id'] : null,
+          'amount': amountInKGS.toString(),
           'description': _descriptionController.text,
-          'originalCurrency': transactionCurrency, // Match JSON key
-          'originalAmount': enteredAmount,         // Match JSON key
-          'timestamp': _selectedDate.toUtc().toIso8601String(), // Ensure UTC with 'Z'
+          'original_currency': transactionCurrency,
+          'original_amount': enteredAmount.toString(),
+          'timestamp': _selectedDate.toUtc().toIso8601String(),
         };
 
-        print('Submitting transaction: $transactionData');
-
+        print('Sending payload: ${json.encode(transactionData)}');
         if (widget.transaction == null) {
-          // For new transactions, assume user and username are handled elsewhere (e.g., in ApiService)
           await _apiService.addTransaction(transactionData);
         } else {
-          // For updates, include all required fields from the original transaction
           transactionData['id'] = widget.transaction!.id;
-          transactionData['user'] = widget.transaction!.user; // Preserve original user
-          transactionData['username'] = widget.transaction!.username; // Preserve original username
-
-          // Create a Transaction object from the updated data
+          transactionData['user'] = widget.transaction!.user;
           final Transaction updatedTransaction = Transaction.fromJson(transactionData);
           await _apiService.updateTransaction(widget.transaction!.id, updatedTransaction);
         }
@@ -189,7 +250,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     }
   }
 
-  Color _getCategoryColor(String category) {
+  Color _getCategoryColor(String categoryName) {
     const categoryColors = {
       'food': Color(0xFFEF5350),
       'transport': Color(0xFF42A5F5),
@@ -205,12 +266,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
       'interest': Color(0xFF29B6F6),
       'other_income': Color(0xFF78909C),
     };
-    return categoryColors[category] ?? Colors.grey.withOpacity(0.8);
+    return categoryColors[categoryName] ?? Colors.grey.withOpacity(0.8);
   }
 
   Color _getTypeColor(String type) {
     const typeColors = {'expense': Color(0xFFEF5350), 'income': Color(0xFF4CAF50)};
     return typeColors[type] ?? Colors.grey.withOpacity(0.8);
+  }
+
+  String _getCategoryDisplayName(Map<String, dynamic> category) {
+    if (_defaultCategories.contains(category['name'])) {
+      return AppLocalizations.of(context)!.getCategoryName(category['name']);
+    }
+    return category['name'];
   }
 
   @override
@@ -222,7 +290,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     double enteredAmount = double.tryParse(_amountController.text) ?? 0.0;
     final displayCurrencySymbol = _currencyApiService.getCurrencySymbol(_displayCurrency);
     final kgsSymbol = _currencyApiService.getCurrencySymbol('KGS');
-    List<String> _categories = _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
+    List<Map<String, dynamic>> _categories = _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
     return Scaffold(
       body: Container(
@@ -313,7 +381,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
               child: Row(
                 children: [
                   ElevatedButton(
-                    onPressed: () => _selectDate(context), // Always enabled
+                    onPressed: () => _selectDate(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -321,7 +389,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                     ),
                     child: Icon(
                       Icons.calendar_today,
-                      color: isDark ? AppColors.darkAccent : AppColors.lightAccent, // Keep color consistent
+                      color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -346,7 +414,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                             : () {
                           setState(() {
                             _selectedType = 'expense';
-                            _selectedCategory = 'food';
+                            _selectedCategory = _expenseCategories.first;
                           });
                           _animationController.forward(from: 0);
                         },
@@ -396,7 +464,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                             : () {
                           setState(() {
                             _selectedType = 'income';
-                            _selectedCategory = 'salary';
+                            _selectedCategory = _incomeCategories.first;
                           });
                           _animationController.forward(from: 0);
                         },
@@ -446,10 +514,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                   key: _formKey,
                   child: Column(
                     children: [
-                      DropdownButtonFormField<String>(
+                      DropdownButtonFormField<Map<String, dynamic>>(
                         value: _selectedCategory,
                         decoration: AppInputStyles.dropdown(context, labelText: AppLocalizations.of(context)!.category),
-                        items: _categories.map((category) => DropdownMenuItem<String>(
+                        items: _categories.map((category) => DropdownMenuItem<Map<String, dynamic>>(
                           value: category,
                           child: Row(
                             children: [
@@ -457,12 +525,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
                                 width: 12,
                                 height: 12,
                                 decoration: BoxDecoration(
-                                  color: _getCategoryColor(category),
+                                  color: _getCategoryColor(category['name']),
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(AppLocalizations.of(context)!.getCategoryName(category)),
+                              Text(_getCategoryDisplayName(category)),
                             ],
                           ),
                         )).toList(),

@@ -33,10 +33,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     "monthlySpending": <String, double>{},
     "total": 0.0,
   };
-  List<String> selectedCategories = [];
-  List<String> allCategories = [];
-  List<String> expenseCategories = [];
-  List<String> incomeCategories = [];
+  List<Map<String, dynamic>> selectedCategories = [];
+  List<Map<String, dynamic>> allCategories = [];
+  List<Map<String, dynamic>> expenseCategories = [];
+  List<Map<String, dynamic>> incomeCategories = [];
   DateTime? selectedStartDate;
   DateTime? selectedEndDate;
   int _currentPage = 0;
@@ -72,12 +72,16 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
+  static const List<String> _defaultCategories = [
+    'food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense',
+    'salary', 'gift', 'interest', 'other_income',
+  ];
+
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    selectedStartDate =
-        DateTime(now.year, now.month - 1, now.day); // Default to last month
+    selectedStartDate = DateTime(now.year, now.month - 1, now.day); // Default to last month
     selectedEndDate = now;
 
     _animationController = AnimationController(
@@ -96,8 +100,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       duration: const Duration(milliseconds: 300),
     );
     _selectRadiusAnimation = Tween<double>(begin: 50.0, end: 70.0).animate(
-      CurvedAnimation(
-          parent: _radiusAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _radiusAnimationController, curve: Curves.easeInOut),
     );
 
     _valueAnimationController = AnimationController(
@@ -110,13 +113,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       duration: const Duration(milliseconds: 400),
     );
     _pulseAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-          tween: Tween<double>(begin: 50.0, end: 60.0), weight: 50.0),
-      TweenSequenceItem(
-          tween: Tween<double>(begin: 60.0, end: 50.0), weight: 50.0),
+      TweenSequenceItem(tween: Tween<double>(begin: 50.0, end: 60.0), weight: 50.0),
+      TweenSequenceItem(tween: Tween<double>(begin: 60.0, end: 50.0), weight: 50.0),
     ]).animate(
-      CurvedAnimation(
-          parent: _pulseAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _pulseAnimationController, curve: Curves.easeInOut),
     );
 
     _detailsAnimationController = AnimationController(
@@ -124,15 +124,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       duration: const Duration(milliseconds: 300),
     );
     _detailsFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-          parent: _detailsAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _detailsAnimationController, curve: Curves.easeInOut),
     );
     _detailsSlideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.2),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(
-          parent: _detailsAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _detailsAnimationController, curve: Curves.easeInOut),
     );
 
     _disappearAnimationController = AnimationController(
@@ -140,13 +138,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       duration: const Duration(milliseconds: 300),
     );
     _disappearAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-          tween: Tween<double>(begin: 1.0, end: -0.1), weight: 70.0),
-      TweenSequenceItem(
-          tween: Tween<double>(begin: -0.1, end: 0.0), weight: 30.0),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: -0.1), weight: 70.0),
+      TweenSequenceItem(tween: Tween<double>(begin: -0.1, end: 0.0), weight: 30.0),
     ]).animate(
-      CurvedAnimation(
-          parent: _disappearAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _disappearAnimationController, curve: Curves.easeInOut),
     );
 
     _scrollController.addListener(() {
@@ -167,8 +162,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     _disappearAnimationController.dispose();
     _scrollController.dispose();
     _pageController.dispose();
-    _disappearingControllers.values.forEach((controller) =>
-        controller.dispose());
+    _disappearingControllers.values.forEach((controller) => controller.dispose());
     _disappearingControllers.clear();
     _disappearingAnimations.clear();
     _disappearingValues.clear();
@@ -177,23 +171,51 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   Future<void> _loadCategories() async {
     try {
-      final categories = await _apiService.getCategories();
+      final customCategories = await _apiService.getCustomCategories();
+
+      // Combine default and custom categories, ensuring no duplicates by name
       setState(() {
-        allCategories = categories;
-        expenseCategories = categories
-            .where((category) =>
-        !['salary', 'gift', 'interest', 'other_income'].contains(category))
-            .toList();
-        incomeCategories = categories
-            .where((category) =>
-            ['salary', 'gift', 'interest', 'other_income'].contains(category))
-            .toList();
+        allCategories = [];
+        final seenNames = <String>{};
+
+        // Add default categories first
+        final defaultCategories = _defaultCategories.map((name) => {
+          'id': null,
+          'name': name,
+          'type': ['salary', 'gift', 'interest', 'other_income'].contains(name) ? 'income' : 'expense',
+        }).toList();
+
+        for (var category in defaultCategories) {
+          seenNames.add(category['name']!);
+          allCategories.add(category);
+        }
+
+        // Add custom categories, skipping duplicates
+        for (var category in customCategories) {
+          if (!seenNames.contains(category['name'])) {
+            allCategories.add(category);
+            seenNames.add(category['name']);
+          }
+        }
+
+        // Update expense and income category lists
+        expenseCategories = allCategories.where((cat) => cat['type'] == 'expense').toList();
+        incomeCategories = allCategories.where((cat) => cat['type'] == 'income').toList();
       });
     } catch (e) {
+      setState(() {
+        // Fallback to default categories only, no duplicates
+        allCategories = _defaultCategories.map((name) => {
+          'id': null,
+          'name': name,
+          'type': ['salary', 'gift', 'interest', 'other_income'].contains(name) ? 'income' : 'expense',
+        }).toList();
+        expenseCategories = allCategories.where((cat) => cat['type'] == 'expense').toList();
+        incomeCategories = allCategories.where((cat) => cat['type'] == 'income').toList();
+      });
       NotificationService.showNotification(
         context,
-        message: AppLocalizations.of(context)?.failedToLoadCategories(
-            e.toString()) ?? 'Failed to load categories: $e',
+        message: AppLocalizations.of(context)?.failedToLoadCategories(e.toString()) ?? 'Failed to load categories: $e',
         isError: true,
       );
     }
@@ -217,47 +239,42 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
     try {
       final String selectedType = _currentPage == 0 ? 'expense' : 'income';
+      final List<String> categoryNames = selectedCategories.isNotEmpty
+          ? selectedCategories.map((cat) => cat['name'] as String).toList()
+          : [];
       final reports = await _apiService.getReports(
         type: selectedType,
-        categories: selectedCategories.isNotEmpty ? selectedCategories : null,
+        categories: categoryNames.isNotEmpty ? categoryNames : null,
         startDate: selectedStartDate,
         endDate: selectedEndDate,
       );
 
-      final currencyProvider = Provider.of<CurrencyProvider>(
-          context, listen: false);
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       final currentCurrency = currencyProvider.currency;
 
       final Map<String, double> categorySpending = {};
       if (selectedType == 'income') {
-        final incomeSpending = Map<String, dynamic>.from(
-            reports['income_by_category'] ?? {});
+        final incomeSpending = Map<String, dynamic>.from(reports['income_by_category'] ?? {});
         incomeSpending.forEach((key, value) {
           if (key != null && value != null) {
-            final amountInKGS = (value is double) ? value : double.parse(
-                value.toString());
-            final convertedAmount = _convertAmount(
-                amountInKGS, null, null, currentCurrency);
+            final amountInKGS = (value is double) ? value : double.parse(value.toString());
+            final convertedAmount = _convertAmount(amountInKGS, null, null, currentCurrency);
             categorySpending[key] = convertedAmount;
           }
         });
       } else {
-        final expenseSpending = Map<String, dynamic>.from(
-            reports['expense_by_category'] ?? {});
+        final expenseSpending = Map<String, dynamic>.from(reports['expense_by_category'] ?? {});
         expenseSpending.forEach((key, value) {
           if (key != null && value != null) {
-            final amountInKGS = (value is double) ? value : double.parse(
-                value.toString());
-            final convertedAmount = _convertAmount(
-                amountInKGS, null, null, currentCurrency);
+            final amountInKGS = (value is double) ? value : double.parse(value.toString());
+            final convertedAmount = _convertAmount(amountInKGS, null, null, currentCurrency);
             categorySpending[key] = convertedAmount;
           }
         });
       }
 
       final Map<String, double> monthlySpending = {};
-      final transactions = List<Map<String, dynamic>>.from(
-          reports['transactions'] ?? []);
+      final transactions = List<Map<String, dynamic>>.from(reports['transactions'] ?? []);
       for (var transaction in transactions) {
         if (transaction['type'] == selectedType) {
           final date = transaction['timestamp'].substring(0, 7);
@@ -266,10 +283,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ? double.parse(transaction['original_amount'].toString())
               : null;
           final originalCurrency = transaction['original_currency'] as String?;
-          final convertedAmount = _convertAmount(
-              amountInKGS, originalAmount, originalCurrency, currentCurrency);
-          monthlySpending[date] =
-              (monthlySpending[date] ?? 0) + convertedAmount;
+          final convertedAmount = _convertAmount(amountInKGS, originalAmount, originalCurrency, currentCurrency);
+          monthlySpending[date] = (monthlySpending[date] ?? 0) + convertedAmount;
         }
       }
 
@@ -279,15 +294,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         "total": categorySpending.values.fold(0.0, (a, b) => a + b),
       };
 
-      final previousSpending = _cachedReportsData["categorySpending"] as Map<
-          String,
-          double>;
-      final newSpending = newReportsData["categorySpending"] as Map<
-          String,
-          double>;
+      final previousSpending = _cachedReportsData["categorySpending"] as Map<String, double>;
+      final newSpending = newReportsData["categorySpending"] as Map<String, double>;
 
-      final removedCategories = previousSpending.keys.where((
-          category) => !newSpending.containsKey(category)).toList();
+      final removedCategories = previousSpending.keys.where((category) => !newSpending.containsKey(category)).toList();
 
       for (var category in removedCategories) {
         if (!_disappearingControllers.containsKey(category)) {
@@ -296,8 +306,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             duration: const Duration(milliseconds: 300),
           );
           final initialValue = previousSpending[category] ?? 0.0;
-          final animation = Tween<double>(begin: initialValue, end: 0.0)
-              .animate(
+          final animation = Tween<double>(begin: initialValue, end: 0.0).animate(
             CurvedAnimation(parent: controller, curve: Curves.easeInOut),
           );
 
@@ -333,12 +342,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         );
       }
 
-      final bool newCategorySpendingEmpty = (newReportsData["categorySpending"] as Map<
-          String,
-          double>).isEmpty;
-      final bool newMonthlySpendingEmpty = (newReportsData["monthlySpending"] as Map<
-          String,
-          double>).isEmpty;
+      final bool newCategorySpendingEmpty = (newReportsData["categorySpending"] as Map<String, double>).isEmpty;
+      final bool newMonthlySpendingEmpty = (newReportsData["monthlySpending"] as Map<String, double>).isEmpty;
 
       if (!_isCategorySpendingEmpty && newCategorySpendingEmpty) {
         await _disappearAnimationController.forward(from: 0.0);
@@ -385,17 +390,14 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       });
       NotificationService.showNotification(
         context,
-        message: AppLocalizations.of(context)?.failedToLoadData(e.toString()) ??
-            'Failed to load data: $e',
+        message: AppLocalizations.of(context)?.failedToLoadData(e.toString()) ?? 'Failed to load data: $e',
         isError: true,
       );
     }
   }
 
-  double _convertAmount(double amountInKGS, double? originalAmount,
-      String? originalCurrency, String targetCurrency) {
-    if (originalAmount != null && originalCurrency != null &&
-        originalCurrency == targetCurrency) {
+  double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
+    if (originalAmount != null && originalCurrency != null && originalCurrency == targetCurrency) {
       return originalAmount;
     }
     try {
@@ -424,8 +426,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       'interest': const Color(0xFF29B6F6),
       'unknown': const Color(0xFFB0BEC5),
     };
-    return categoryColors[category.toLowerCase()]?.withOpacity(0.8) ??
-        Colors.grey.withOpacity(0.8);
+    return categoryColors[category.toLowerCase()]?.withOpacity(0.8) ?? Colors.grey.withOpacity(0.8);
   }
 
   Color _getBarColor(String month) {
@@ -448,20 +449,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   String _getMonthLabel(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
   }
 
@@ -474,8 +462,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   bool _areFiltersApplied() {
-    return selectedStartDate != null || selectedEndDate != null ||
-        selectedCategories.isNotEmpty || _dateFilter != 'Last Month';
+    return selectedStartDate != null || selectedEndDate != null || selectedCategories.isNotEmpty || _dateFilter != 'Last Month';
   }
 
   void _clearFilters() {
@@ -504,18 +491,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       context: context,
       initialDateRange: _customStartDate != null && _customEndDate != null
           ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
-          : DateTimeRange(
-        start: now.subtract(const Duration(days: 30)),
-        end: now,
-      ),
+          : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
       firstDate: DateTime(2000),
       lastDate: now,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme
-                .of(context)
-                .brightness == Brightness.dark
+            colorScheme: Theme.of(context).brightness == Brightness.dark
                 ? const ColorScheme.dark(
               primary: AppColors.darkAccent,
               onPrimary: Colors.white,
@@ -528,11 +510,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               surface: AppColors.lightSurface,
               onSurface: AppColors.lightTextPrimary,
             ),
-            dialogBackgroundColor: Theme
-                .of(context)
-                .brightness == Brightness.dark
-                ? AppColors.darkSurface
-                : AppColors.lightSurface,
+            dialogBackgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.darkSurface : AppColors.lightSurface,
           ),
           child: child!,
         );
@@ -550,16 +528,20 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     }
   }
 
+  String _getCategoryDisplayName(String category) {
+    if (_defaultCategories.contains(category)) {
+      return AppLocalizations.of(context)!.getCategoryName(category);
+    }
+    return category;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final logoPath = themeProvider.getLogoPath(context);
-    final currencySymbol = _currencyApiService.getCurrencySymbol(
-        currencyProvider.currency);
+    final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
 
     return Scaffold(
       body: Stack(
@@ -577,10 +559,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 10.0),
-                  color: isDark ? AppColors.darkBackground : AppColors
-                      .lightBackground,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                  color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
                   child: SafeArea(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -604,9 +584,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark
-                                          ? AppColors.darkTextPrimary
-                                          : AppColors.lightTextPrimary,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                       fontFamily: 'Poppins',
                                     ),
                                   ),
@@ -615,9 +593,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.normal,
-                                      color: isDark
-                                          ? AppColors.darkTextPrimary
-                                          : AppColors.lightTextPrimary,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                       fontFamily: 'Poppins',
                                     ),
                                   ),
@@ -635,18 +611,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                   margin: const EdgeInsets.only(top: 8.0),
                   child: Center(
                     child: Text(
-                      AppLocalizations
-                          .of(context)
-                          ?.reportsAndInsights ?? 'Reports & Insights',
-                      style: AppTextStyles.heading(context).copyWith(
-                          fontSize: 18),
+                      AppLocalizations.of(context)?.reportsAndInsights ?? 'Reports & Insights',
+                      style: AppTextStyles.heading(context).copyWith(fontSize: 18),
                     ),
                   ),
                 ),
                 Divider(
-                  color: isDark
-                      ? AppColors.darkTextSecondary.withOpacity(0.3)
-                      : Colors.grey[300],
+                  color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
                   thickness: 1,
                 ),
                 Expanded(
@@ -665,10 +636,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                               children: [
                                 SizedBox(
                                   height: 100,
-                                  width: MediaQuery
-                                      .of(context)
-                                      .size
-                                      .width - 32,
+                                  width: MediaQuery.of(context).size.width - 32,
                                   child: PageView.builder(
                                     controller: _pageController,
                                     itemCount: 2,
@@ -679,25 +647,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       _fetchData();
                                     },
                                     itemBuilder: (context, index) {
-                                      final total = (_isLoading
-                                          ? _cachedReportsData
-                                          : _reportsData)["total"] as double;
+                                      final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
                                       return _buildSummaryCard(
-                                        title: index == 0
-                                            ? AppLocalizations
-                                            .of(context)
-                                            ?.expenses ?? 'Expenses'
-                                            : AppLocalizations
-                                            .of(context)
-                                            ?.income ?? 'Income',
+                                        title: index == 0 ? AppLocalizations.of(context)!.expenses : AppLocalizations.of(context)!.income,
                                         amount: total.toStringAsFixed(2),
                                         currencySymbol: currencySymbol,
-                                        color: index == 0 ? const Color(
-                                            0xFF990033) : const Color(
-                                            0xFF009966),
-                                        icon: index == 0
-                                            ? Icons.arrow_upward
-                                            : Icons.arrow_downward,
+                                        color: index == 0 ? const Color(0xFF990033) : const Color(0xFF009966),
+                                        icon: index == 0 ? Icons.arrow_upward : Icons.arrow_downward,
                                       );
                                     },
                                   ),
@@ -708,8 +664,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     child: GestureDetector(
                                       onTap: () {
                                         _pageController.previousPage(
-                                          duration: const Duration(
-                                              milliseconds: 300),
+                                          duration: const Duration(milliseconds: 300),
                                           curve: Curves.easeInOut,
                                         );
                                       },
@@ -726,8 +681,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     child: GestureDetector(
                                       onTap: () {
                                         _pageController.nextPage(
-                                          duration: const Duration(
-                                              milliseconds: 300),
+                                          duration: const Duration(milliseconds: 300),
                                           curve: Curves.easeInOut,
                                         );
                                       },
@@ -745,10 +699,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           _buildFilters(),
                           const SizedBox(height: 20),
                           _buildChartCard(
-                            title: AppLocalizations
-                                .of(context)
-                                ?.categoryWiseSpending ??
-                                'Category-wise Spending',
+                            title: AppLocalizations.of(context)!.categoryWiseSpending,
                             child: _shouldShowNoDataForCategorySpending
                                 ? _buildNoDataWidget(isDark: isDark)
                                 : AnimatedBuilder(
@@ -760,96 +711,19 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                 ..._disappearingAnimations.values,
                               ]),
                               builder: (context, child) {
-                                final total = (_isLoading
-                                    ? _cachedReportsData
-                                    : _reportsData)["total"] as double;
+                                final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
                                 final List<PieChartSectionData> sections = [
-                                  ...(_isLoading
-                                      ? _cachedReportsData
-                                      : _reportsData)["categorySpending"]
+                                  ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"]
                                       .entries
                                       .map<PieChartSectionData>((entry) {
                                     final category = entry.key;
-                                    final isSelected = _selectedCategory ==
-                                        category;
-                                    final baseRadius = (50.0 *
-                                        _disappearAnimation.value).clamp(
-                                        0.0, 50.0);
-                                    final selectionRadius = isSelected
-                                        ? _selectRadiusAnimation.value
-                                        : baseRadius;
-                                    final radius =
-                                    isSelected
-                                        ? selectionRadius +
-                                        (_pulseAnimation.value - 50.0)
-                                        : baseRadius;
-                                    final animatedValue = _valueAnimations[category]
-                                        ?.value ?? 0.0;
+                                    final isSelected = _selectedCategory == category;
+                                    final baseRadius = (50.0 * _disappearAnimation.value).clamp(0.0, 50.0);
+                                    final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
+                                    final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
+                                    final animatedValue = _valueAnimations[category]?.value ?? 0.0;
 
-                                    final percentage = total > 0
-                                        ? (animatedValue / total) * 100
-                                        : 0.0;
-
-                                    double titlePositionOffset;
-                                    double fontSize;
-                                    if (percentage < 5) {
-                                      titlePositionOffset = 0.8;
-                                      fontSize = 10.0;
-                                    } else if (percentage < 10) {
-                                      titlePositionOffset = 0.65;
-                                      fontSize = 11.0;
-                                    } else {
-                                    titlePositionOffset = 0.55;
-                                    fontSize = isSelected ? 14.0 : 12.0;
-                                    }
-
-// Translate the category name using AppLocalizations
-                                    final translatedCategoryName = AppLocalizations.of(context)?.getCategoryName(category) ?? category;
-                                    final categoryName = _truncateString(translatedCategoryName, 30);
-                                    final amountLabel = _truncateString('${animatedValue.toStringAsFixed(2)} $currencySymbol', 30);
-
-                                    return PieChartSectionData(
-                                    value: animatedValue > 0 ? animatedValue : 0.001,
-                                    title: _selectedCategory == category ? "$categoryName\n$amountLabel" : "",
-                                    radius: radius,
-                                    color: _getChartColor(category),
-                                    titleStyle: AppTextStyles.chartLabel(context).copyWith(
-                                    fontSize: fontSize,
-                                    shadows: isSelected
-                                    ? [
-                                    Shadow(
-                                    color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
-                                    blurRadius: 4,
-                                    offset: const Offset(2, 2),
-                                    ),
-                                    ]
-                                        : null,
-                                    ),
-                                    showTitle: animatedValue > 0 && _selectedCategory == category,
-                                    titlePositionPercentageOffset: titlePositionOffset,
-                                    );
-                                  }).toList(),
-                                  ..._disappearingAnimations.entries.map<
-                                      PieChartSectionData>((entry) {
-                                    final category = entry.key;
-                                    final isSelected = _selectedCategory ==
-                                        category;
-                                    final baseRadius = (50.0 *
-                                        _disappearAnimation.value).clamp(
-                                        0.0, 50.0);
-                                    final selectionRadius = isSelected
-                                        ? _selectRadiusAnimation.value
-                                        : baseRadius;
-                                    final radius =
-                                    isSelected
-                                        ? selectionRadius +
-                                        (_pulseAnimation.value - 50.0)
-                                        : baseRadius;
-                                    final animatedValue = entry.value.value;
-
-                                    final percentage = total > 0
-                                        ? (animatedValue / total) * 100
-                                        : 0.0;
+                                    final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
 
                                     double titlePositionOffset;
                                     double fontSize;
@@ -864,50 +738,80 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       fontSize = isSelected ? 14.0 : 12.0;
                                     }
 
-// Translate the category name for disappearing animations as well
-                                    final translatedCategoryName = AppLocalizations
-                                        .of(context)?.getCategoryName(
-                                        category) ?? category;
-                                    final categoryName = _truncateString(
-                                        translatedCategoryName, 30);
-                                    final amountLabel = _truncateString(
-                                        '${animatedValue.toStringAsFixed(
-                                            2)} $currencySymbol', 30);
+                                    final categoryName = _truncateString(_getCategoryDisplayName(category), 30);
+                                    final amountLabel = _truncateString('${animatedValue.toStringAsFixed(2)} $currencySymbol', 30);
 
                                     return PieChartSectionData(
-                                      value: animatedValue > 0
-                                          ? animatedValue
-                                          : 0.001,
-                                      title: _selectedCategory == category
-                                          ? "$categoryName\n$amountLabel"
-                                          : "",
+                                      value: animatedValue > 0 ? animatedValue : 0.001,
+                                      title: _selectedCategory == category ? "$categoryName\n$amountLabel" : "",
                                       radius: radius,
                                       color: _getChartColor(category),
-                                      titleStyle: AppTextStyles.chartLabel(
-                                          context).copyWith(
+                                      titleStyle: AppTextStyles.chartLabel(context).copyWith(
                                         fontSize: fontSize,
                                         shadows: isSelected
                                             ? [
                                           Shadow(
-                                            color: isDark
-                                                ? AppColors.darkShadow
-                                                : AppColors.lightShadow,
+                                            color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
                                             blurRadius: 4,
                                             offset: const Offset(2, 2),
                                           ),
                                         ]
                                             : null,
                                       ),
-                                      showTitle: animatedValue > 0 &&
-                                          _selectedCategory == category,
+                                      showTitle: animatedValue > 0 && _selectedCategory == category,
+                                      titlePositionPercentageOffset: titlePositionOffset,
+                                    );
+                                  }).toList(),
+                                  ..._disappearingAnimations.entries.map<PieChartSectionData>((entry) {
+                                    final category = entry.key;
+                                    final isSelected = _selectedCategory == category;
+                                    final baseRadius = (50.0 * _disappearAnimation.value).clamp(0.0, 50.0);
+                                    final selectionRadius = isSelected ? _selectRadiusAnimation.value : baseRadius;
+                                    final radius = isSelected ? selectionRadius + (_pulseAnimation.value - 50.0) : baseRadius;
+                                    final animatedValue = entry.value.value;
+
+                                    final percentage = total > 0 ? (animatedValue / total) * 100 : 0.0;
+
+                                    double titlePositionOffset;
+                                    double fontSize;
+                                    if (percentage < 5) {
+                                      titlePositionOffset = 0.8;
+                                      fontSize = 10.0;
+                                    } else if (percentage < 10) {
+                                      titlePositionOffset = 0.65;
+                                      fontSize = 11.0;
+                                    } else {
+                                      titlePositionOffset = 0.55;
+                                      fontSize = isSelected ? 14.0 : 12.0;
+                                    }
+
+                                    final categoryName = _truncateString(_getCategoryDisplayName(category), 30);
+                                    final amountLabel = _truncateString('${animatedValue.toStringAsFixed(2)} $currencySymbol', 30);
+
+                                    return PieChartSectionData(
+                                      value: animatedValue > 0 ? animatedValue : 0.001,
+                                      title: _selectedCategory == category ? "$categoryName\n$amountLabel" : "",
+                                      radius: radius,
+                                      color: _getChartColor(category),
+                                      titleStyle: AppTextStyles.chartLabel(context).copyWith(
+                                        fontSize: fontSize,
+                                        shadows: isSelected
+                                            ? [
+                                          Shadow(
+                                            color: isDark ? AppColors.darkShadow : AppColors.lightShadow,
+                                            blurRadius: 4,
+                                            offset: const Offset(2, 2),
+                                          ),
+                                        ]
+                                            : null,
+                                      ),
+                                      showTitle: animatedValue > 0 && _selectedCategory == category,
                                       titlePositionPercentageOffset: titlePositionOffset,
                                     );
                                   }).toList(),
                                 ];
 
-                                if (sections.isEmpty ||
-                                    sections.every((s) => s.value == 0 ||
-                                        s.value == 0.001)) {
+                                if (sections.isEmpty || sections.every((s) => s.value == 0 || s.value == 0.001)) {
                                   return _buildNoDataWidget(isDark: isDark);
                                 }
 
@@ -923,66 +827,42 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                           centerSpaceRadius: 40,
                                           pieTouchData: PieTouchData(
                                             enabled: true,
-                                            touchCallback: (FlTouchEvent event,
-                                                pieTouchResponse) {
+                                            touchCallback: (FlTouchEvent event, pieTouchResponse) {
                                               if (event is FlTapUpEvent) {
-                                                if (pieTouchResponse == null ||
-                                                    pieTouchResponse
-                                                        .touchedSection ==
-                                                        null) {
-                                                  if (_selectedCategory !=
-                                                      null) {
-                                                    _detailsAnimationController
-                                                        .reverse().then(() {
+                                                if (pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
+                                                  if (_selectedCategory != null) {
+                                                    _detailsAnimationController.reverse().then((_) {
                                                       setState(() {
-                                                        _selectedCategory =
-                                                        null;
-                                                        _radiusAnimationController
-                                                            .reverse();
+                                                        _selectedCategory = null;
+                                                        _radiusAnimationController.reverse();
                                                       });
-                                                      _pulseAnimationController
-                                                          .forward(from: 0.0);
-                                                    } as FutureOr Function(void value));
+                                                      _pulseAnimationController.forward(from: 0.0);
+                                                    });
                                                   }
                                                   return;
                                                 }
 
-                                                final touchedIndex =
-                                                    pieTouchResponse
-                                                        .touchedSection!
-                                                        .touchedSectionIndex;
+                                                final touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
                                                 if (touchedIndex == -1) return;
 
                                                 final allCategories = [
-                                                  ...(_isLoading
-                                                      ? _cachedReportsData
-                                                      : _reportsData)[
-                                                  "categorySpending"]
-                                                      .keys,
-                                                  ..._disappearingAnimations
-                                                      .keys,
+                                                  ...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"].keys,
+                                                  ..._disappearingAnimations.keys,
                                                 ];
-                                                final newCategory = allCategories
-                                                    .elementAt(touchedIndex);
+                                                final newCategory = allCategories.elementAt(touchedIndex);
 
-                                                if (_selectedCategory ==
-                                                    newCategory) {
-                                                  _detailsAnimationController
-                                                      .reverse().then(() {
+                                                if (_selectedCategory == newCategory) {
+                                                  _detailsAnimationController.reverse().then((_) {
                                                     setState(() {
                                                       _selectedCategory = null;
-                                                      _radiusAnimationController
-                                                          .reverse();
+                                                      _radiusAnimationController.reverse();
                                                     });
-                                                  } as FutureOr Function(void value));
+                                                  });
                                                 } else {
                                                   setState(() {
-                                                    _selectedCategory =
-                                                        newCategory;
-                                                    _radiusAnimationController
-                                                        .forward(from: 0.0);
-                                                    _detailsAnimationController
-                                                        .forward(from: 0.0);
+                                                    _selectedCategory = newCategory;
+                                                    _radiusAnimationController.forward(from: 0.0);
+                                                    _detailsAnimationController.forward(from: 0.0);
                                                   });
                                                 }
                                               }
@@ -992,12 +872,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       ),
                                     ),
                                     const SizedBox(height: 10),
-                                    _buildLegend({
-                                      ...(_isLoading
-                                          ? _cachedReportsData
-                                          : _reportsData)["categorySpending"],
-                                      ..._disappearingValues,
-                                    }, currencySymbol),
+                                    _buildLegend({...(_isLoading ? _cachedReportsData : _reportsData)["categorySpending"], ..._disappearingValues}, currencySymbol),
                                   ],
                                 );
                               },
@@ -1020,10 +895,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           ),
                           const SizedBox(height: 20),
                           _buildChartCard(
-                            title: AppLocalizations
-                                .of(context)
-                                ?.monthlySpendingTrends ??
-                                'Monthly Spending Trends',
+                            title: AppLocalizations.of(context)!.monthlySpendingTrends,
                             child: _shouldShowNoDataForMonthlySpending
                                 ? _buildNoDataWidget(isDark: isDark)
                                 : AnimatedBuilder(
@@ -1034,36 +906,28 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                   width: double.infinity,
                                   child: BarChart(
                                     BarChartData(
-                                      barGroups: (_isLoading
-                                          ? _cachedReportsData
-                                          : _reportsData)["monthlySpending"]
+                                      barGroups: (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
                                           .entries
                                           .map<BarChartGroupData>((entry) {
-                                        final isSelected = _selectedMonth ==
-                                            entry.key;
+                                        final isSelected = _selectedMonth == entry.key;
                                         return BarChartGroupData(
                                           x: int.parse(entry.key.split('-')[1]),
                                           barRods: [
                                             BarChartRodData(
-                                              toY: (entry.value *
-                                                  _disappearAnimation.value)
-                                                  .clamp(0.0, double.infinity),
+                                              toY: (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
                                               gradient: LinearGradient(
                                                 colors: [
                                                   _getBarColor(entry.key),
-                                                  _getBarColor(entry.key)
-                                                      .withOpacity(0.6),
+                                                  _getBarColor(entry.key).withOpacity(0.6),
                                                 ],
                                                 begin: Alignment.topCenter,
                                                 end: Alignment.bottomCenter,
                                               ),
                                               width: isSelected ? 24 : 16,
-                                              borderRadius: BorderRadius
-                                                  .circular(4),
+                                              borderRadius: BorderRadius.circular(4),
                                               borderSide: isSelected
                                                   ? BorderSide(
-                                                color: _getBarColor(entry.key)
-                                                    .withOpacity(0.5),
+                                                color: _getBarColor(entry.key).withOpacity(0.5),
                                                 width: 2,
                                               )
                                                   : const BorderSide(width: 0),
@@ -1071,20 +935,14 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                   ? [
                                                 BarChartRodStackItem(
                                                   0,
-                                                  (entry.value *
-                                                      _disappearAnimation.value)
-                                                      .clamp(
-                                                      0.0, double.infinity),
-                                                  _getBarColor(entry.key)
-                                                      .withOpacity(0.3),
+                                                  (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
+                                                  _getBarColor(entry.key).withOpacity(0.3),
                                                 ),
                                               ]
                                                   : [],
                                             ),
                                           ],
-                                          showingTooltipIndicators: isSelected
-                                              ? [0]
-                                              : [],
+                                          showingTooltipIndicators: isSelected ? [0] : [],
                                         );
                                       }).toList(),
                                       titlesData: FlTitlesData(
@@ -1094,8 +952,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             getTitlesWidget: (value, meta) {
                                               return Text(
                                                 _getMonthLabel(value.toInt()),
-                                                style: AppTextStyles.chartLabel(
-                                                    context),
+                                                style: AppTextStyles.chartLabel(context),
                                               );
                                             },
                                           ),
@@ -1105,24 +962,17 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                             showTitles: true,
                                             reservedSize: 40,
                                             interval: _calculateYInterval(
-                                                (_isLoading
-                                                    ? _cachedReportsData
-                                                    : _reportsData)["monthlySpending"]),
+                                                (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]),
                                             getTitlesWidget: (value, meta) {
                                               return Text(
                                                 "${value.toInt()}",
-                                                style: AppTextStyles.chartLabel(
-                                                    context),
+                                                style: AppTextStyles.chartLabel(context),
                                               );
                                             },
                                           ),
                                         ),
-                                        topTitles: const AxisTitles(
-                                            sideTitles: SideTitles(
-                                                showTitles: false)),
-                                        rightTitles: const AxisTitles(
-                                            sideTitles: SideTitles(
-                                                showTitles: false)),
+                                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                       ),
                                       borderData: FlBorderData(show: false),
                                       gridData: FlGridData(
@@ -1130,56 +980,33 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                         drawVerticalLine: false,
                                         getDrawingHorizontalLine: (value) {
                                           return FlLine(
-                                            color: isDark
-                                                ? AppColors.darkTextSecondary
-                                                : AppColors.lightTextSecondary,
+                                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                             strokeWidth: 1,
                                           );
                                         },
                                       ),
                                       barTouchData: BarTouchData(
-                                        touchCallback: (FlTouchEvent event,
-                                            barTouchResponse) {
-                                          if (!event
-                                              .isInterestedForInteractions ||
-                                              barTouchResponse == null ||
-                                              barTouchResponse.spot == null) {
+                                        touchCallback: (FlTouchEvent event, barTouchResponse) {
+                                          if (!event.isInterestedForInteractions || barTouchResponse == null || barTouchResponse.spot == null) {
                                             return;
                                           }
                                           setState(() {
-                                            final touchedMonth = (_isLoading
-                                                ? _cachedReportsData
-                                                : _reportsData)[
-                                            "monthlySpending"]
+                                            final touchedMonth = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
                                                 .keys
-                                                .elementAt(
-                                                barTouchResponse.spot!
-                                                    .touchedBarGroupIndex);
-                                            _selectedMonth =
-                                            touchedMonth == _selectedMonth
-                                                ? null
-                                                : touchedMonth;
+                                                .elementAt(barTouchResponse.spot!.touchedBarGroupIndex);
+                                            _selectedMonth = touchedMonth == _selectedMonth ? null : touchedMonth;
                                           });
                                         },
                                         touchTooltipData: BarTouchTooltipData(
                                           tooltipRoundedRadius: 8,
                                           tooltipMargin: 8,
-                                          getTooltipItem: (group, groupIndex,
-                                              rod, rodIndex) {
-                                            final month = (_isLoading
-                                                ? _cachedReportsData
-                                                : _reportsData)[
-                                            "monthlySpending"]
+                                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                            final month = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
                                                 .keys
                                                 .elementAt(groupIndex);
                                             return BarTooltipItem(
-                                              "${_getMonthLabel(int.parse(
-                                                  month.split('-')[1]))}\n${rod
-                                                  .toY.toStringAsFixed(
-                                                  2)} $currencySymbol",
-                                              const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12),
+                                              "${_getMonthLabel(int.parse(month.split('-')[1]))}\n${rod.toY.toStringAsFixed(2)} $currencySymbol",
+                                              const TextStyle(color: Colors.white, fontSize: 12),
                                             );
                                           },
                                         ),
@@ -1203,9 +1030,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             FadeTransition(
               opacity: _loadingFadeAnimation,
               child: Container(
-                color: isDark
-                    ? AppColors.darkBackground.withOpacity(0.8)
-                    : AppColors.lightBackground.withOpacity(0.8),
+                color: isDark ? AppColors.darkBackground.withOpacity(0.8) : AppColors.lightBackground.withOpacity(0.8),
                 child: Center(child: _buildCustomLoadingIndicator()),
               ),
             ),
@@ -1239,8 +1064,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // Center vertically
-          crossAxisAlignment: CrossAxisAlignment.center, // Center horizontally
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1286,7 +1111,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
-              textAlign: TextAlign.center, // Center text
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1295,9 +1120,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Widget _buildCustomLoadingIndicator() {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 50,
       height: 50,
@@ -1319,15 +1142,11 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Widget _buildFilters() {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final localizations = AppLocalizations.of(context);
     final dateFormat = DateFormat('yyyy-MM-dd');
-    final startDateLabel = selectedStartDate != null ? dateFormat.format(
-        selectedStartDate!) : 'Start';
-    final endDateLabel = selectedEndDate != null ? dateFormat.format(
-        selectedEndDate!) : 'End';
+    final startDateLabel = selectedStartDate != null ? dateFormat.format(selectedStartDate!) : 'Start';
+    final endDateLabel = selectedEndDate != null ? dateFormat.format(selectedEndDate!) : 'End';
 
     return Card(
       elevation: 4,
@@ -1351,14 +1170,12 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  localizations?.filters ?? 'Filters',
+                  localizations!.filters,
                   style: AppTextStyles.subheading(context),
                 ),
                 if (_areFiltersApplied())
                   IconButton(
-                    icon: Icon(Icons.clear,
-                        color: isDark ? AppColors.darkAccent : AppColors
-                            .lightAccent),
+                    icon: Icon(Icons.clear, color: isDark ? AppColors.darkAccent : AppColors.lightAccent),
                     onPressed: _clearFilters,
                   ),
               ],
@@ -1369,28 +1186,21 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               decoration: InputDecoration(
                 labelText: AppLocalizations.of(context)!.dateRange,
                 labelStyle: AppTextStyles.body(context).copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors
-                      .lightTextSecondary,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                 ),
                 filled: true,
-                fillColor: isDark ? AppColors.darkSurface : AppColors
-                    .lightSurface,
+                fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(
-                    color: isDark
-                        ? AppColors.darkTextSecondary.withOpacity(0.5)
-                        : Colors.grey[300]!,
+                    color: isDark ? AppColors.darkTextSecondary.withOpacity(0.5) : Colors.grey[300]!,
                   ),
                 ),
               ),
               items: [
-                DropdownMenuItem(
-                    value: 'Last 7 Days', child: Text(AppLocalizations.of(context)!.lastWeek)),
-                DropdownMenuItem(
-                    value: 'Last Month', child: Text(AppLocalizations.of(context)!.lastMonth)),
-                DropdownMenuItem(
-                    value: 'Last 3 Months', child: Text(AppLocalizations.of(context)!.last3Months)),
+                DropdownMenuItem(value: 'Last 7 Days', child: Text(AppLocalizations.of(context)!.lastWeek)),
+                DropdownMenuItem(value: 'Last Month', child: Text(AppLocalizations.of(context)!.lastMonth)),
+                DropdownMenuItem(value: 'Last 3 Months', child: Text(AppLocalizations.of(context)!.last3Months)),
                 DropdownMenuItem(value: 'Custom', child: Text(AppLocalizations.of(context)!.custom)),
               ],
               onChanged: (value) {
@@ -1403,18 +1213,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                       final now = DateTime.now();
                       switch (value) {
                         case 'Last 7 Days':
-                          selectedStartDate = now.subtract(const Duration(
-                              days: 6));
+                          selectedStartDate = now.subtract(const Duration(days: 6));
                           selectedEndDate = now;
                           break;
                         case 'Last Month':
-                          selectedStartDate = DateTime(now.year, now.month - 1,
-                              now.day);
+                          selectedStartDate = DateTime(now.year, now.month - 1, now.day);
                           selectedEndDate = now;
                           break;
                         case 'Last 3 Months':
-                          selectedStartDate = DateTime(now.year, now.month - 3,
-                              now.day);
+                          selectedStartDate = DateTime(now.year, now.month - 3, now.day);
                           selectedEndDate = now;
                           break;
                       }
@@ -1431,19 +1238,14 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: _dateFilter == 'Custom'
-                        ? _selectCustomDateRange
-                        : null,
+                    onTap: _dateFilter == 'Custom' ? _selectCustomDateRange : null,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12.0, horizontal: 16.0),
+                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurface : AppColors
-                            .lightSurface,
+                        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isDark ? AppColors.darkTextSecondary
-                              .withOpacity(0.5) : Colors.grey[300]!,
+                          color: isDark ? AppColors.darkTextSecondary.withOpacity(0.5) : Colors.grey[300]!,
                           width: 1,
                         ),
                       ),
@@ -1451,8 +1253,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                         children: [
                           Icon(
                             Icons.calendar_today,
-                            color: isDark ? AppColors.darkAccent : AppColors
-                                .lightAccent,
+                            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             size: 20,
                           ),
                           const SizedBox(width: 12),
@@ -1460,11 +1261,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                localizations?.startDate ?? 'Start Date',
+                                localizations!.startDate,
                                 style: AppTextStyles.body(context).copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1472,7 +1271,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                 startDateLabel,
                                 style: AppTextStyles.body(context).copyWith(
                                   fontSize: 14,
-                                  // Reduced font size for date label
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1486,19 +1284,14 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 const SizedBox(width: 16),
                 Expanded(
                   child: GestureDetector(
-                    onTap: _dateFilter == 'Custom'
-                        ? _selectCustomDateRange
-                        : null,
+                    onTap: _dateFilter == 'Custom' ? _selectCustomDateRange : null,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12.0, horizontal: 16.0),
+                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkSurface : AppColors
-                            .lightSurface,
+                        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isDark ? AppColors.darkTextSecondary
-                              .withOpacity(0.5) : Colors.grey[300]!,
+                          color: isDark ? AppColors.darkTextSecondary.withOpacity(0.5) : Colors.grey[300]!,
                           width: 1,
                         ),
                       ),
@@ -1506,8 +1299,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                         children: [
                           Icon(
                             Icons.calendar_today,
-                            color: isDark ? AppColors.darkAccent : AppColors
-                                .lightAccent,
+                            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             size: 20,
                           ),
                           const SizedBox(width: 12),
@@ -1515,11 +1307,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                localizations?.endDate ?? 'End Date',
+                                localizations!.endDate,
                                 style: AppTextStyles.body(context).copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.lightTextSecondary,
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1527,7 +1317,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                 endDateLabel,
                                 style: AppTextStyles.body(context).copyWith(
                                   fontSize: 14,
-                                  // Reduced font size for date label
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1542,18 +1331,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             ),
             const SizedBox(height: 16),
             Text(
-              localizations?.categories ?? 'Categories',
+              localizations!.categories,
               style: AppTextStyles.subheading(context).copyWith(fontSize: 14),
             ),
             const SizedBox(height: 8),
             Container(
               height: 200,
-              // Approximately 5 items visible (assuming ~40px per item)
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: isDark
-                      ? AppColors.darkTextSecondary.withOpacity(0.5)
-                      : Colors.grey[300]!,
+                  color: isDark ? AppColors.darkTextSecondary.withOpacity(0.5) : Colors.grey[300]!,
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1562,17 +1348,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 thickness: 4.0,
                 radius: const Radius.circular(2),
                 child: ListView.builder(
-                  itemCount: (_currentPage == 1
-                      ? incomeCategories
-                      : expenseCategories).length,
+                  itemCount: (_currentPage == 1 ? incomeCategories : expenseCategories).length,
                   itemBuilder: (context, index) {
-                    final category = (_currentPage == 1
-                        ? incomeCategories
-                        : expenseCategories)[index];
-                    final isSelected = selectedCategories.contains(category);
+                    final category = (_currentPage == 1 ? incomeCategories : expenseCategories)[index];
+                    final isSelected = selectedCategories.any((c) => c['name'] == category['name']);
                     return CheckboxListTile(
                       title: Text(
-                        localizations?.getCategoryName(category) ?? category,
+                        _getCategoryDisplayName(category['name']),
                         style: AppTextStyles.body(context),
                       ),
                       value: isSelected,
@@ -1581,12 +1363,12 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           if (value == true) {
                             selectedCategories.add(category);
                           } else {
-                            selectedCategories.remove(category);
+                            selectedCategories.removeWhere((c) => c['name'] == category['name']);
                           }
                           _fetchData();
                         });
                       },
-                      activeColor: _getChartColor(category),
+                      activeColor: _getChartColor(category['name']),
                       checkColor: Colors.white,
                       controlAffinity: ListTileControlAffinity.leading,
                       dense: true,
@@ -1602,9 +1384,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Widget _buildChartCard({required String title, required Widget child}) {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1643,15 +1423,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           Icon(
             Icons.insert_chart_outlined,
             size: 40,
-            color: isDark ? AppColors.darkTextSecondary : AppColors
-                .lightTextSecondary,
+            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
           ),
           const SizedBox(height: 6),
           Text(
-            localizations?.noDataAvailable ?? 'No Data Available',
+            localizations!.noDataAvailable,
             style: AppTextStyles.body(context).copyWith(
-              color: isDark ? AppColors.darkTextSecondary : AppColors
-                  .lightTextSecondary,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               fontSize: 14,
             ),
           ),
@@ -1661,10 +1439,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Widget _buildLegend(Map<String, double> spending, String currencySymbol) {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
-    final localizations = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Wrap(
       spacing: 8.0,
       runSpacing: 8.0,
@@ -1690,8 +1465,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             decoration: BoxDecoration(
               color: _getChartColor(category).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: _getChartColor(category).withOpacity(0.5)),
+              border: Border.all(color: _getChartColor(category).withOpacity(0.5)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1706,12 +1480,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  "${_truncateString(
-                      localizations?.getCategoryName(category) ?? category,
-                      30)}: ${value.toStringAsFixed(2)} $currencySymbol",
+                  "${_truncateString(_getCategoryDisplayName(category), 30)}: ${value.toStringAsFixed(2)} $currencySymbol",
                   style: AppTextStyles.body(context).copyWith(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors
-                        .lightTextPrimary,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                     fontSize: 12,
                   ),
                 ),
@@ -1724,16 +1495,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Widget _buildCategoryStats(String currencySymbol) {
-    final isDark = Theme
-        .of(context)
-        .brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final localizations = AppLocalizations.of(context);
-    final categorySpending = (_isLoading
-        ? _cachedReportsData
-        : _reportsData)["categorySpending"] as Map<String, double>;
-    final total = (_isLoading
-        ? _cachedReportsData
-        : _reportsData)["total"] as double;
+    final categorySpending = (_isLoading ? _cachedReportsData : _reportsData)["categorySpending"] as Map<String, double>;
+    final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
     final value = categorySpending[_selectedCategory] ?? 0.0;
     final percentage = total > 0 ? (value / total) * 100 : 0.0;
 
@@ -1756,10 +1521,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "${_truncateString(
-                  localizations?.getCategoryName(_selectedCategory!) ??
-                      _selectedCategory!, 30)} ${localizations?.details ??
-                  'Details'}",
+              "${_truncateString(_getCategoryDisplayName(_selectedCategory!), 30)} ${localizations!.details}",
               style: AppTextStyles.subheading(context).copyWith(fontSize: 16),
             ),
             const SizedBox(height: 6),
@@ -1767,10 +1529,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  localizations?.percentage ?? 'Percentage',
+                  localizations.percentage,
                   style: AppTextStyles.body(context).copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors
-                        .lightTextSecondary,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                     fontSize: 14,
                   ),
                 ),
@@ -1778,8 +1539,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                   "${percentage.toStringAsFixed(1)}%",
                   style: AppTextStyles.body(context).copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.darkTextPrimary : AppColors
-                        .lightTextPrimary,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                     fontSize: 14,
                   ),
                 ),

@@ -24,7 +24,7 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
   late Animation<double> _rotateAnimation;
   static Map<String, String>? _userDataCache;
   bool _isLoading = false;
-  bool _isDarkMode = false; // Track the current theme state for the icon
+  bool _isDarkMode = false;
 
   @override
   void initState() {
@@ -41,7 +41,6 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
       ),
     );
 
-    // Initialize _isDarkMode based on the current theme
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
       setState(() {
@@ -49,7 +48,6 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
             (themeProvider.themeMode == ThemeMode.system &&
                 MediaQuery.of(context).platformBrightness == Brightness.dark);
       });
-      // Fetch user data when the drawer is opened
       _loadUserData();
     });
   }
@@ -130,7 +128,6 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
               onPressed: () async {
                 final apiService = ApiService();
                 await apiService.clearTokens();
-                // Clear the user data cache on logout
                 _userDataCache = null;
                 Navigator.pop(context);
                 Navigator.pop(widget.parentContext);
@@ -164,12 +161,12 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
     final isDark = themeProvider.themeMode == ThemeMode.dark ||
         (themeProvider.themeMode == ThemeMode.system &&
             MediaQuery.of(context).platformBrightness == Brightness.dark);
-    final themeColor = isDark ? AppColors.darkAccent : AppColors.lightAccent; // Purple for dark, blue for light
-    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary; // Theme-adaptive unselected color
+    final themeColor = isDark ? AppColors.darkAccent : AppColors.lightAccent;
+    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.7,
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground, // Systemic background
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       child: _userDataCache == null && _isLoading
           ? _buildLoadingState(isDark, themeColor)
           : _buildDrawerContent(
@@ -200,8 +197,8 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [AppColors.darkAccent.withOpacity(0.8), AppColors.darkAccent] // Systemic gradient for dark
-                  : [AppColors.lightAccent.withOpacity(0.8), AppColors.lightAccent], // Systemic gradient for light
+                  ? [AppColors.darkAccent.withOpacity(0.8), AppColors.darkAccent]
+                  : [AppColors.lightAccent.withOpacity(0.8), AppColors.lightAccent],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -215,9 +212,8 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
-                      _animationController.forward(from: 0); // Start rotation
+                      _animationController.forward(from: 0);
                       Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-                      // Update icon state halfway through the animation
                       Future.delayed(const Duration(milliseconds: 200), () {
                         if (mounted) {
                           setState(() {
@@ -281,6 +277,14 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
           unselectedColor: unselectedColor,
         ),
         _buildNavItem(
+          icon: Icons.category,
+          title: AppLocalizations.of(context)!.categories, // Use localized string
+          route: '/categories',
+          isSelected: widget.currentRoute == '/categories',
+          themeColor: themeColor,
+          unselectedColor: unselectedColor,
+        ),
+        _buildNavItem(
           icon: Icons.monetization_on,
           title: AppLocalizations.of(context)!.currency,
           route: '/currency',
@@ -309,8 +313,8 @@ class _CustomDrawerState extends State<CustomDrawer> with SingleTickerProviderSt
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [AppColors.darkAccent.withOpacity(0.8), AppColors.darkAccent] // Systemic gradient for dark
-                  : [AppColors.lightAccent.withOpacity(0.8), AppColors.lightAccent], // Systemic gradient for light
+                  ? [AppColors.darkAccent.withOpacity(0.8), AppColors.darkAccent]
+                  : [AppColors.lightAccent.withOpacity(0.8), AppColors.lightAccent],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

@@ -408,23 +408,6 @@ class ApiService {
     return json.decode(response.body);
   }
 
-  // Get list of categories
-  Future<List<String>> getCategories() async {
-    final response = await makeAuthenticatedRequest((token) => http.get(
-      Uri.parse('$baseUrl/categories/'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    ));
-
-    if (response.statusCode == 200) {
-      return List<String>.from(json.decode(response.body));
-    }
-    throw Exception('Failed to fetch categories: ${json.decode(response.body)['error'] ?? response.body}');
-  }
-
-  // Get user's currencies
   Future<List<String>> getUserCurrencies() async {
     final response = await makeAuthenticatedRequest((token) => http.get(
       Uri.parse('$baseUrl/currencies/'),
@@ -470,6 +453,88 @@ class ApiService {
 
     if (response.statusCode != 204) {
       throw Exception('Failed to delete currency: ${json.decode(response.body)['error'] ?? response.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    final response = await makeAuthenticatedRequest((token) => http.get(
+      Uri.parse('$baseUrl/categories/'), // No ?flat=true for detailed response
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    if (response.statusCode == 200) {
+      List<dynamic> customCategories = json.decode(response.body);
+      // Add default categories manually since ?flat=false only returns custom
+      List<Map<String, dynamic>> defaultCategories = [
+        {'id': null, 'name': 'food', 'type': 'expense'},
+        {'id': null, 'name': 'transport', 'type': 'expense'},
+        {'id': null, 'name': 'housing', 'type': 'expense'},
+        {'id': null, 'name': 'utilities', 'type': 'expense'},
+        {'id': null, 'name': 'entertainment', 'type': 'expense'},
+        {'id': null, 'name': 'healthcare', 'type': 'expense'},
+        {'id': null, 'name': 'education', 'type': 'expense'},
+        {'id': null, 'name': 'shopping', 'type': 'expense'},
+        {'id': null, 'name': 'other_expense', 'type': 'expense'},
+        {'id': null, 'name': 'salary', 'type': 'income'},
+        {'id': null, 'name': 'gift', 'type': 'income'},
+        {'id': null, 'name': 'interest', 'type': 'income'},
+        {'id': null, 'name': 'other_income', 'type': 'income'},
+      ];
+      return [...defaultCategories, ...customCategories.map((cat) => cat as Map<String, dynamic>)];
+    }
+    throw Exception('Failed to fetch categories: ${response.body}');
+  }
+
+  // Get list of custom categories (detailed)
+  Future<List<Map<String, dynamic>>> getCustomCategories() async {
+    final response = await makeAuthenticatedRequest((token) => http.get(
+      Uri.parse('$baseUrl/categories/custom/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
+    }
+    throw Exception('Failed to fetch custom categories: ${response.body}');
+  }
+
+  // Add a custom category
+  Future<Map<String, dynamic>> addCustomCategory(String name, String type) async {
+    final response = await makeAuthenticatedRequest((token) async {
+      return await http.post(
+        Uri.parse('$baseUrl/categories/custom/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'name': name, 'type': type}),
+      );
+    });
+
+    if (response.statusCode == 201) {
+      return json.decode(response.body); // Return the created category
+    }
+    throw Exception('Failed to add custom category: ${response.body}');
+  }
+
+  // Delete a custom category
+  Future<void> deleteCustomCategory(int id) async {
+    final response = await makeAuthenticatedRequest((token) => http.delete(
+      Uri.parse('$baseUrl/categories/custom/$id/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    if (response.statusCode != 204) {
+      throw Exception('Failed to delete custom category: ${response.body}');
     }
   }
 }

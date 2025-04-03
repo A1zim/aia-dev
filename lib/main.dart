@@ -15,6 +15,7 @@ import 'package:aia_wallet/theme/styles.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:aia_wallet/pages/CategoryScreen.dart';
 
 // Define LocaleProvider
 class LocaleProvider with ChangeNotifier {
@@ -130,6 +131,7 @@ class MyApp extends StatelessWidget {
             '/settings': (context) => const SettingsScreen(),
             '/profile': (context) => const ProfileScreen(),
             '/currency': (context) => const CurrencyScreen(),
+            '/categories': (context) => const CategoryScreen(),
           },
         );
       },

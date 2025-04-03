@@ -58,6 +58,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _isAnimating = false;
   late AnimationController _animationController;
 
+  // Define default categories for translation check
+  static const List<String> _defaultCategories = [
+    'food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense',
+    'salary', 'gift', 'interest', 'other_income',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -282,20 +288,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (currentIndex == 0) return;
 
       // Find the card currently at position 0 (top)
-      String topCard = _cardPositions.entries
-          .firstWhere((entry) => entry.value == 0)
-          .key;
+      String topCard = _cardPositions.entries.firstWhere((entry) => entry.value == 0).key;
 
       // Swap positions
       _cardPositions[cardType] = 0;
       _cardPositions[topCard] = currentIndex;
 
       // Update card order
-      _cardOrder = ['balance', 'income', 'expense']
-        ..sort((a, b) => _cardPositions[a]!.compareTo(_cardPositions[b]!));
+      _cardOrder = ['balance', 'income', 'expense']..sort((a, b) => _cardPositions[a]!.compareTo(_cardPositions[b]!));
 
       _animationController.forward(from: 0);
     });
+  }
+
+  // Navigate to a hypothetical CategoriesScreen and refresh data if a category was deleted
+  Future<void> _navigateToCategoriesScreen() async {
+    // Replace CategoriesScreen with your actual category management screen
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoriesScreen(), // Hypothetical screen
+      ),
+    );
+    // Check if a category was deleted (assuming the screen returns a result)
+    if (result is Map<String, dynamic> && result['categoryDeleted'] == true) {
+      await _refreshData();
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.categoryDeleted,
+      );
+    }
   }
 
   @override
@@ -677,6 +699,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
     final isExpanded = _expandedIndex == index;
 
+    // Determine if the category is default or custom and get the display name
+    String getCategoryDisplayName() {
+      final categoryName = transaction.category ?? 'other_${transaction.type}';
+      if (_defaultCategories.contains(categoryName)) {
+        return AppLocalizations.of(context)!.getCategoryName(categoryName).capitalize();
+      }
+      return categoryName.capitalize();
+    }
+
     return Card(
       elevation: 2,
       margin: EdgeInsets.fromLTRB(10, 6, 10, isLast ? 16 : 6),
@@ -719,14 +750,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            StringExtension(AppLocalizations.of(context)!.getCategoryName(transaction.category)).capitalize(),
+                            getCategoryDisplayName(),
                             style: AppTextStyles.body(context).copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            '${transaction.description} - ${transaction.timestamp.split("T")[0]}',
+                            '${transaction.description ?? ''} - ${transaction.timestamp.split("T")[0]}',
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                               fontSize: 12,
@@ -826,4 +857,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
+}
+
+// Hypothetical CategoriesScreen placeholder
+class CategoriesScreen extends StatelessWidget {
+  const CategoriesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // This is a placeholder. Replace with your actual category management screen.
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Categories'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            // Simulate category deletion
+            Navigator.pop(context, {'categoryDeleted': true});
+          },
+          child: const Text('Delete Category (Simulation)'),
+        ),
+      ),
+    );
+  }
 }

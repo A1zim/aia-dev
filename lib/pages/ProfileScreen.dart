@@ -255,7 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 } catch (e) {
                   NotificationService.showNotification(
                     context,
-                    message: AppLocalizations.of(context)!.clearDataFailed,
+                    message: AppLocalizations.of(context)!.clearDataFailed(e.toString()),
                     isError: true,
                   );
                 }
