@@ -55,7 +55,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         return obj.user.username
 
     def get_category(self, obj):
-        return obj.get_category()
+        if obj.default_category:
+            return obj.default_category
+        elif obj.custom_category:
+            return obj.custom_category.name  # Assuming custom_category is a ForeignKey to a UserCategory model
+        return 'Uncategorized'
 
     def validate_amount(self, value):
         if value <= 0:

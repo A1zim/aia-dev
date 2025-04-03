@@ -1,4 +1,3 @@
-// models/transaction.dart
 class Transaction {
   final int id;
   final int user;
@@ -9,7 +8,7 @@ class Transaction {
   final double amount;
   final String? description;     // Nullable to match backend
   final String timestamp;
-  final String username;
+  final String? username;        // Make nullable since backend doesn't return it
   final String? originalCurrency; // Nullable
   final double? originalAmount;   // Nullable
 
@@ -23,7 +22,7 @@ class Transaction {
     required this.amount,
     this.description,
     required this.timestamp,
-    required this.username,
+    this.username,               // No longer required
     this.originalCurrency,
     this.originalAmount,
   });
@@ -34,12 +33,12 @@ class Transaction {
       user: json['user'] as int,
       type: json['type'] as String,
       defaultCategory: json['default_category'] as String?,
-      customCategory: json['custom_category'] as int?, // ID of UserCategory or null
-      category: json['category'] as String?,           // Computed category name
+      customCategory: json['custom_category'] as int?,
+      category: json['category'] as String?,
       amount: double.parse(json['amount'].toString()),
       description: json['description'] as String?,
       timestamp: json['timestamp'] as String,
-      username: json['username'] as String,
+      username: json['username'] as String? ?? 'Unknown', // Fallback to 'Unknown' if null
       originalCurrency: json['original_currency'] as String?,
       originalAmount: json['original_amount'] != null
           ? double.parse(json['original_amount'].toString())

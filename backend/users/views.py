@@ -1,7 +1,7 @@
 import logging
 import random
 import string
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.core.mail import send_mail
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -541,86 +541,97 @@ class TransactionDetailView(APIView):
     """Update or delete a specific transaction"""
     permission_classes = [IsAuthenticated]
 
+    def get_category(self, transaction_obj):
+        """Helper method to compute the category value, mimicking the serializer"""
+        if transaction_obj.default_category:
+            return transaction_obj.default_category
+        elif transaction_obj.custom_category:
+            return transaction_obj.custom_category.name
+        return 'Uncategorized'
+
     def put(self, request, transaction_id):
-        print(f"Updating transaction {transaction_id} for user: {request.user.username}")
-        transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
-        
-        # Log the incoming request data to verify the timestamp
-        print(f"Request data: {request.data}")
+        """Update a transaction"""
+        try:
+            print(f"Updating transaction {transaction_id} for user: {request.user.username}")
+            transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
+            # Pass the context with the request to the serializer
+            serializer = TransactionSerializer(
+                transaction_obj,
+                data=request.data,
+                partial=True,
+                context={'request': request}
+            )
 
-        serializer = TransactionSerializer(
-            transaction_obj,
-            data=request.data,
-            partial=True,
-            context={'request': request}
-        )
+            if serializer.is_valid():
+                with transaction.atomic():
+                    old_amount = transaction_obj.amount
+                    old_type = transaction_obj.type
+                    old_category = self.get_category(transaction_obj)
 
-        if serializer.is_valid():
-            with transaction.atomic():
-                old_amount = transaction_obj.amount
-                old_type = transaction_obj.type
-                old_category = transaction_obj.category
+                    # Update the transaction
+                    serializer.save()
 
-                # Ensure timestamp is a date
-                if 'timestamp' in serializer.validated_data:
-                    timestamp = serializer.validated_data['timestamp']
-                    if isinstance(timestamp, datetime):
-                        serializer.validated_data['timestamp'] = timestamp.date()
+                    # Adjust user balances and category amounts
+                    user = request.user
+                    new_amount = Decimal(str(serializer.validated_data['amount']))
+                    new_type = serializer.validated_data['type']
+                    # Compute new_category from validated data
+                    new_category = serializer.validated_data.get('default_category')
+                    if not new_category and 'custom_category' in serializer.validated_data:
+                        custom_category = serializer.validated_data['custom_category']
+                        new_category = custom_category.name if custom_category else None
+                    if not new_category:
+                        new_category = 'Uncategorized'
 
-                # Update the transaction
-                serializer.save()
+                    # Revert the old transaction's effect
+                    if old_type == 'income':
+                        user.income -= old_amount
+                        user.balance -= old_amount
+                    else:  # expense
+                        user.expense -= old_amount
+                        user.balance += old_amount
 
-                # Adjust user balances and category amounts
-                user = request.user
-                new_amount = Decimal(str(serializer.validated_data['amount']))
-                new_type = serializer.validated_data['type']
-                new_category = serializer.validated_data['category']
+                    # Apply the new transaction's effect
+                    if new_type == 'income':
+                        user.income += new_amount
+                        user.balance += new_amount
+                    else:  # expense
+                        user.expense += new_amount
+                        user.balance -= new_amount
 
-                # Revert the old transaction's effect
-                if old_type == 'income':
-                    user.income -= old_amount
-                    user.balance -= old_amount
-                else:  # expense
-                    user.expense -= old_amount
-                    user.balance += old_amount
+                    # Update CategoryAmount
+                    if old_category != new_category or old_type != new_type:
+                        # Revert old category amount (create if it doesn't exist)
+                        old_category_amount, _ = CategoryAmount.objects.get_or_create(
+                            user=user, category=old_category, type=old_type, defaults={'amount': 0}
+                        )
+                        old_category_amount.amount -= old_amount
+                        if old_category_amount.amount <= 0:
+                            old_category_amount.delete()
+                        else:
+                            old_category_amount.save()
 
-                # Apply the new transaction's effect
-                if new_type == 'income':
-                    user.income += new_amount
-                    user.balance += new_amount
-                else:  # expense
-                    user.expense += new_amount
-                    user.balance -= new_amount
-
-                # Update CategoryAmount
-                if old_category != new_category or old_type != new_type:
-                    old_category_amount = CategoryAmount.objects.get(
-                        user=user, category=old_category, type=old_type
-                    )
-                    old_category_amount.amount -= old_amount
-                    if old_category_amount.amount <= 0:
-                        old_category_amount.delete()
+                        # Update or create new category amount
+                        new_category_amount, created = CategoryAmount.objects.get_or_create(
+                            user=user, category=new_category, type=new_type, defaults={'amount': 0}
+                        )
+                        new_category_amount.amount += new_amount
+                        new_category_amount.save()
                     else:
-                        old_category_amount.save()
+                        # Same category and type, just update the amount
+                        category_amount, _ = CategoryAmount.objects.get_or_create(
+                            user=user, category=new_category, type=new_type, defaults={'amount': 0}
+                        )
+                        category_amount.amount = category_amount.amount - old_amount + new_amount
+                        category_amount.save()
 
-                    new_category_amount, created = CategoryAmount.objects.get_or_create(
-                        user=user, category=new_category, type=new_type, defaults={'amount': 0}
-                    )
-                    new_category_amount.amount += new_amount
-                    new_category_amount.save()
-                else:
-                    category_amount = CategoryAmount.objects.get(
-                        user=user, category=new_category, type=new_type
-                    )
-                    category_amount.amount = category_amount.amount - old_amount + new_amount
-                    category_amount.save()
+                    user.save()
 
-                user.save()
-
-            print(f"Transaction {transaction_id} updated for user {user.username}: {serializer.data}")
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        print(f"Validation errors: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                print(f"Transaction {transaction_id} updated for user {user.username}: {serializer.data}")
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, transaction_id):
         """Delete a transaction"""
@@ -632,7 +643,7 @@ class TransactionDetailView(APIView):
                 user = request.user
                 amount = transaction_obj.amount
                 trans_type = transaction_obj.type
-                category = transaction_obj.category
+                category = self.get_category(transaction_obj)
 
                 if trans_type == 'income':
                     user.income -= amount
@@ -641,8 +652,10 @@ class TransactionDetailView(APIView):
                     user.expense -= amount
                     user.balance += amount
 
-                # Update CategoryAmount
-                category_amount = CategoryAmount.objects.get(user=user, category=category, type=trans_type)
+                # Update CategoryAmount (create if it doesn't exist)
+                category_amount, _ = CategoryAmount.objects.get_or_create(
+                    user=user, category=category, type=trans_type, defaults={'amount': 0}
+                )
                 category_amount.amount -= amount
                 if category_amount.amount <= 0:
                     category_amount.delete()
@@ -655,7 +668,6 @@ class TransactionDetailView(APIView):
             print(f"Transaction {transaction_id} deleted for user: {user.username}")
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            print(f"Error in TransactionDetailView.delete: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -775,7 +787,7 @@ class ResetFinances(APIView):  # Changed from ApiView to APIView
             )
 
 
-class FinancialSummary(APIView):  # Changed from ApiView to APIView
+class FinancialSummary(APIView):
     """Get a comprehensive summary of user's finances"""
     permission_classes = [IsAuthenticated]
 
@@ -797,7 +809,8 @@ class FinancialSummary(APIView):  # Changed from ApiView to APIView
 
             recent_transactions = TransactionSerializer(
                 Transaction.objects.filter(user=user).order_by('-timestamp')[:5],
-                many=True
+                many=True,
+                context={'request': request}
             ).data
 
             summary = {
@@ -816,7 +829,6 @@ class FinancialSummary(APIView):  # Changed from ApiView to APIView
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 class GetCategories(APIView):
     """Get all available transaction categories (default + custom)"""
@@ -980,8 +992,6 @@ class TransactionListView(generics.ListAPIView):
 
     def _filter_by_amount_range(self, queryset):
         """Filter transactions by amount range"""
-        from decimal import Decimal, InvalidOperation
-
         min_amount = self.request.query_params.get('min_amount')
         if min_amount:
             try:
@@ -997,6 +1007,12 @@ class TransactionListView(generics.ListAPIView):
                 pass
 
         return queryset
+
+    def get_serializer_context(self):
+        """Ensure the request is passed to the serializer context"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
     def list(self, request, *args, **kwargs):
         """Override list method to add metadata"""
@@ -1018,22 +1034,36 @@ class TransactionListView(generics.ListAPIView):
             raise
 
 
-class TransactionDetailView(APIView):  # Changed from ApiView to APIView
+class TransactionDetailView(APIView):
     """Update or delete a specific transaction"""
     permission_classes = [IsAuthenticated]
+
+    def get_category(self, transaction_obj):
+        """Helper method to compute the category value, mimicking the serializer"""
+        if transaction_obj.default_category:
+            return transaction_obj.default_category
+        elif transaction_obj.custom_category:
+            return transaction_obj.custom_category.name
+        return 'Uncategorized'
 
     def put(self, request, transaction_id):
         """Update a transaction"""
         try:
             print(f"Updating transaction {transaction_id} for user: {request.user.username}")
             transaction_obj = get_object_or_404(Transaction, id=transaction_id, user=request.user)
-            serializer = TransactionSerializer(transaction_obj, data=request.data, partial=True)
+            # Pass the context with the request to the serializer
+            serializer = TransactionSerializer(
+                transaction_obj,
+                data=request.data,
+                partial=True,
+                context={'request': request}
+            )
 
             if serializer.is_valid():
                 with transaction.atomic():
                     old_amount = transaction_obj.amount
                     old_type = transaction_obj.type
-                    old_category = transaction_obj.category
+                    old_category = self.get_category(transaction_obj)
 
                     # Update the transaction
                     serializer.save()
@@ -1042,7 +1072,13 @@ class TransactionDetailView(APIView):  # Changed from ApiView to APIView
                     user = request.user
                     new_amount = Decimal(str(serializer.validated_data['amount']))
                     new_type = serializer.validated_data['type']
-                    new_category = serializer.validated_data['category']
+                    # Compute new_category from validated data
+                    new_category = serializer.validated_data.get('default_category')
+                    if not new_category and 'custom_category' in serializer.validated_data:
+                        custom_category = serializer.validated_data['custom_category']
+                        new_category = custom_category.name if custom_category else None
+                    if not new_category:
+                        new_category = 'Uncategorized'
 
                     # Revert the old transaction's effect
                     if old_type == 'income':
@@ -1062,9 +1098,9 @@ class TransactionDetailView(APIView):  # Changed from ApiView to APIView
 
                     # Update CategoryAmount
                     if old_category != new_category or old_type != new_type:
-                        # Revert old category amount
-                        old_category_amount = CategoryAmount.objects.get(
-                            user=user, category=old_category, type=old_type
+                        # Revert old category amount (create if it doesn't exist)
+                        old_category_amount, _ = CategoryAmount.objects.get_or_create(
+                            user=user, category=old_category, type=old_type, defaults={'amount': 0}
                         )
                         old_category_amount.amount -= old_amount
                         if old_category_amount.amount <= 0:
@@ -1080,8 +1116,8 @@ class TransactionDetailView(APIView):  # Changed from ApiView to APIView
                         new_category_amount.save()
                     else:
                         # Same category and type, just update the amount
-                        category_amount = CategoryAmount.objects.get(
-                            user=user, category=new_category, type=new_type
+                        category_amount, _ = CategoryAmount.objects.get_or_create(
+                            user=user, category=new_category, type=new_type, defaults={'amount': 0}
                         )
                         category_amount.amount = category_amount.amount - old_amount + new_amount
                         category_amount.save()
@@ -1104,7 +1140,7 @@ class TransactionDetailView(APIView):  # Changed from ApiView to APIView
                 user = request.user
                 amount = transaction_obj.amount
                 trans_type = transaction_obj.type
-                category = transaction_obj.category
+                category = self.get_category(transaction_obj)
 
                 if trans_type == 'income':
                     user.income -= amount
@@ -1113,8 +1149,10 @@ class TransactionDetailView(APIView):  # Changed from ApiView to APIView
                     user.expense -= amount
                     user.balance += amount
 
-                # Update CategoryAmount
-                category_amount = CategoryAmount.objects.get(user=user, category=category, type=trans_type)
+                # Update CategoryAmount (create if it doesn't exist)
+                category_amount, _ = CategoryAmount.objects.get_or_create(
+                    user=user, category=category, type=trans_type, defaults={'amount': 0}
+                )
                 category_amount.amount -= amount
                 if category_amount.amount <= 0:
                     category_amount.delete()
@@ -1128,7 +1166,6 @@ class TransactionDetailView(APIView):  # Changed from ApiView to APIView
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class ReportView(APIView):
     """Generate financial reports based on filters"""
@@ -1232,12 +1269,12 @@ class ReportView(APIView):
 
             # Serialize transactions
             logger.info("Serializing transactions...")
-            transactions = TransactionSerializer(queryset, many=True).data
+            transactions = TransactionSerializer(queryset, many=True, context={'request': request}).data
             logger.info(f"Serialized transactions: {transactions}")
 
             report = {
                 'total_income': float(total_income),
-                'total_expense': float(expense_amount),
+                'total_expense': float(total_expense),  # Fixed typo: expense_amount to total_expense
                 'income_by_category': income_by_category,
                 'expense_by_category': expense_by_category,
                 'transactions': transactions
