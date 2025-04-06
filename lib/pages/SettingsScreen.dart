@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:aia_wallet/services/api_service.dart';
 import 'package:aia_wallet/services/currency_api_service.dart';
 import 'package:aia_wallet/services/notification_service.dart';
 import 'package:aia_wallet/theme/styles.dart';
@@ -8,6 +7,8 @@ import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
 import 'package:aia_wallet/main.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
+import 'package:flutter/services.dart';
+import 'package:aia_wallet/utils/scaling.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,14 +18,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final ApiService _apiService = ApiService();
   final CurrencyApiService _currencyApiService = CurrencyApiService();
-  String _selectedCurrency = 'KGS'; // Default to KGS
-  double _exchangeRate = 1.0; // Default rate (KGS to KGS)
-  String _selectedLanguage = 'ky'; // Default to Kyrgyz
+  String _selectedCurrency = 'KGS';
+  double _exchangeRate = 1.0;
+  String _selectedLanguage = 'ky';
   bool _isLoading = false;
 
   List<String> _availableCurrencies = [];
+  static const String appVersion = '0.0.2';
 
   @override
   void initState() {
@@ -36,9 +37,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadAvailableCurrencies() async {
     try {
-      final userCurrencies = await _apiService.getUserCurrencies();
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
       setState(() {
-        _availableCurrencies = userCurrencies;
+        _availableCurrencies = currencyProvider.availableCurrencies;
       });
     } catch (e) {
       print('Failed to load available currencies: $e');
@@ -48,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         isError: true,
       );
       setState(() {
-        _availableCurrencies = ['KGS']; // Fallback to KGS if there's an error
+        _availableCurrencies = ['KGS'];
       });
     }
   }
@@ -99,42 +100,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
     localeProvider.setLocale(Locale(value));
   }
 
-  void _logout() {
-    showDialog(
+  Future<void> _exitApp() async {
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.logout, style: AppTextStyles.subheading(context)),
-          content: Text(AppLocalizations.of(context)!.logoutConfirm, style: AppTextStyles.body(context)),
-          actions: [
-            TextButton(
-              style: AppButtonStyles.textButton(context),
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context)!.cancel, style: AppTextStyles.body(context)),
-            ),
-            TextButton(
-              style: AppButtonStyles.textButton(context),
-              onPressed: () async {
-                await _apiService.clearTokens();
-                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-              },
-              child: Text(
-                AppLocalizations.of(context)!.confirmLogout,
-                style: AppTextStyles.body(context).copyWith(color: Theme.of(context).colorScheme.error),
+          backgroundColor: Colors.transparent,
+          content: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [AppColors.darkSurface, AppColors.darkBackground]
+                    : [AppColors.lightSurface, AppColors.lightBackground],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(Scaling.scale(12)),
+              border: Border.all(
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
             ),
-          ],
+            child: Padding(
+              padding: EdgeInsets.all(Scaling.scalePadding(16.0)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)!.exitApp,
+                    style: AppTextStyles.subheading(context),
+                  ),
+                  SizedBox(height: Scaling.scalePadding(8)),
+                  Text(
+                    AppLocalizations.of(context)!.exitAppConfirm,
+                    style: AppTextStyles.body(context),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: Scaling.scalePadding(16)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: Scaling.scalePadding(12),
+                              horizontal: Scaling.scalePadding(16),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(
+                            AppLocalizations.of(context)!.no,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: Scaling.scalePadding(8)),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: Scaling.scalePadding(12),
+                              horizontal: Scaling.scalePadding(16),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            AppLocalizations.of(context)!.yes,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
+
+    if (confirmed == true) {
+      SystemNavigator.pop();
+    }
   }
 
   void _showCurrencyPicker() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
+          ),
           backgroundColor: Theme.of(context).cardColor,
           contentPadding: const EdgeInsets.all(0),
           content: Container(
@@ -143,22 +219,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: EdgeInsets.symmetric(
+                    vertical: Scaling.scalePadding(12),
+                    horizontal: Scaling.scalePadding(16),
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppColors.darkSurface
-                        : AppColors.lightSurface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(Scaling.scale(12)),
+                    ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.attach_money,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? AppColors.darkAccent
-                            : AppColors.lightAccent,
+                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                        size: Scaling.scaleIcon(24),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: Scaling.scalePadding(8)),
                       Text(
                         AppLocalizations.of(context)!.selectCurrency,
                         style: AppTextStyles.subheading(context),
@@ -169,25 +247,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
-                    itemCount: _availableCurrencies.length,
+                    itemCount: _availableCurrencies.length + 1,
                     itemBuilder: (context, index) {
-                      final currency = _availableCurrencies[index];
+                      if (index == 0) {
+                        return ListTile(
+                          leading: Icon(
+                            Icons.add,
+                            color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                            size: Scaling.scaleIcon(24),
+                          ),
+                          title: Text(
+                            AppLocalizations.of(context)!.addCurrency,
+                            style: AppTextStyles.body(context).copyWith(
+                              color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.pushNamed(context, '/currency');
+                          },
+                        );
+                      }
+
+                      final currencyIndex = index - 1;
+                      final currency = _availableCurrencies[currencyIndex];
                       final isSelected = currency == _selectedCurrency;
                       return ListTile(
-                        leading: Text(_currencyApiService.getCurrencyFlag(currency)),
+                        leading: Text(
+                          _currencyApiService.getCurrencyFlag(currency),
+                          style: TextStyle(fontSize: Scaling.scaleFont(20)),
+                        ),
                         title: Text(
                           '$currency - ${_currencyApiService.getCountryForCurrency(currency)}',
                           style: AppTextStyles.body(context).copyWith(
                             color: isSelected
-                                ? (Theme.of(context).brightness == Brightness.dark
-                                ? AppColors.darkAccent
-                                : AppColors.lightAccent)
+                                ? (isDark ? AppColors.darkAccent : AppColors.lightAccent)
                                 : null,
                           ),
                         ),
-                        trailing: Text(_currencyApiService.getCurrencySymbol(currency)),
+                        trailing: Text(
+                          _currencyApiService.getCurrencySymbol(currency),
+                          style: TextStyle(fontSize: Scaling.scaleFont(14)),
+                        ),
                         tileColor: isSelected
-                            ? (Theme.of(context).brightness == Brightness.dark
+                            ? (isDark
                             ? AppColors.darkAccent.withOpacity(0.1)
                             : AppColors.lightAccent.withOpacity(0.1))
                             : null,
@@ -218,7 +322,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
+          ),
           backgroundColor: Theme.of(context).cardColor,
           contentPadding: const EdgeInsets.all(0),
           content: Container(
@@ -227,12 +333,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: EdgeInsets.symmetric(
+                    vertical: Scaling.scalePadding(12),
+                    horizontal: Scaling.scalePadding(16),
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? AppColors.darkSurface
                         : AppColors.lightSurface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(Scaling.scale(12)),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -241,8 +352,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: Theme.of(context).brightness == Brightness.dark
                             ? AppColors.darkAccent
                             : AppColors.lightAccent,
+                        size: Scaling.scaleIcon(24),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: Scaling.scalePadding(8)),
                       Text(
                         AppLocalizations.of(context)!.selectLanguage,
                         style: AppTextStyles.subheading(context),
@@ -258,7 +370,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       final language = languages[index];
                       final isSelected = language['code'] == _selectedLanguage;
                       return ListTile(
-                        leading: Text(language['flag']!),
+                        leading: Text(
+                          language['flag']!,
+                          style: TextStyle(fontSize: Scaling.scaleFont(20)),
+                        ),
                         title: Text(
                           language['name']!,
                           style: AppTextStyles.body(context).copyWith(
@@ -292,11 +407,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Scaling.init(context);
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final logoPath = themeProvider.getLogoPath(context);
-    _selectedCurrency = currencyProvider.currency; // Sync with provider
+    _selectedCurrency = currencyProvider.currency;
     _exchangeRate = currencyProvider.exchangeRate;
 
     return Scaffold(
@@ -312,32 +429,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         child: Column(
           children: [
-            // Custom Header like ReportsScreen
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              padding: EdgeInsets.symmetric(
+                horizontal: Scaling.scalePadding(16.0),
+                vertical: Scaling.scalePadding(10.0),
+              ),
               color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
               child: SafeArea(
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(width: 24),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Image.asset(
                           logoPath,
-                          height: 40,
-                          width: 40,
+                          height: Scaling.scale(40),
+                          width: Scaling.scale(40),
                           fit: BoxFit.contain,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: Scaling.scalePadding(8)),
                         RichText(
                           text: TextSpan(
                             children: [
                               TextSpan(
                                 text: 'MON',
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: Scaling.scaleFont(24),
                                   fontWeight: FontWeight.bold,
                                   color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                   fontFamily: 'Poppins',
@@ -346,7 +463,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               TextSpan(
                                 text: 'ey',
                                 style: TextStyle(
-                                  fontSize: 24,
+                                  fontSize: Scaling.scaleFont(24),
                                   fontWeight: FontWeight.normal,
                                   color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                   fontFamily: 'Poppins',
@@ -357,17 +474,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(width: 24),
+                    SizedBox(width: Scaling.scalePadding(24)),
                   ],
                 ),
               ),
             ),
             Container(
-              margin: const EdgeInsets.only(top: 8.0),
+              margin: EdgeInsets.only(top: Scaling.scalePadding(8.0)),
               child: Center(
                 child: Text(
                   AppLocalizations.of(context)!.settingsTitle,
-                  style: AppTextStyles.heading(context).copyWith(fontSize: 18),
+                  style: AppTextStyles.heading(context).copyWith(fontSize: Scaling.scaleFont(18)),
                 ),
               ),
             ),
@@ -377,17 +494,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(Scaling.scalePadding(16.0)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Card(
                       elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Scaling.scale(12)),
+                      ),
                       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       child: SwitchListTile.adaptive(
-                        title: Text(AppLocalizations.of(context)!.darkMode,
-                            style: AppTextStyles.body(context).copyWith(fontSize: 16)),
+                        title: Text(
+                          AppLocalizations.of(context)!.darkMode,
+                          style: AppTextStyles.body(context).copyWith(fontSize: Scaling.scaleFont(16)),
+                        ),
                         subtitle: Text(
                           isDark
                               ? AppLocalizations.of(context)!.darkModeEnabled
@@ -403,11 +524,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         secondary: Icon(
                           Icons.dark_mode,
                           color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                          size: Scaling.scaleIcon(24),
                         ),
                         activeColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: Scaling.scalePadding(16)),
                     Divider(
                       color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
                       thickness: 1,
@@ -422,6 +544,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icon(
                                 Icons.attach_money,
                                 color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                size: Scaling.scaleIcon(24),
                               ),
                               label: Text(
                                 AppLocalizations.of(context)!.selectCurrency,
@@ -432,12 +555,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(Scaling.scale(12)),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: Scaling.scalePadding(16),
+                                  vertical: Scaling.scalePadding(12),
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            SizedBox(width: Scaling.scalePadding(8)),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -452,7 +578,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   '1 KGS = ${_exchangeRate.toStringAsFixed(3)} $_selectedCurrency',
                                   style: AppTextStyles.body(context).copyWith(
                                     color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                    fontSize: 12,
+                                    fontSize: Scaling.scaleFont(12),
                                   ),
                                 ),
                               ],
@@ -461,15 +587,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         if (_isLoading)
                           SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: Scaling.scale(20),
+                            height: Scaling.scale(20),
                             child: CircularProgressIndicator(
                               color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
                             ),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: Scaling.scalePadding(16)),
                     Divider(
                       color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
                       thickness: 1,
@@ -484,6 +610,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icon(
                                 Icons.language,
                                 color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                size: Scaling.scaleIcon(24),
                               ),
                               label: Text(
                                 AppLocalizations.of(context)!.selectLanguage,
@@ -494,12 +621,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(Scaling.scale(12)),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: Scaling.scalePadding(16),
+                                  vertical: Scaling.scalePadding(12),
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            SizedBox(width: Scaling.scalePadding(16)),
                             Text(
                               '${_selectedLanguage == 'en' ? '🇺🇸' : _selectedLanguage == 'ky' ? '🇰🇬' : '🇷🇺'} '
                                   '${_selectedLanguage == 'en' ? AppLocalizations.of(context)!.languageEnglish : _selectedLanguage == 'ky' ? AppLocalizations.of(context)!.languageKyrgyz : AppLocalizations.of(context)!.languageRussian}',
@@ -511,20 +641,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: Scaling.scalePadding(16)),
                     Divider(
                       color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
                       thickness: 1,
                     ),
                     ListTile(
                       leading: Icon(
-                        Icons.logout,
+                        Icons.category,
                         color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                        size: Scaling.scaleIcon(24),
                       ),
-                      title: Text(AppLocalizations.of(context)!.logout,
-                          style: AppTextStyles.body(context).copyWith(fontSize: 16)),
-                      onTap: _logout,
+                      title: Text(
+                        AppLocalizations.of(context)!.categories,
+                        style: AppTextStyles.body(context).copyWith(fontSize: Scaling.scaleFont(16)),
+                      ),
+                      onTap: () {
+                        Navigator.pushNamed(context, '/categories');
+                      },
                     ),
+                    Divider(
+                      color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
+                      thickness: 1,
+                    ),
+                    ListTile(
+                      leading: Icon(
+                        Icons.exit_to_app,
+                        color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
+                        size: Scaling.scaleIcon(24),
+                      ),
+                      title: Text(
+                        AppLocalizations.of(context)!.exitApp,
+                        style: AppTextStyles.body(context).copyWith(fontSize: Scaling.scaleFont(16)),
+                      ),
+                      onTap: _exitApp,
+                    ),
+                    const Spacer(),
+                    Center(
+                      child: Text(
+                        'Version: $appVersion',
+                        style: AppTextStyles.body(context).copyWith(
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          fontSize: Scaling.scaleFont(12),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: Scaling.scalePadding(16)),
                   ],
                 ),
               ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:flutter/foundation.dart';
 
 class AppLocalizations {
   AppLocalizations(this.locale);
@@ -139,7 +139,6 @@ class AppLocalizations {
       'failedToLoadData': 'Failed to load data: {error}',
       'failedToLoadCategories': 'Failed to load categories: {error}',
       'currencyConversionError': 'Failed to convert currency: {error}',
-      // Category translations
       'food': 'Food',
       'transport': 'Transport',
       'housing': 'Housing',
@@ -173,9 +172,9 @@ class AppLocalizations {
       'categoryName': "Category Name",
       "customDateRange": "Custom Date Range",
       "custom": "Custom",
-      "lastWeek": "Last Week",
-      "lastMonth": "Last Month",
-      "last3Months": "Last 3 Months",
+      "lastWeek": "Weekly",
+      "lastMonth": "Monthly",
+      "last3Months": "3 Months",
       "categories": "Categories",
       "dateRange": "Date Range",
       "original": "Original",
@@ -183,7 +182,6 @@ class AppLocalizations {
       "categoryNameRequired": "Please enter a category name",
       "newCategory": "New Category",
       "categoryDeleted": "Category Deleted",
-      // New category-related strings
       "categoriesLoadFailed": "Failed to load categories: {error}",
       "categoryAdded": "Category '{name}' added successfully",
       "categoryAddFailed": "Failed to add category: {error}",
@@ -191,6 +189,41 @@ class AppLocalizations {
       "deleteCategory": "Delete Category",
       "deleteCategoryConfirm": "Are you sure you want to delete '{name}'?",
       "categoryDeleteFailed": "Failed to delete category: {error}",
+      "exit_app": "Exit",
+      "exit_app_confirm": "Are you sure you want to exit the app?",
+      "add_currency": "Add Currency",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "last6Months": "6 Months",
+      "yearly": "Yearly",
+      // Month names (full)
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December",
+      // Month names (short)
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec",
+      "close": "Close",
+      "version": "Version: ",
     },
     'ky': {
       'appTitle': 'Жеке Финансы',
@@ -287,7 +320,7 @@ class AppLocalizations {
       'usernameTooShort': 'Колдонуучунун аты кеминде 3 символдон турган болушу керек',
       'password': 'Сырсөз',
       'passwordRequired': 'Сураныч, сырсөздү киргизиңиз',
-      'passwordTooShort': 'Сырсöз кеминде 6 символдон турган болушу керек',
+      'passwordTooShort': 'Сырсөз кеминде 6 символдон турган болушу керек',
       'emailRequired': 'Сураныч, электрондук почтаны киргизиңиз',
       'emailInvalid': 'Сураныч, жарактуу электрондук почтаны киргизиңиз',
       'dontHaveAccount': 'Каттоо эсебиңиз жокпу? Катталыңыз',
@@ -314,11 +347,10 @@ class AppLocalizations {
       'noDataAvailable': 'Маалымат жок',
       'unknown': 'Белгисиз',
       'percentage': 'Пайыз',
-      'details': 'Деталдар',
+      'details': 'деталдары',
       'failedToLoadData': 'Маалыматты жүктөө ишке ашкан жок: {error}',
       'failedToLoadCategories': 'Категорияларды жүктөө ишке ашкан жок: {error}',
       'currencyConversionError': 'Валютаны конвертациялоо ишке ашкан жок: {error}',
-      // Category translations
       'food': 'Тамак-аш',
       'transport': 'Транспорт',
       'housing': 'Турак жай',
@@ -352,9 +384,9 @@ class AppLocalizations {
       'categoryName': "Категориянын аты",
       "customDateRange": "Өздүк дата аралыктары",
       "custom": "Өздүк",
-      "lastWeek": "Акыркы жума",
-      "lastMonth": "Акыркы ай",
-      "last3Months": "Акыркы 3 ай",
+      "lastWeek": "Жумалык",
+      "lastMonth": "Айлык",
+      "last3Months": "3 ай",
       "categories": "Категориялар",
       "dateRange": "Дата аралыктыры",
       "original": "Нак оригинал",
@@ -362,7 +394,6 @@ class AppLocalizations {
       "categoryNameRequired": "Категориянын атын жазыңыз",
       "newCategory": "Жаңы категория",
       "categoryDeleted": "Категория жок кылынды",
-      // New category-related strings
       "categoriesLoadFailed": "Категорияларды жүктөө ишке ашкан жок: {error}",
       "categoryAdded": "Категория '{name}' ийгиликтүү кошулду",
       "categoryAddFailed": "Категорияны кошуу ишке ашкан жок: {error}",
@@ -370,6 +401,42 @@ class AppLocalizations {
       "deleteCategory": "Категорияны жок кылуу",
       "deleteCategoryConfirm": "'{name}' жок кылууну каалайсызбы?",
       "categoryDeleteFailed": "Категорияны жок кылуу ишке ашкан жок: {error}",
+      "exit_app": "Чыгуу",
+      "exit_app_confirm": "Сиз чынында тиркемеден чыгууну каалап жатасызбы?",
+      "add_currency": "Валюта кошуу",
+      "daily": "Күнүмдүк",
+      "weekly": "Жумалык",
+      "monthly": "Айлык",
+      "last6Months": "6 Ай",
+      "yearly": "Жылдык",
+      // Month names (full)
+      "january": "Январь",
+      "february": "Февраль",
+      "march": "Март",
+      "april": "Апрель",
+      "may": "Май",
+      "june": "Июнь",
+      "july": "Июль",
+      "august": "Август",
+      "september": "Сентябрь",
+      "october": "Октябрь",
+      "november": "Ноябрь",
+      "december": "Декабрь",
+      // Month names (short)
+      "jan": "Янв",
+      "feb": "Фев",
+      "mar": "Мар",
+      "apr": "Апр",
+      "jun": "Июн",
+      "jul": "Июл",
+      "aug": "Авг",
+      "sep": "Сен",
+      "oct": "Окт",
+      "nov": "Ноя",
+      "dec": "Дек",
+      "close": "Жабуу",
+      "version": "Версиясы: ",
+
     },
     'ru': {
       'appTitle': 'Личные Финансы',
@@ -493,11 +560,10 @@ class AppLocalizations {
       'noDataAvailable': 'Данные отсутствуют',
       'unknown': 'Неизвестно',
       'percentage': 'Процент',
-      'details': 'Детали',
+      'details': 'детали',
       'failedToLoadData': 'Не удалось загрузить данные: {error}',
       'failedToLoadCategories': 'Не удалось загрузить категории: {error}',
       'currencyConversionError': 'Не удалось конвертировать валюту: {error}',
-      // Category translations
       'food': 'Еда',
       'transport': 'Транспорт',
       'housing': 'Жилье',
@@ -531,9 +597,9 @@ class AppLocalizations {
       'categoryName': "Имя категории",
       "customDateRange": "Собственный промежуток",
       "custom": "Своё",
-      "lastWeek": "Последняя неделя",
-      "lastMonth": "Последний месяц",
-      "last3Months": "Последние 3 месяца",
+      "lastWeek": "По неделям",
+      "lastMonth": "По месяцам",
+      "last3Months": "3 месяца",
       "categories": "Категории",
       "dateRange": "Промежуток",
       "original": "Оригинал",
@@ -541,7 +607,6 @@ class AppLocalizations {
       "categoryNameRequired": "Название категории необходимо",
       "newCategory": "Новая категория",
       "categoryDeleted": "Категория удалена",
-      // New category-related strings
       "categoriesLoadFailed": "Не удалось загрузить категории: {error}",
       "categoryAdded": "Категория '{name}' успешно добавлена",
       "categoryAddFailed": "Не удалось добавить категорию: {error}",
@@ -549,6 +614,41 @@ class AppLocalizations {
       "deleteCategory": "Удалить категорию",
       "deleteCategoryConfirm": "Вы уверены, что хотите удалить '{name}'?",
       "categoryDeleteFailed": "Не удалось удалить категорию: {error}",
+      "exit_app": "Выйти",
+      "exit_app_confirm": "Вы уверены, что хотите выйти из приложения?",
+      "add_currency": "Добавить валюту",
+      "daily": "Ежедневно",
+      "weekly": "Еженедельно",
+      "monthly": "Ежемесячно",
+      "last6Months": "6 Месяцев",
+      "yearly": "Ежегодно",
+      // Month names (full)
+      "january": "Январь",
+      "february": "Февраль",
+      "march": "Март",
+      "april": "Апрель",
+      "may": "Май",
+      "june": "Июнь",
+      "july": "Июль",
+      "august": "Август",
+      "september": "Сентябрь",
+      "october": "Октябрь",
+      "november": "Ноябрь",
+      "december": "Декабрь",
+      // Month names (short)
+      "jan": "Янв",
+      "feb": "Фев",
+      "mar": "Мар",
+      "apr": "Апр",
+      "jun": "Июн",
+      "jul": "Июл",
+      "aug": "Авг",
+      "sep": "Сен",
+      "oct": "Окт",
+      "nov": "Ноя",
+      "dec": "Дек",
+      "close": "Закрыть",
+      "version": "Версия: ",
     }
   };
 
@@ -725,7 +825,6 @@ class AppLocalizations {
   String get categoryNameRequired => _localizedValues[locale.languageCode]!['categoryNameRequired']!;
   String get newCategory => _localizedValues[locale.languageCode]!['newCategory']!;
   String get categoryDeleted => _localizedValues[locale.languageCode]!['categoryDeleted']!;
-  // New category-related getters
   String categoriesLoadFailed(String error) =>
       _localizedValues[locale.languageCode]!['categoriesLoadFailed']!.replaceAll('{error}', error);
   String categoryAdded(String name) =>
@@ -739,8 +838,14 @@ class AppLocalizations {
       _localizedValues[locale.languageCode]!['deleteCategoryConfirm']!.replaceAll('{name}', name);
   String categoryDeleteFailed(String error) =>
       _localizedValues[locale.languageCode]!['categoryDeleteFailed']!.replaceAll('{error}', error);
-
-  // Getters for category translations
+  String get exit_app => _localizedValues[locale.languageCode]!['exit_app']!;
+  String get exit_app_confirm => _localizedValues[locale.languageCode]!['exit_app_confirm']!;
+  String get add_currency => _localizedValues[locale.languageCode]!['add_currency']!;
+  String get daily => _localizedValues[locale.languageCode]!['daily']!;
+  String get weekly => _localizedValues[locale.languageCode]!['weekly']!;
+  String get monthly => _localizedValues[locale.languageCode]!['monthly']!;
+  String get last6Months => _localizedValues[locale.languageCode]!['last6Months']!;
+  String get yearly => _localizedValues[locale.languageCode]!['yearly']!;
   String get food => _localizedValues[locale.languageCode]!['food']!;
   String get transport => _localizedValues[locale.languageCode]!['transport']!;
   String get housing => _localizedValues[locale.languageCode]!['housing']!;
@@ -754,8 +859,77 @@ class AppLocalizations {
   String get gift => _localizedValues[locale.languageCode]!['gift']!;
   String get interest => _localizedValues[locale.languageCode]!['interest']!;
   String get otherIncome => _localizedValues[locale.languageCode]!['other_income']!;
+  String get exitApp => _localizedValues[locale.languageCode]!['exit_app']!;
+  String get exitAppConfirm => _localizedValues[locale.languageCode]!['exit_app_confirm']!;
+  String get addCurrency => _localizedValues[locale.languageCode]!['add_currency']!;
+  String get close => _localizedValues[locale.languageCode]!['close']!;
+  String get version => _localizedValues[locale.languageCode]!['version']!;
 
-  // Method to get the localized category name dynamically
+
+  // Method to get the full month name based on the month number (1-12)
+  String getMonthName(int month) {
+    switch (month) {
+      case 1:
+        return _localizedValues[locale.languageCode]!['january']!;
+      case 2:
+        return _localizedValues[locale.languageCode]!['february']!;
+      case 3:
+        return _localizedValues[locale.languageCode]!['march']!;
+      case 4:
+        return _localizedValues[locale.languageCode]!['april']!;
+      case 5:
+        return _localizedValues[locale.languageCode]!['may']!;
+      case 6:
+        return _localizedValues[locale.languageCode]!['june']!;
+      case 7:
+        return _localizedValues[locale.languageCode]!['july']!;
+      case 8:
+        return _localizedValues[locale.languageCode]!['august']!;
+      case 9:
+        return _localizedValues[locale.languageCode]!['september']!;
+      case 10:
+        return _localizedValues[locale.languageCode]!['october']!;
+      case 11:
+        return _localizedValues[locale.languageCode]!['november']!;
+      case 12:
+        return _localizedValues[locale.languageCode]!['december']!;
+      default:
+        return '';
+    }
+  }
+
+  // Method to get the short month name based on the month number (1-12)
+  String getShortMonthName(int month) {
+    switch (month) {
+      case 1:
+        return _localizedValues[locale.languageCode]!['jan']!;
+      case 2:
+        return _localizedValues[locale.languageCode]!['feb']!;
+      case 3:
+        return _localizedValues[locale.languageCode]!['mar']!;
+      case 4:
+        return _localizedValues[locale.languageCode]!['apr']!;
+      case 5:
+        return _localizedValues[locale.languageCode]!['may']!;
+      case 6:
+        return _localizedValues[locale.languageCode]!['jun']!;
+      case 7:
+        return _localizedValues[locale.languageCode]!['jul']!;
+      case 8:
+        return _localizedValues[locale.languageCode]!['aug']!;
+      case 9:
+        return _localizedValues[locale.languageCode]!['sep']!;
+      case 10:
+        return _localizedValues[locale.languageCode]!['oct']!;
+      case 11:
+        return _localizedValues[locale.languageCode]!['nov']!;
+      case 12:
+        return _localizedValues[locale.languageCode]!['dec']!;
+      default:
+        return '';
+    }
+  }
+
   String getCategoryName(String category) {
     switch (category.toLowerCase()) {
       case 'food':
@@ -788,18 +962,6 @@ class AppLocalizations {
         return unknown;
     }
   }
-
-  // Generic translation method with fallback
-  String translate(String key) {
-    if (_localizedValues[locale.languageCode]?.containsKey(key) ?? false) {
-      return _localizedValues[locale.languageCode]![key]!;
-    }
-    if (_localizedValues['en']?.containsKey(key) ?? false) {
-      return _localizedValues['en']![key]!;
-    }
-    debugPrint('Translation not found for key: $key');
-    return key;
-  }
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
@@ -810,7 +972,7 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
 
   @override
   Future<AppLocalizations> load(Locale locale) async {
-    return AppLocalizations(locale);
+    return SynchronousFuture<AppLocalizations>(AppLocalizations(locale));
   }
 
   @override
