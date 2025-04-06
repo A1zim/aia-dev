@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
-import 'package:aia_wallet/pages/LoginRegister.dart';
-import 'package:aia_wallet/pages/MainNavigationScreen.dart';
 import 'package:aia_wallet/pages/AddTransactionScreen.dart';
-import 'package:aia_wallet/pages/HomeScreen.dart';
-import 'package:aia_wallet/pages/ReportsScreen.dart';
-import 'package:aia_wallet/pages/SettingsScreen.dart';
-import 'package:aia_wallet/pages/TransactionHistoryScreen.dart';
-import 'package:aia_wallet/pages/ProfileScreen.dart';
 import 'package:aia_wallet/pages/CurrencyScreen.dart';
+import 'package:aia_wallet/pages/CategoryScreen.dart';
+import 'package:aia_wallet/pages/MainNavigationScreen.dart';
 import 'package:aia_wallet/theme/styles.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
+import 'package:aia_wallet/providers/transaction_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:aia_wallet/pages/CategoryScreen.dart';
 
 // Define LocaleProvider
 class LocaleProvider with ChangeNotifier {
@@ -43,8 +38,7 @@ class NoTransitionPageTransitionsBuilder extends PageTransitionsBuilder {
       BuildContext context,
       Animation<double> animation,
       Animation<double> secondaryAnimation,
-      Widget child,
-      ) {
+      Widget child) {
     return child; // No transition animation
   }
 }
@@ -59,10 +53,13 @@ void main() async {
 
   // Initialize providers
   final themeProvider = ThemeProvider(initialMode: ThemeProvider().themeModeFromString(savedTheme));
-  await themeProvider.loadTheme(); // Ensure the theme is loaded
+  await themeProvider.loadTheme();
   final localeProvider = LocaleProvider(Locale(savedLocale));
+  final transactionProvider = TransactionProvider();
+  await transactionProvider.init(); // Initialize the database
   final currencyProvider = CurrencyProvider();
   await currencyProvider.loadCurrency(); // Load saved currency
+  currencyProvider.setTransactionProvider(transactionProvider);
 
   runApp(
     MultiProvider(
@@ -70,6 +67,7 @@ void main() async {
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: localeProvider),
         ChangeNotifierProvider.value(value: currencyProvider),
+        ChangeNotifierProvider.value(value: transactionProvider),
       ],
       child: const MyApp(),
     ),
@@ -121,17 +119,21 @@ class MyApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           debugShowCheckedModeBanner: false,
-          initialRoute: '/',
+          initialRoute: '/main',
           routes: {
-            '/': (context) => const LoginRegister(),
             '/main': (context) => const MainNavigationScreen(),
             '/add_transaction': (context) => const AddTransactionScreen(),
-            '/reports': (context) => const ReportsScreen(),
-            '/history': (context) => const TransactionHistoryScreen(),
-            '/settings': (context) => const SettingsScreen(),
-            '/profile': (context) => const ProfileScreen(),
             '/currency': (context) => const CurrencyScreen(),
             '/categories': (context) => const CategoryScreen(),
+          },
+          builder: (context, child) {
+            // Respect user's font size settings
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaleFactor: MediaQuery.of(context).textScaleFactor,
+              ),
+              child: child!,
+            );
           },
         );
       },

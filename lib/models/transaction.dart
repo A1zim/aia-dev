@@ -1,75 +1,136 @@
+import 'package:flutter/foundation.dart';
+import '../providers/transaction_provider.dart';
+
 class Transaction {
-  final int id;
-  final int user;
+  static const String fallbackExpenseCategory = 'other_expense';
+  static const String fallbackIncomeCategory = 'other_income';
+
+  final int? id; // Made nullable
   final String type;
-  final String? defaultCategory; // Nullable to match backend
-  final int? customCategory;     // Nullable, represents UserCategory ID
-  final String? category;        // Computed field from backend, nullable
+  final String? defaultCategory;
+  final int? customCategoryId;
   final double amount;
-  final String? description;     // Nullable to match backend
+  final String? description;
   final String timestamp;
-  final String? username;        // Make nullable since backend doesn't return it
-  final String? originalCurrency; // Nullable
-  final double? originalAmount;   // Nullable
+  final String? originalCurrency;
+  final double? originalAmount;
 
   Transaction({
-    required this.id,
-    required this.user,
-    required this.type,
+    this.id,
+    required String type,
     this.defaultCategory,
-    this.customCategory,
-    this.category,
+    this.customCategoryId,
     required this.amount,
     this.description,
     required this.timestamp,
-    this.username,               // No longer required
     this.originalCurrency,
     this.originalAmount,
-  });
+  }) : type = type {
+    if (type != 'income' && type != 'expense') {
+      throw ArgumentError('Type must be either "income" or "expense", got: $type');
+    }
+  }
 
-  factory Transaction.fromJson(Map<String, dynamic> json) {
+  factory Transaction.create({
+    required String type,
+    String? defaultCategory,
+    int? customCategoryId,
+    required double amount,
+    String? description,
+    required DateTime timestamp,
+    String? originalCurrency,
+    double? originalAmount,
+  }) {
     return Transaction(
-      id: json['id'] as int,
-      user: json['user'] as int,
-      type: json['type'] as String,
-      defaultCategory: json['default_category'] as String?,
-      customCategory: json['custom_category'] as int?,
-      category: json['category'] as String?,
-      amount: double.parse(json['amount'].toString()),
-      description: json['description'] as String?,
-      timestamp: json['timestamp'] as String,
-      username: json['username'] as String? ?? 'Unknown', // Fallback to 'Unknown' if null
-      originalCurrency: json['original_currency'] as String?,
-      originalAmount: json['original_amount'] != null
-          ? double.parse(json['original_amount'].toString())
-          : null,
+      id: null,
+      type: type,
+      defaultCategory: defaultCategory,
+      customCategoryId: customCategoryId,
+      amount: amount,
+      description: description,
+      timestamp: timestamp.toIso8601String(),
+      originalCurrency: originalCurrency,
+      originalAmount: originalAmount,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user': user,
+  Map<String, dynamic> toMap() {
+    final map = {
       'type': type,
       'default_category': defaultCategory,
-      'custom_category': customCategory,
-      // Note: 'category' is computed on the backend, so it's not sent from frontend
+      'custom_category_id': customCategoryId,
       'amount': amount,
       'description': description,
       'timestamp': timestamp,
-      'username': username,
       'original_currency': originalCurrency,
       'original_amount': originalAmount,
     };
+    if (id != null) {
+      map['id'] = id;
+    }
+    return map;
   }
 
-  // Getter to mimic backend's get_category()
-  String getCategory() {
-    // Use the computed 'category' field from the backend if available
-    if (category != null) {
-      return category!;
+  factory Transaction.fromMap(Map<String, dynamic> map) {
+    return Transaction(
+      id: map['id'] as int?,
+      type: map['type'] as String,
+      defaultCategory: map['default_category'] as String?,
+      customCategoryId: map['custom_category_id'] as int?,
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      description: map['description'] as String?,
+      timestamp: map['timestamp'] as String,
+      originalCurrency: map['original_currency'] as String?,
+      originalAmount: (map['original_amount'] as num?)?.toDouble(),
+    );
+  }
+
+  String getCategory(TransactionProvider provider) {
+    if (defaultCategory != null) {
+      return defaultCategory!;
     }
-    // Fallback to defaultCategory if present, otherwise 'Uncategorized'
-    return defaultCategory ?? 'Uncategorized';
+    if (customCategoryId != null) {
+      final category = provider.getCategoryById(customCategoryId!);
+      return category?.name ?? 'Unknown';
+    }
+    return type == 'income' ? fallbackIncomeCategory : fallbackExpenseCategory;
+  }
+
+  DateTime get timestampAsDateTime {
+    try {
+      return DateTime.parse(timestamp);
+    } catch (e) {
+      debugPrint('Error parsing timestamp "$timestamp": $e');
+      throw FormatException('Invalid timestamp format: $timestamp');
+    }
+  }
+
+  Transaction copyWith({
+    int? id,
+    String? type,
+    String? defaultCategory,
+    int? customCategoryId,
+    double? amount,
+    String? description,
+    String? timestamp,
+    String? originalCurrency,
+    double? originalAmount,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      defaultCategory: defaultCategory ?? this.defaultCategory,
+      customCategoryId: customCategoryId ?? this.customCategoryId,
+      amount: amount ?? this.amount,
+      description: description ?? this.description,
+      timestamp: timestamp ?? this.timestamp,
+      originalCurrency: originalCurrency ?? this.originalCurrency,
+      originalAmount: originalAmount ?? this.originalAmount,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'Transaction(id: $id, type: $type, defaultCategory: $defaultCategory, customCategoryId: $customCategoryId, amount: $amount, description: $description, timestamp: $timestamp, originalCurrency: $originalCurrency, originalAmount: $originalAmount)';
   }
 }

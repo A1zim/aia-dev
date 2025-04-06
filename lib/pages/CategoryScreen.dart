@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:aia_wallet/services/api_service.dart';
 import 'package:aia_wallet/services/notification_service.dart';
 import 'package:aia_wallet/theme/styles.dart';
-import 'package:aia_wallet/widgets/drawer.dart';
 import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
+import 'package:aia_wallet/providers/transaction_provider.dart';
+import '../models/category.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -15,9 +15,7 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProviderStateMixin {
-  final ApiService _apiService = ApiService();
   final TextEditingController _categoryController = TextEditingController();
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String _selectedType = 'expense';
   List<Map<String, dynamic>> _allCategories = [];
   List<Map<String, dynamic>> _expenseCategories = [];
@@ -52,35 +50,35 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
       _errorMessage = null;
     });
     try {
-      // Fetch custom categories from API
-      final List<Map<String, dynamic>> customCategories = await _apiService.getCustomCategories();
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final customCategories = transactionProvider.categories;
 
-      // Define default categories with type assignment
       final defaultCategories = _defaultCategoryNames.map((name) => {
-        'id': null, // Null ID for default categories
+        'id': null,
         'name': name,
         'type': ['salary', 'gift', 'interest', 'other_income'].contains(name) ? 'income' : 'expense',
       }).toList();
 
-      // Combine categories, ensuring no duplicates by name
       _allCategories = [];
       final seenNames = <String>{};
 
-      // Add default categories first
       for (var category in defaultCategories) {
         seenNames.add(category['name']!);
         _allCategories.add(category);
       }
 
-      // Add custom categories, skipping any that match default names
       for (var category in customCategories) {
-        if (!seenNames.contains(category['name'])) {
-          _allCategories.add(category);
-          seenNames.add(category['name']);
+        final categoryMap = {
+          'id': category.id,
+          'name': category.name,
+          'type': category.type,
+        };
+        if (!seenNames.contains(category.name)) {
+          _allCategories.add(categoryMap);
+          seenNames.add(category.name);
         }
       }
 
-      // Update expense and income lists
       setState(() {
         _expenseCategories = _allCategories.where((cat) => cat['type'] == 'expense').toList();
         _incomeCategories = _allCategories.where((cat) => cat['type'] == 'income').toList();
@@ -89,7 +87,6 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
     } catch (e) {
       setState(() {
         _errorMessage = AppLocalizations.of(context)!.categoriesLoadFailed(e.toString());
-        // Fallback to default categories only
         _allCategories = _defaultCategoryNames.map((name) => {
           'id': null,
           'name': name,
@@ -107,9 +104,24 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
     }
   }
 
-  Future<void> _addCategory() async {
-    final name = _categoryController.text.trim();
-    if (name.isEmpty) {
+  Future<void> _addCategories() async {
+    final input = _categoryController.text.trim();
+    if (input.isEmpty) {
+      setState(() {
+        _errorMessage = AppLocalizations.of(context)!.categoryNameRequired;
+      });
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.categoryNameRequired,
+        isError: true,
+      );
+      return;
+    }
+
+    // Split input by commas and trim each category name
+    final categoryNames = input.split(',').map((name) => name.trim()).where((name) => name.isNotEmpty).toList();
+
+    if (categoryNames.isEmpty) {
       setState(() {
         _errorMessage = AppLocalizations.of(context)!.categoryNameRequired;
       });
@@ -125,13 +137,17 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
       _isLoading = true;
       _errorMessage = null;
     });
+
     try {
-      final newCategory = await _apiService.addCustomCategory(name, _selectedType);
-      await _fetchCategories(); // Refresh categories to avoid manual insertion
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      for (var name in categoryNames) {
+        await transactionProvider.addCategory(name: name, type: _selectedType);
+      }
+      await _fetchCategories(); // Refresh categories
       _categoryController.clear();
       NotificationService.showNotification(
         context,
-        message: AppLocalizations.of(context)!.categoryAdded(newCategory['name']),
+        message: AppLocalizations.of(context)!.categoryAdded(categoryNames.length > 1 ? '${categoryNames.length} categories' : categoryNames.first),
       );
     } catch (e) {
       setState(() {
@@ -184,14 +200,16 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
       _isLoading = true;
       _errorMessage = null;
     });
+
     try {
-      await _apiService.deleteCustomCategory(category['id']);
-      await _fetchCategories(); // Refresh categories after deletion
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      await transactionProvider.deleteCategory(category['id']);
+      await _fetchCategories(); // Refresh the category list
       NotificationService.showNotification(
         context,
         message: AppLocalizations.of(context)!.categoryDeleted,
       );
-      Navigator.pop(context, {'categoryDeleted': true}); // Return result to HomeScreen
+      Navigator.pop(context, {'categoryDeleted': true}); // Return result to SettingsScreen
     } catch (e) {
       setState(() {
         _errorMessage = AppLocalizations.of(context)!.categoryDeleteFailed(e.toString());
@@ -254,8 +272,6 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
     List<Map<String, dynamic>> _categories = _selectedType == 'expense' ? _expenseCategories : _incomeCategories;
 
     return Scaffold(
-      key: _scaffoldKey,
-      drawer: CustomDrawer(currentRoute: '/categories', parentContext: context),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -268,7 +284,6 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
         ),
         child: Column(
           children: [
-            // Custom Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -277,9 +292,9 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     GestureDetector(
-                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      onTap: () => Navigator.pop(context),
                       child: Icon(
-                        Icons.menu,
+                        Icons.arrow_back_ios_rounded,
                         color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                         size: 24,
                       ),
@@ -449,14 +464,15 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
                       decoration: AppInputStyles.textField(context).copyWith(
                         labelText: AppLocalizations.of(context)!.newCategory,
                         prefixIcon: const Icon(Icons.category, size: 24),
+                        hintText: 'e.g., travel, bills, bonus', // Hint for multiple categories
                       ),
                       textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _addCategory(),
+                      onSubmitted: (_) => _addCategories(),
                     ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _addCategory,
+                    onPressed: _isLoading ? null : _addCategories,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,

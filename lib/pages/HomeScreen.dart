@@ -1,25 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:aia_wallet/pages/AddTransactionScreen.dart';
-import 'package:aia_wallet/services/api_service.dart';
 import 'package:aia_wallet/services/notification_service.dart';
-import 'package:aia_wallet/services/currency_api_service.dart';
 import 'package:aia_wallet/models/transaction.dart';
 import 'package:aia_wallet/theme/styles.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
-import 'package:aia_wallet/widgets/drawer.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
-import 'dart:io'; // For SystemNavigator.pop()
-
-// Placeholder for PaginatedResponse if not defined
-class PaginatedResponse<T> {
-  final List<T> items;
-  final bool hasMore;
-
-  PaginatedResponse({required this.items, required this.hasMore});
-}
+import 'package:intl/intl.dart';
+import '../providers/transaction_provider.dart';
+import '../utils/scaling.dart'; // Import the Scaling utility
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,12 +20,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  final ApiService _apiService = ApiService();
-  final CurrencyApiService _currencyApiService = CurrencyApiService();
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  late List<Transaction> _transactions = [];
-  late Map<String, String> _userData = {
+  List<Transaction> _transactions = [];
+  Map<String, String> _userData = {
     'nickname': 'User',
     'email': 'user@example.com',
   };
@@ -42,23 +29,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   double _totalExpenses = 0.0;
   double _balance = 0.0;
   bool _isLoading = false;
-  int? _expandedIndex; // Track the expanded transaction
+  int? _expandedIndex;
 
-  // Track the positions of the cards (0: Top, 1: Bottom Left, 2: Bottom Right)
+  // Card positions (0: Top, 1: Bottom Left, 2: Bottom Right)
   List<String> _cardOrder = ['balance', 'income', 'expense'];
-
-  // Map to store the current position index of each card
   Map<String, int> _cardPositions = {
-    'balance': 0, // Top
-    'income': 1,  // Bottom Left
-    'expense': 2, // Bottom Right
+    'balance': 0,
+    'income': 1,
+    'expense': 2,
   };
 
-  // Track animation state
   bool _isAnimating = false;
   late AnimationController _animationController;
 
-  // Define default categories for translation check
   static const List<String> _defaultCategories = [
     'food', 'transport', 'housing', 'utilities', 'entertainment', 'healthcare', 'education', 'shopping', 'other_expense',
     'salary', 'gift', 'interest', 'other_income',
@@ -86,99 +69,159 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
-    await Future.wait([
-      _fetchUserData(),
-      _fetchTransactions(),
-      _fetchSummaryData(),
-    ]);
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _fetchUserData() async {
     try {
-      final userData = await _apiService.getUserData();
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      await Future.delayed(Duration.zero); // Ensure provider is initialized
       setState(() {
-        _userData = {
-          'nickname': userData['nickname'] ?? 'User',
-          'email': userData['email'] ?? 'user@example.com',
-        };
+        _transactions = transactionProvider.transactions;
+        _totalIncome = transactionProvider.userFinances?.income ?? 0.0;
+        _totalExpenses = transactionProvider.userFinances?.expense ?? 0.0;
+        _balance = transactionProvider.userFinances?.balance ?? 0.0;
+        _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error fetching user data: $e');
-    }
-  }
-
-  Future<void> _fetchSummaryData() async {
-    try {
-      final summary = await _apiService.getFinancialSummary();
-      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
-      final currentCurrency = currencyProvider.currency;
-
-      final totalIncomeInKGS = summary['total_income']?.toDouble() ?? 0.0;
-      final totalExpensesInKGS = summary['total_expense']?.toDouble() ?? 0.0;
-      final balanceInKGS = summary['balance']?.toDouble() ?? 0.0;
-
       setState(() {
-        _totalIncome = _convertAmount(totalIncomeInKGS, null, null, currentCurrency);
-        _totalExpenses = _convertAmount(totalExpensesInKGS, null, null, currentCurrency);
-        _balance = _convertAmount(balanceInKGS, null, null, currentCurrency);
+        _isLoading = false;
       });
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: AppLocalizations.of(context)!.summaryLoadFailed(e.toString()),
-          isError: true,
-        );
-      }
-    }
-  }
-
-  Future<void> _fetchTransactions() async {
-    try {
-      final paginatedResponse = await _apiService.getTransactions(pageSize: 20);
-      setState(() {
-        _transactions = paginatedResponse.items;
-        _transactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      });
-    } catch (e) {
-      if (mounted) {
-        NotificationService.showNotification(
-          context,
-          message: AppLocalizations.of(context)!.transactionsLoadFailed(e.toString()),
-          isError: true,
-        );
-      }
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.failedToLoadData(e.toString()),
+        isError: true,
+      );
     }
   }
 
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
-    await Future.wait([_fetchTransactions(), _fetchSummaryData()]);
-    setState(() => _isLoading = false);
-  }
-
-  double _convertAmount(double amountInKGS, double? originalAmount, String? originalCurrency, String targetCurrency) {
-    if (originalAmount != null && originalCurrency != null && originalCurrency == targetCurrency) {
-      return originalAmount;
-    }
     try {
-      final rate = _currencyApiService.getConversionRate('KGS', targetCurrency);
-      return amountInKGS * rate;
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      await transactionProvider.loadData(); // Refresh data from database
+      setState(() {
+        _transactions = transactionProvider.transactions;
+        _totalIncome = transactionProvider.userFinances?.income ?? 0.0;
+        _totalExpenses = transactionProvider.userFinances?.expense ?? 0.0;
+        _balance = transactionProvider.userFinances?.balance ?? 0.0;
+        _isLoading = false;
+      });
     } catch (e) {
-      debugPrint('Error converting amount: $e');
-      return amountInKGS;
+      setState(() {
+        _isLoading = false;
+      });
+      NotificationService.showNotification(
+        context,
+        message: AppLocalizations.of(context)!.failedToLoadData(e.toString()),
+        isError: true,
+      );
     }
   }
 
   Future<bool> _onWillPop() async {
-    SystemNavigator.pop();
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: Colors.transparent,
+          content: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [AppColors.darkSurface, AppColors.darkBackground]
+                    : [AppColors.lightSurface, AppColors.lightBackground],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(Scaling.scale(12)),
+              border: Border.all(
+                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(Scaling.scalePadding(16.0)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)!.exitApp,
+                    style: AppTextStyles.subheading(context),
+                  ),
+                  SizedBox(height: Scaling.scalePadding(8)),
+                  Text(
+                    AppLocalizations.of(context)!.exitAppConfirm,
+                    style: AppTextStyles.body(context),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: Scaling.scalePadding(16)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: Scaling.scalePadding(12),
+                              horizontal: Scaling.scalePadding(16),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(
+                            AppLocalizations.of(context)!.no,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: Scaling.scalePadding(8)),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: Scaling.scalePadding(12),
+                              horizontal: Scaling.scalePadding(16),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            AppLocalizations.of(context)!.yes,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      SystemNavigator.pop();
+    }
     return false;
   }
 
   Future<void> _deleteTransaction(int id) async {
     try {
-      await _apiService.deleteTransaction(id);
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      await transactionProvider.deleteTransaction(id);
       await _refreshData();
       NotificationService.showNotification(
         context,
@@ -209,13 +252,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(Scaling.scale(12)),
               border: Border.all(
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(Scaling.scalePadding(16.0)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -223,13 +266,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     AppLocalizations.of(context)!.deleteTransaction,
                     style: AppTextStyles.subheading(context),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: Scaling.scalePadding(8)),
                   Text(
                     AppLocalizations.of(context)!.deleteTransactionConfirm,
                     style: AppTextStyles.body(context),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: Scaling.scalePadding(16)),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -239,30 +282,44 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             backgroundColor: Colors.black,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: Scaling.scalePadding(12),
+                              horizontal: Scaling.scalePadding(16),
                             ),
                           ),
                           onPressed: () => Navigator.pop(context, false),
                           child: Text(
                             AppLocalizations.of(context)!.no,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: Scaling.scalePadding(8)),
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: Scaling.scalePadding(12),
+                              horizontal: Scaling.scalePadding(16),
                             ),
                           ),
                           onPressed: () => Navigator.pop(context, true),
                           child: Text(
                             AppLocalizations.of(context)!.yes,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
                           ),
                         ),
                       ),
@@ -287,55 +344,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       if (currentIndex == 0) return;
 
-      // Find the card currently at position 0 (top)
       String topCard = _cardPositions.entries.firstWhere((entry) => entry.value == 0).key;
 
-      // Swap positions
       _cardPositions[cardType] = 0;
       _cardPositions[topCard] = currentIndex;
 
-      // Update card order
       _cardOrder = ['balance', 'income', 'expense']..sort((a, b) => _cardPositions[a]!.compareTo(_cardPositions[b]!));
 
       _animationController.forward(from: 0);
     });
   }
 
-  // Navigate to a hypothetical CategoriesScreen and refresh data if a category was deleted
-  Future<void> _navigateToCategoriesScreen() async {
-    // Replace CategoriesScreen with your actual category management screen
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CategoriesScreen(), // Hypothetical screen
-      ),
-    );
-    // Check if a category was deleted (assuming the screen returns a result)
-    if (result is Map<String, dynamic> && result['categoryDeleted'] == true) {
-      await _refreshData();
-      NotificationService.showNotification(
-        context,
-        message: AppLocalizations.of(context)!.categoryDeleted,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    Scaling.init(context); // Initialize scaling
+
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
+    final currencySymbol = currencyProvider.currency == 'KGS'
+        ? 'Сом'
+        : NumberFormat.simpleCurrency(name: currencyProvider.currency).currencySymbol;
     final logoPath = themeProvider.getLogoPath(context);
 
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        key: _scaffoldKey,
-        drawer: CustomDrawer(
-          currentRoute: '/main',
-          parentContext: context,
-        ),
         backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
         body: RefreshIndicator(
           onRefresh: _refreshData,
@@ -348,92 +382,76 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               children: [
                 // Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Scaling.scalePadding(16.0),
+                    vertical: Scaling.scalePadding(10.0),
+                  ),
                   color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
                   child: SafeArea(
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        GestureDetector(
-                          onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                          child: Icon(
-                            Icons.menu,
-                            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                            size: 24,
-                          ),
+                        Image.asset(
+                          logoPath,
+                          height: Scaling.scale(40),
+                          width: Scaling.scale(40),
+                          fit: BoxFit.contain,
                         ),
-                        const SizedBox(width: 12),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              logoPath,
-                              height: 40,
-                              width: 40,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(width: 8),
-                            RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'MON',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: 'ey',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.normal,
-                                      color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                  ),
-                                ],
+                        SizedBox(width: Scaling.scalePadding(8)),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'MON',
+                                style: TextStyle(
+                                  fontSize: Scaling.scaleFont(24),
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
-                            ),
-                          ],
+                              TextSpan(
+                                text: 'ey',
+                                style: TextStyle(
+                                  fontSize: Scaling.scaleFont(24),
+                                  fontWeight: FontWeight.normal,
+                                  color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
 
-                // Summary Cards Section with Animation
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(Scaling.scalePadding(16.0)),
                   child: SizedBox(
-                    height: 210, // Height to accommodate top card (100) + spacing (10) + bottom cards (100)
+                    height: Scaling.scale(210), // Scale the height of the card stack
                     child: Stack(
                       children: [
-                        // Balance Card
                         _buildAnimatedCard(
                           cardType: 'balance',
                           title: AppLocalizations.of(context)!.balance,
-                          amount: _balance.toStringAsFixed(2),
+                          amount: currencyProvider.convertAmount(_balance).toStringAsFixed(2),
                           currencySymbol: currencySymbol,
                           color: const Color(0xFF006699),
                           icon: Icons.account_balance_wallet,
                         ),
-                        // Income Card
                         _buildAnimatedCard(
                           cardType: 'income',
                           title: AppLocalizations.of(context)!.income,
-                          amount: _totalIncome.toStringAsFixed(2),
+                          amount: currencyProvider.convertAmount(_totalIncome).toStringAsFixed(2),
                           currencySymbol: currencySymbol,
                           color: const Color(0xFF009966),
                           icon: Icons.arrow_downward,
                         ),
-                        // Expense Card
                         _buildAnimatedCard(
                           cardType: 'expense',
                           title: AppLocalizations.of(context)!.expenses,
-                          amount: _totalExpenses.toStringAsFixed(2),
+                          amount: currencyProvider.convertAmount(_totalExpenses).toStringAsFixed(2),
                           currencySymbol: currencySymbol,
                           color: const Color(0xFF990033),
                           icon: Icons.arrow_upward,
@@ -445,17 +463,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
                 // Add Transaction Button
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: EdgeInsets.symmetric(horizontal: Scaling.scalePadding(16.0)),
                   child: SizedBox(
-                    width: MediaQuery.of(context).size.width - 132,
-                    height: 47,
+                    width: MediaQuery.of(context).size.width - Scaling.scale(132), // Scale the width
+                    height: Scaling.scale(47), // Scale the height
                     child: ElevatedButton(
                       onPressed: () async {
-                        final result = await Navigator.push(
+                        final result = await Navigator.pushNamed(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => AddTransactionScreen(),
-                          ),
+                          '/add_transaction',
                         );
                         if (result is Map<String, dynamic> && result['success'] == true) {
                           NotificationService.showNotification(
@@ -468,14 +484,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(Scaling.scale(15)),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Scaling.scalePadding(24),
+                          vertical: Scaling.scalePadding(4),
+                        ),
                         elevation: 0,
                       ),
                       child: Text(
                         AppLocalizations.of(context)!.addTransaction,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontSize: Scaling.scaleFont(16),
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -486,21 +507,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
                 // Recents Section
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: EdgeInsets.symmetric(horizontal: Scaling.scalePadding(16.0)),
                   child: Column(
                     children: [
                       Divider(
                         color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300],
                         thickness: 1,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: Scaling.scalePadding(8)),
                       Center(
                         child: Text(
                           AppLocalizations.of(context)!.recents,
                           style: AppTextStyles.subheading(context),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: Scaling.scalePadding(8)),
                     ],
                   ),
                 ),
@@ -508,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 // Transactions with Expand/Collapse and Actions
                 if (_transactions.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(Scaling.scalePadding(16.0)),
                     child: Center(
                       child: Text(
                         AppLocalizations.of(context)!.noTransactions,
@@ -520,13 +541,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   )
                 else
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 80.0),
-                    child: Column(
-                      children: _transactions.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final transaction = entry.value;
-                        return _buildTransactionTile(transaction, index == _transactions.length - 1, index);
-                      }).toList(),
+                    padding: EdgeInsets.only(bottom: Scaling.scalePadding(80.0)),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _transactions.length,
+                      itemBuilder: (context, index) {
+                        final transaction = _transactions[index];
+                        final isLast = index == _transactions.length - 1;
+                        return _buildTransactionTile(transaction, isLast, index);
+                      },
                     ),
                   ),
               ],
@@ -547,37 +571,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }) {
     double getAdaptiveFontSize(String amountText) {
       final length = amountText.length;
-      if (length > 12) return 14.0;
-      if (length > 10) return 16.0;
-      if (length > 8) return 18.0;
-      if (length > 6) return 20.0;
-      return 22.0;
+      if (length > 12) return Scaling.scaleFont(14.0);
+      if (length > 10) return Scaling.scaleFont(16.0);
+      if (length > 8) return Scaling.scaleFont(18.0);
+      if (length > 6) return Scaling.scaleFont(20.0);
+      return Scaling.scaleFont(22.0);
     }
 
     final fontSize = getAdaptiveFontSize(amount);
     final position = _cardPositions[cardType]!;
     final screenWidth = MediaQuery.of(context).size.width;
-    const padding = 16.0;
+    final padding = Scaling.scalePadding(16.0);
     final topCardWidth = screenWidth - 2 * padding;
     final bottomCardWidth = (screenWidth - 3 * padding) / 2;
 
-    // Define positions
     double left, top, width, height;
     if (position == 0) {
       left = 0;
       top = 0;
       width = topCardWidth;
-      height = 100;
+      height = Scaling.scale(100);
     } else if (position == 1) {
       left = 0;
-      top = 110;
+      top = Scaling.scale(110);
       width = bottomCardWidth;
-      height = 100;
+      height = Scaling.scale(100);
     } else {
       left = bottomCardWidth + padding;
-      top = 110;
+      top = Scaling.scale(110);
       width = bottomCardWidth;
-      height = 100;
+      height = Scaling.scale(100);
     }
 
     return AnimatedPositioned(
@@ -592,29 +615,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Card(
           elevation: 6,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(Scaling.scale(5)),
           ),
           color: color,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(5),
+              borderRadius: BorderRadius.circular(Scaling.scale(5)),
               gradient: LinearGradient(
                 colors: [color.withOpacity(0.9), color.withOpacity(0.6)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(Scaling.scalePadding(8.0)),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Scaling.scalePadding(10),
+                  vertical: Scaling.scalePadding(8),
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(Scaling.scale(12)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
+                      blurRadius: Scaling.scale(8),
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -624,34 +650,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              icon,
-                              size: 20,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
+                        Icon(
+                          icon,
+                          size: Scaling.scaleIcon(20),
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        SizedBox(width: Scaling.scalePadding(4)),
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: Scaling.scaleFont(14),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: Scaling.scalePadding(4)),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Flexible(
                           child: Text(
@@ -665,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             maxLines: 1,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: Scaling.scalePadding(4)),
                         Text(
                           currencySymbol,
                           style: TextStyle(
@@ -689,30 +712,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildTransactionTile(Transaction transaction, bool isLast, int index) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final currencySymbol = _currencyApiService.getCurrencySymbol(currencyProvider.currency);
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final currencySymbol = currencyProvider.currency == 'KGS'
+        ? 'Сом'
+        : NumberFormat.simpleCurrency(name: currencyProvider.currency).currencySymbol;
     bool isIncome = transaction.type == 'income';
-    final convertedAmount = _convertAmount(
-      transaction.amount,
-      transaction.originalAmount,
-      transaction.originalCurrency,
-      currencyProvider.currency,
+    final convertedAmount = currencyProvider.convertAmount(
+      transaction.originalAmount != null &&
+          transaction.originalCurrency != null &&
+          transaction.originalCurrency == 'KGS'
+          ? transaction.originalAmount!
+          : transaction.amount,
     );
     final isExpanded = _expandedIndex == index;
 
-    // Determine if the category is default or custom and get the display name
     String getCategoryDisplayName() {
-      final categoryName = transaction.category ?? 'other_${transaction.type}';
+      final categoryName = transaction.getCategory(transactionProvider);
       if (_defaultCategories.contains(categoryName)) {
         return AppLocalizations.of(context)!.getCategoryName(categoryName).capitalize();
       }
       return categoryName.capitalize();
     }
 
+    String formatTimestamp() {
+      return DateFormat('yyyy-MM-dd').format(transaction.timestampAsDateTime);
+    }
+
     return Card(
       elevation: 2,
-      margin: EdgeInsets.fromLTRB(10, 6, 10, isLast ? 16 : 6),
+      margin: EdgeInsets.fromLTRB(
+        Scaling.scalePadding(10),
+        Scaling.scalePadding(6),
+        Scaling.scalePadding(10),
+        isLast ? Scaling.scalePadding(16) : Scaling.scalePadding(6),
+      ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
       ),
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       child: GestureDetector(
@@ -728,23 +763,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal: Scaling.scalePadding(16),
+                  vertical: Scaling.scalePadding(8),
+                ),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 24,
+                      radius: Scaling.scale(24),
                       backgroundColor: isIncome ? Colors.green[100] : Colors.red[100],
                       child: Icon(
                         isIncome ? Icons.arrow_downward : Icons.arrow_upward,
                         color: isIncome ? Colors.green : Colors.red,
+                        size: Scaling.scaleIcon(24),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: Scaling.scalePadding(12)),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -757,27 +796,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            '${transaction.description ?? ''} - ${transaction.timestamp.split("T")[0]}',
+                            '${transaction.description ?? ''} - ${formatTimestamp()}',
                             style: AppTextStyles.body(context).copyWith(
                               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                              fontSize: 12,
+                              fontSize: Scaling.scaleFont(12),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: Scaling.scalePadding(8)),
                     Text(
                       '${convertedAmount.toStringAsFixed(2)} $currencySymbol',
                       style: AppTextStyles.body(context).copyWith(
                         color: isIncome ? Colors.green : Colors.red,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: Scaling.scaleFont(16),
                       ),
                     ),
                     Icon(
                       isExpanded ? Icons.expand_less : Icons.expand_more,
                       color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      size: Scaling.scaleIcon(24),
                     ),
                   ],
                 ),
@@ -789,7 +829,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ? Container(
                   color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Scaling.scalePadding(16.0),
+                      vertical: Scaling.scalePadding(8.0),
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -813,32 +856,48 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Scaling.scalePadding(16),
+                              vertical: Scaling.scalePadding(8),
+                            ),
                           ),
                           child: Text(
                             AppLocalizations.of(context)!.editTransaction,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: Scaling.scalePadding(8)),
                         ElevatedButton(
                           onPressed: () async {
-                            final confirmDelete = await _confirmDeleteTransaction(transaction.id);
+                            final confirmDelete = await _confirmDeleteTransaction(transaction.id!);
                             if (confirmDelete) {
-                              await _deleteTransaction(transaction.id);
+                              await _deleteTransaction(transaction.id!);
                               setState(() => _expandedIndex = null);
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Scaling.scale(8)),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Scaling.scalePadding(16),
+                              vertical: Scaling.scalePadding(8),
+                            ),
                           ),
                           child: Text(
                             AppLocalizations.of(context)!.delete,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: Scaling.scaleFont(14),
+                            ),
                           ),
                         ),
                       ],
@@ -857,28 +916,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
 extension StringExtension on String {
   String capitalize() => '${this[0].toUpperCase()}${substring(1).replaceAll('_', ' ')}';
-}
-
-// Hypothetical CategoriesScreen placeholder
-class CategoriesScreen extends StatelessWidget {
-  const CategoriesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // This is a placeholder. Replace with your actual category management screen.
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-      ),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            // Simulate category deletion
-            Navigator.pop(context, {'categoryDeleted': true});
-          },
-          child: const Text('Delete Category (Simulation)'),
-        ),
-      ),
-    );
-  }
 }

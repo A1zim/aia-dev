@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:aia_wallet/services/api_service.dart';
-import 'package:aia_wallet/services/currency_api_service.dart';
 import 'package:aia_wallet/services/notification_service.dart';
 import 'package:aia_wallet/theme/styles.dart';
-import 'package:aia_wallet/widgets/drawer.dart';
 import 'package:provider/provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
@@ -22,10 +19,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  final ApiService _apiService = ApiService();
-  final CurrencyApiService _currencyApiService = CurrencyApiService();
   final TextEditingController _searchController = TextEditingController();
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // Added for drawer control
 
   List<String> _allCurrencies = [];
   List<String> _filteredCurrencies = [];
@@ -46,22 +40,22 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     });
 
     try {
-      final userCurrencies = await _apiService.getUserCurrencies();
+      // Use CurrencyProvider to get the user's currencies
+      final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+      final userCurrencies = currencyProvider.availableCurrencies;
       final rates = <String, double>{};
 
-      final combinedCurrencies = userCurrencies;
-
-      for (var currency in combinedCurrencies) {
+      for (var currency in userCurrencies) {
         if (currency == 'KGS') {
           rates[currency] = 1.0;
         } else {
-          final rate = _currencyApiService.getConversionRate(currency, 'KGS');
-          rates[currency] = rate;
+          // Mock exchange rates (since no API)
+          rates[currency] = _mockExchangeRate(currency);
         }
       }
 
       setState(() {
-        _currencies = combinedCurrencies;
+        _currencies = userCurrencies;
         _exchangeRates = rates;
         _isLoading = false;
       });
@@ -79,10 +73,48 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
   }
 
   void _loadAllCurrencies() {
-    _allCurrencies = _currencyApiService.getAllCurrencies();
-    _currencyToCountry = _currencyApiService.getCurrencyToCountryMap();
+    // Mock list of all currencies (since no CurrencyApiService)
+    _allCurrencies = ['KGS', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'RUB'];
+    // Mock currency-to-country mapping
+    _currencyToCountry = {
+      'KGS': 'Kyrgyzstan',
+      'USD': 'United States',
+      'EUR': 'Eurozone',
+      'GBP': 'United Kingdom',
+      'JPY': 'Japan',
+      'CNY': 'China',
+      'RUB': 'Russia',
+    };
     _filteredCurrencies = [];
     _searchController.addListener(_filterCurrencies);
+  }
+
+  double _mockExchangeRate(String currency) {
+    // Mock exchange rates for KGS to other currencies
+    const mockRates = {
+      'KGS': 1.0,
+      'USD': 0.012, // 1 KGS = 0.012 USD
+      'EUR': 0.011, // 1 KGS = 0.011 EUR
+      'GBP': 0.009, // 1 KGS = 0.009 GBP
+      'JPY': 1.75,  // 1 KGS = 1.75 JPY
+      'CNY': 0.085, // 1 KGS = 0.085 CNY
+      'RUB': 1.15,  // 1 KGS = 1.15 RUB
+    };
+    return mockRates[currency] ?? 1.0;
+  }
+
+  String _mockCurrencyFlag(String currency) {
+    // Mock currency flags
+    const flags = {
+      'KGS': '🇰🇬',
+      'USD': '🇺🇸',
+      'EUR': '🇪🇺',
+      'GBP': '🇬🇧',
+      'JPY': '🇯🇵',
+      'CNY': '🇨🇳',
+      'RUB': '🇷🇺',
+    };
+    return flags[currency] ?? '🏳️';
   }
 
   void _filterCurrencies() {
@@ -103,16 +135,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
     final rates = <String, double>{};
     for (var currency in filtered) {
-      if (currency == 'KGS') {
-        rates[currency] = 1.0;
-      } else {
-        try {
-          final rate = _currencyApiService.getConversionRate(currency, 'KGS');
-          rates[currency] = rate;
-        } catch (e) {
-          continue;
-        }
-      }
+      rates[currency] = _mockExchangeRate(currency);
     }
 
     setState(() {
@@ -132,23 +155,14 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         message: AppLocalizations.of(context)!.currencyChanged(currency),
       );
 
-      if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-        Navigator.pop(context);
-      }
-
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/main',
-            (route) => false,
-      );
+      // Navigate back to SettingsScreen instead of /main
+      Navigator.pop(context);
     }
   }
 
   void _addCurrency(String currency) async {
     try {
-      await _apiService.addUserCurrency(currency);
-
-      final rate = currency == 'KGS' ? 1.0 : _currencyApiService.getConversionRate(currency, 'KGS');
+      final rate = _mockExchangeRate(currency);
 
       setState(() {
         _currencies.add(currency);
@@ -157,7 +171,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       });
 
       final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
-      await currencyProvider.refreshCurrencies();
+      await currencyProvider.addCurrency(currency);
 
       NotificationService.showNotification(
         context,
@@ -227,20 +241,18 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
 
     if (confirmDelete == true) {
       try {
-        await _apiService.deleteUserCurrency(currency);
-
         final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
         if (currencyProvider.currency == currency) {
           await currencyProvider.setCurrency('KGS', 1.0);
         }
+
+        await currencyProvider.removeCurrency(currency);
 
         setState(() {
           _currencies.remove(currency);
           _exchangeRates.remove(currency);
           _filterCurrencies();
         });
-
-        await currencyProvider.refreshCurrencies();
 
         NotificationService.showNotification(
           context,
@@ -272,11 +284,6 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     final logoPath = themeProvider.getLogoPath(context);
 
     return Scaffold(
-      key: _scaffoldKey, // Assign scaffold key for drawer
-      drawer: CustomDrawer(
-        currentRoute: '/currency',
-        parentContext: context,
-      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -289,7 +296,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         ),
         child: Column(
           children: [
-            // Custom Header like HomeScreen
+            // Custom Header with Back Button
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
@@ -298,9 +305,11 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     GestureDetector(
-                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      onTap: () {
+                        Navigator.pop(context); // Navigate back to SettingsScreen
+                      },
                       child: Icon(
-                        Icons.menu,
+                        Icons.arrow_back_ios_rounded,
                         color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                         size: 24,
                       ),
@@ -416,7 +425,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                   ? AppColors.darkSurface
                                   : AppColors.lightSurface,
                               child: Text(
-                                _currencyApiService.getCurrencyFlag(currency),
+                                _mockCurrencyFlag(currency),
                                 style: const TextStyle(fontSize: 24),
                               ),
                             ),
@@ -427,7 +436,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              '1 $currency = ${rate.toStringAsFixed(2)} KGS',
+                              '1 $currency = ${(1 / rate).toStringAsFixed(2)} KGS',
                               style: AppTextStyles.body(context).copyWith(
                                 color: isDark
                                     ? AppColors.darkTextSecondary
@@ -500,7 +509,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                           ? AppColors.darkSurface
                                           : AppColors.lightSurface,
                                       child: Text(
-                                        _currencyApiService.getCurrencyFlag(currency),
+                                        _mockCurrencyFlag(currency),
                                         style: const TextStyle(fontSize: 24),
                                       ),
                                     ),
@@ -509,7 +518,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                                       style: AppTextStyles.body(context),
                                     ),
                                     subtitle: Text(
-                                      '1 $currency = ${rate.toStringAsFixed(2)} KGS',
+                                      '1 $currency = ${(1 / rate).toStringAsFixed(2)} KGS',
                                       style: AppTextStyles.body(context).copyWith(
                                         color: isDark
                                             ? AppColors.darkTextSecondary

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aia_wallet/utils/scaling.dart';
 
 // Define the color schemes for light and dark themes
 class AppColors {
@@ -63,7 +64,7 @@ class AppTextStyles {
   static TextStyle heading(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextStyle(
-      fontSize: 24,
+      fontSize: Scaling.scaleFont(24),
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
     );
@@ -72,7 +73,7 @@ class AppTextStyles {
   static TextStyle subheading(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextStyle(
-      fontSize: 18,
+      fontSize: Scaling.scaleFont(18),
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
     );
@@ -81,7 +82,7 @@ class AppTextStyles {
   static TextStyle body(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextStyle(
-      fontSize: 16,
+      fontSize: Scaling.scaleFont(16),
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
     );
   }
@@ -89,7 +90,7 @@ class AppTextStyles {
   static TextStyle label(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextStyle(
-      fontSize: 14,
+      fontSize: Scaling.scaleFont(14),
       color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
     );
   }
@@ -97,15 +98,15 @@ class AppTextStyles {
   static TextStyle chartLabel(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextStyle(
-      fontSize: 12,
+      fontSize: Scaling.scaleFont(12),
       fontWeight: FontWeight.bold,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
     );
   }
 
   static TextStyle tooltip(BuildContext context) {
-    return const TextStyle(
-      fontSize: 12,
+    return TextStyle(
+      fontSize: Scaling.scaleFont(12),
       color: Colors.white,
     );
   }
@@ -118,9 +119,12 @@ class AppButtonStyles {
     return ElevatedButton.styleFrom(
       foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
       backgroundColor: isDark ? AppColors.darkPrimary : AppColors.lightPrimary,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: Scaling.scalePadding(16),
+        vertical: Scaling.scalePadding(12),
+      ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
       ),
       elevation: 4,
     );
@@ -131,9 +135,12 @@ class AppButtonStyles {
     return TextButton.styleFrom(
       foregroundColor: isDark ? AppColors.darkAccent : AppColors.lightAccent,
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: Scaling.scalePadding(16),
+        vertical: Scaling.scalePadding(12),
+      ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
         side: BorderSide(
           color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
         ),
@@ -149,9 +156,12 @@ class AppButtonStyles {
         color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
         width: 1.5,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: Scaling.scalePadding(16),
+        vertical: Scaling.scalePadding(12),
+      ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
       ),
     );
   }
@@ -165,19 +175,19 @@ class AppInputStyles {
       filled: true,
       fillColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
         borderSide: BorderSide(
           color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
         borderSide: BorderSide(
           color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Scaling.scale(12)),
         borderSide: BorderSide(
           color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
           width: 2,
@@ -197,23 +207,26 @@ class AppInputStyles {
           ? AppColors.darkBackground.withOpacity(0.3)
           : AppColors.lightSurface.withOpacity(0.8),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Scaling.scale(20)),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Scaling.scale(20)),
         borderSide: BorderSide(
           color: isDark ? AppColors.darkAccent.withOpacity(0.3) : AppColors.lightAccent.withOpacity(0.3),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Scaling.scale(20)),
         borderSide: BorderSide(
           color: isDark ? AppColors.darkAccent : AppColors.lightAccent,
           width: 2,
         ),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: Scaling.scalePadding(16),
+        vertical: Scaling.scalePadding(12),
+      ),
     );
   }
 
@@ -222,7 +235,7 @@ class AppInputStyles {
     return Icon(
       Icons.arrow_drop_down,
       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-      size: 24,
+      size: Scaling.scaleIcon(24),
     );
   }
 
@@ -235,7 +248,10 @@ class AppInputStyles {
     return DropdownMenuItem<T>(
       value: value,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: EdgeInsets.symmetric(
+          vertical: Scaling.scalePadding(8),
+          horizontal: Scaling.scalePadding(12),
+        ),
         child: Text(
           displayText,
           style: AppTextStyles.body(context).copyWith(
@@ -254,8 +270,8 @@ class AppInputStyles {
       ),
       'dropdownColor': isDark ? AppColors.darkSurface : AppColors.lightSurface,
       'icon': dropdownIcon(context),
-      'menuMaxHeight': 300.0,
-      'borderRadius': BorderRadius.circular(16),
+      'menuMaxHeight': Scaling.scale(300.0),
+      'borderRadius': BorderRadius.circular(Scaling.scale(16)),
       'elevation': 8,
     };
   }
@@ -268,7 +284,7 @@ class AppCardStyles {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Scaling.scale(16)),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -279,7 +295,7 @@ class AppCardStyles {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Scaling.scale(16)),
         ),
         child: child,
       ),
@@ -287,7 +303,6 @@ class AppCardStyles {
   }
 }
 
-// Define the app theme data for light and dark modes
 class AppTheme {
   static ThemeData lightTheme() {
     return ThemeData(
@@ -306,18 +321,24 @@ class AppTheme {
         onBackground: AppColors.lightTextPrimary,
         onError: AppColors.lightTextPrimary,
       ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        bodyLarge: TextStyle(fontSize: 16),
-        bodyMedium: TextStyle(fontSize: 14),
+      textTheme: TextTheme(
+        headlineLarge: TextStyle(
+          fontSize: Scaling.scaleFont(24),
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: Scaling.scaleFont(18),
+          fontWeight: FontWeight.bold,
+        ),
+        bodyLarge: TextStyle(fontSize: Scaling.scaleFont(16)),
+        bodyMedium: TextStyle(fontSize: Scaling.scaleFont(14)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: AppColors.lightTextPrimary,
           backgroundColor: AppColors.lightPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
         ),
       ),
@@ -325,7 +346,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.lightAccent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
         ),
       ),
@@ -334,14 +355,14 @@ class AppTheme {
           foregroundColor: AppColors.lightTextPrimary,
           side: const BorderSide(color: AppColors.lightAccent, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
         ),
       ),
       cardTheme: CardTheme(
         elevation: 8,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Scaling.scale(16)),
         ),
       ),
       useMaterial3: true,
@@ -365,18 +386,24 @@ class AppTheme {
         onBackground: AppColors.darkTextPrimary,
         onError: AppColors.darkTextPrimary,
       ),
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        bodyLarge: TextStyle(fontSize: 16),
-        bodyMedium: TextStyle(fontSize: 14),
+      textTheme: TextTheme(
+        headlineLarge: TextStyle(
+          fontSize: Scaling.scaleFont(24),
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: Scaling.scaleFont(18),
+          fontWeight: FontWeight.bold,
+        ),
+        bodyLarge: TextStyle(fontSize: Scaling.scaleFont(16)),
+        bodyMedium: TextStyle(fontSize: Scaling.scaleFont(14)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: AppColors.darkTextPrimary,
           backgroundColor: AppColors.darkPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
         ),
       ),
@@ -384,7 +411,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.darkAccent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
         ),
       ),
@@ -393,14 +420,14 @@ class AppTheme {
           foregroundColor: AppColors.darkTextPrimary,
           side: const BorderSide(color: AppColors.darkAccent, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Scaling.scale(12)),
           ),
         ),
       ),
       cardTheme: CardTheme(
         elevation: 8,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Scaling.scale(16)),
         ),
       ),
       useMaterial3: true,
