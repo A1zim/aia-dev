@@ -80,6 +80,17 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     'salary', 'gift', 'interest', 'other_income',
   ];
 
+  int _getMonthIndex(String month, AppLocalizations localizations) {
+    for (int i = 1; i <= 12; i++) {
+      if (localizations.getShortMonthName(i) == month) {
+        return i;
+      }
+    }
+    return 1; // Fallback to January if not found
+  }
+
+  int? _selectedRodIndex;
+
   @override
   void initState() {
     super.initState();
@@ -393,54 +404,32 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   Color _getChartColor(String category) {
     final Map<String, Color> categoryColors = {
-      'food': const Color(0xFFEF5350),
-      'transport': const Color(0xFF66BB6A),
-      'housing': const Color(0xFF42A5F5),
-      'utilities': const Color(0xFFFFCA28),
-      'entertainment': const Color(0xFFAB47BC),
-      'healthcare': const Color(0xFF26C6DA),
-      'education': const Color(0xFFFFA726),
-      'shopping': const Color(0xFFEC407A),
-      'other_expense': const Color(0xFF8D6E63),
-      'other_income': const Color(0xFF78909C),
-      'salary': const Color(0xFF4CAF50),
-      'gift': const Color(0xFFF06292),
-      'interest': const Color(0xFF29B6F6),
+      'food': Color(0xFFEF5350),
+      'transport': Color(0xFF42A5F5),
+      'housing': Color(0xFFAB47BC),
+      'utilities': Color(0xFF26C6DA),
+      'entertainment': Color(0xFFFFCA28),
+      'healthcare': Color(0xFF4CAF50),
+      'education': Color(0xFFFF8A65),
+      'shopping': Color(0xFFD4E157),
+      'other_expense': Color(0xFF90A4AE),
+      'salary': Color(0xFF66BB6A),
+      'gift': Color(0xFFF06292),
+      'interest': Color(0xFF29B6F6),
+      'other_income': Color(0xFF78909C),
       'unknown': const Color(0xFFB0BEC5),
     };
-    return categoryColors[category.toLowerCase()]?.withOpacity(0.8) ?? Colors.grey.withOpacity(0.8);
-  }
 
-  Color _getBarColor(String month) {
-    final colors = [
-      Colors.blueAccent,
-      Colors.greenAccent,
-      Colors.orangeAccent,
-      Colors.purpleAccent,
-      Colors.redAccent,
-      Colors.tealAccent,
-      Colors.pinkAccent,
-      Colors.cyanAccent,
-      Colors.amberAccent,
-      Colors.indigoAccent,
-      Colors.limeAccent,
-      Colors.deepPurpleAccent,
-    ];
-    final monthIndex = int.parse(month.split('-')[1]) - 1;
-    return colors[monthIndex % colors.length].withOpacity(0.8);
-  }
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final categoryLower = category.toLowerCase();
 
-  String _getMonthLabel(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
-  }
+    // Check if the category is a default category
+    if (categoryColors.containsKey(categoryLower)) {
+      return categoryColors[categoryLower]!;
+    }
 
-  double _calculateYInterval(Map<String, double> monthlySpending) {
-    if (monthlySpending.isEmpty) return 100.0;
-    final maxValue = monthlySpending.values.reduce((a, b) => a > b ? a : b);
-    if (maxValue <= 0) return 100.0;
-    final interval = maxValue / 5;
-    return (interval / 100).ceil() * 100;
+    // For custom categories, use the color from TransactionProvider
+    return transactionProvider.customCategoryColors[categoryLower] ?? const Color(0xFFB0BEC5);
   }
 
   bool _areDateFiltersApplied() {
@@ -1068,132 +1057,374 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           SizedBox(height: Scaling.scalePadding(20)),
                           _buildChartCard(
                             title: AppLocalizations.of(context)!.monthlySpendingTrends,
-                            child: _shouldShowNoDataForMonthlySpending
-                                ? _buildNoDataWidget(isDark: isDark)
-                                : AnimatedBuilder(
-                              animation: _disappearAnimationController,
-                              builder: (context, child) {
-                                return SizedBox(
-                                  height: Scaling.scale(250),
-                                  width: double.infinity,
-                                  child: BarChart(
-                                    BarChartData(
-                                      barGroups: (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
-                                          .entries
-                                          .map<BarChartGroupData>((entry) {
-                                        final isSelected = _selectedMonth == entry.key;
-                                        return BarChartGroupData(
-                                          x: int.parse(entry.key.split('-')[1]),
-                                          barRods: [
-                                            BarChartRodData(
-                                              toY: (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  _getBarColor(entry.key),
-                                                  _getBarColor(entry.key).withOpacity(0.6),
-                                                ],
-                                                begin: Alignment.topCenter,
-                                                end: Alignment.bottomCenter,
-                                              ),
-                                              width: isSelected ? Scaling.scale(24) : Scaling.scale(16),
-                                              borderRadius: BorderRadius.circular(Scaling.scale(4)),
-                                              borderSide: isSelected
-                                                  ? BorderSide(
-                                                color: _getBarColor(entry.key).withOpacity(0.5),
-                                                width: Scaling.scale(2),
-                                              )
-                                                  : const BorderSide(width: 0),
-                                              rodStackItems: isSelected
-                                                  ? [
-                                                BarChartRodStackItem(
-                                                  0,
-                                                  (entry.value * _disappearAnimation.value).clamp(0.0, double.infinity),
-                                                  _getBarColor(entry.key).withOpacity(0.3),
-                                                ),
-                                              ]
-                                                  : [],
-                                            ),
-                                          ],
-                                          showingTooltipIndicators: isSelected ? [0] : [],
-                                        );
-                                      }).toList(),
-                                      titlesData: FlTitlesData(
-                                        bottomTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            getTitlesWidget: (value, meta) {
-                                              return Text(
-                                                _getMonthLabel(value.toInt()),
-                                                style: AppTextStyles.chartLabel(context).copyWith(
-                                                  fontSize: Scaling.scaleFont(12),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        leftTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            reservedSize: Scaling.scale(40),
-                                            interval: _calculateYInterval(
-                                                (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]),
-                                            getTitlesWidget: (value, meta) {
-                                              return Text(
-                                                "${value.toInt()}",
-                                                style: AppTextStyles.chartLabel(context).copyWith(
-                                                  fontSize: Scaling.scaleFont(12),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                      ),
-                                      borderData: FlBorderData(show: false),
-                                      gridData: FlGridData(
-                                        show: true,
-                                        drawVerticalLine: false,
-                                        getDrawingHorizontalLine: (value) {
-                                          return FlLine(
-                                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                            strokeWidth: Scaling.scale(1),
-                                          );
-                                        },
-                                      ),
-                                      barTouchData: BarTouchData(
-                                        touchCallback: (FlTouchEvent event, barTouchResponse) {
-                                          if (!event.isInterestedForInteractions || barTouchResponse == null || barTouchResponse.spot == null) {
-                                            return;
-                                          }
-                                          setState(() {
-                                            final touchedMonth = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
-                                                .keys
-                                                .elementAt(barTouchResponse.spot!.touchedBarGroupIndex);
-                                            _selectedMonth = touchedMonth == _selectedMonth ? null : touchedMonth;
-                                          });
-                                        },
-                                        touchTooltipData: BarTouchTooltipData(
-                                          tooltipRoundedRadius: Scaling.scale(8),
-                                          tooltipMargin: Scaling.scalePadding(8),
-                                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                            final month = (_isLoading ? _cachedReportsData : _reportsData)["monthlySpending"]
-                                                .keys
-                                                .elementAt(groupIndex);
-                                            return BarTooltipItem(
-                                              "${_getMonthLabel(int.parse(month.split('-')[1]))}\n${rod.toY.toStringAsFixed(2)} $currencySymbol",
-                                              TextStyle(
-                                                color: Colors.white,
-                                                fontSize: Scaling.scaleFont(12),
-                                              ),
-                                            );
-                                          },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Legend for categories (split into Income and Expenses)
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: Scaling.scalePadding(16), vertical: Scaling.scalePadding(8)),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppLocalizations.of(context)!.income,
+                                        style: AppTextStyles.subheading(context).copyWith(
+                                          fontSize: Scaling.scaleFont(14),
+                                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                         ),
                                       ),
-                                    ),
+                                      SizedBox(height: Scaling.scalePadding(4)),
+                                      Wrap(
+                                        spacing: Scaling.scalePadding(12),
+                                        runSpacing: Scaling.scalePadding(8),
+                                        children: _buildCategoryLegend(isIncome: true),
+                                      ),
+                                      SizedBox(height: Scaling.scalePadding(8)),
+                                      Text(
+                                        AppLocalizations.of(context)!.expenses,
+                                        style: AppTextStyles.subheading(context).copyWith(
+                                          fontSize: Scaling.scaleFont(14),
+                                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                        ),
+                                      ),
+                                      SizedBox(height: Scaling.scalePadding(4)),
+                                      Wrap(
+                                        spacing: Scaling.scalePadding(12),
+                                        runSpacing: Scaling.scalePadding(8),
+                                        children: _buildCategoryLegend(isIncome: false),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
+                                ),
+                                // The chart itself
+                                AnimatedBuilder(
+                                  animation: _disappearAnimationController,
+                                  builder: (context, child) {
+                                    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+                                    final transactions = transactionProvider.transactions;
+                                    final localizations = AppLocalizations.of(context)!;
+
+                                    // Aggregate transactions by month name (ignoring year)
+                                    final Map<String, Map<String, double>> monthlyIncomeByCategory = {};
+                                    final Map<String, Map<String, double>> monthlyExpenseByCategory = {};
+                                    final Map<String, double> monthlyIncomeTotals = {};
+                                    final Map<String, double> monthlyExpenseTotals = {};
+
+                                    // Initialize all months
+                                    for (int month = 1; month <= 12; month++) {
+                                      final monthName = localizations.getShortMonthName(month);
+                                      monthlyIncomeByCategory[monthName] = {};
+                                      monthlyExpenseByCategory[monthName] = {};
+                                      monthlyIncomeTotals[monthName] = 0.0;
+                                      monthlyExpenseTotals[monthName] = 0.0;
+                                    }
+
+                                    for (var transaction in transactions) {
+                                      final date = DateTime.parse(transaction.timestamp.split('T')[0]);
+                                      final monthName = localizations.getShortMonthName(date.month);
+                                      final category = transaction.getCategory(transactionProvider);
+                                      final amount = _convertAmount(transaction);
+
+                                      // Removed category filter check to include all transactions
+                                      if (transaction.type == 'income') {
+                                        monthlyIncomeByCategory[monthName]![category] =
+                                            (monthlyIncomeByCategory[monthName]![category] ?? 0) + amount;
+                                        monthlyIncomeTotals[monthName] = (monthlyIncomeTotals[monthName] ?? 0) + amount;
+                                      } else {
+                                        monthlyExpenseByCategory[monthName]![category] =
+                                            (monthlyExpenseByCategory[monthName]![category] ?? 0) + amount;
+                                        monthlyExpenseTotals[monthName] = (monthlyExpenseTotals[monthName] ?? 0) + amount;
+                                      }
+                                    }
+
+                                    // Filter out months with no data
+                                    final allMonths = List.generate(12, (index) => localizations.getShortMonthName(index + 1));
+                                    final List<String> monthsWithData = [];
+                                    final List<int> monthIndicesWithData = [];
+
+                                    for (int i = 0; i < allMonths.length; i++) {
+                                      final month = allMonths[i];
+                                      final hasIncome = (monthlyIncomeTotals[month] ?? 0.0) > 0;
+                                      final hasExpense = (monthlyExpenseTotals[month] ?? 0.0) > 0;
+                                      if (hasIncome || hasExpense) {
+                                        monthsWithData.add(month);
+                                        monthIndicesWithData.add(i);
+                                      }
+                                    }
+
+                                    bool hasData = monthsWithData.isNotEmpty;
+
+                                    if (!hasData) {
+                                      return _buildNoDataWidget(isDark: isDark);
+                                    }
+
+                                    // Calculate dynamic bar width based on the number of months
+                                    final int numberOfMonths = monthsWithData.length;
+                                    final double chartWidth = MediaQuery.of(context).size.width - Scaling.scalePadding(32); // Account for padding
+                                    const double minBarWidth = 8.0; // Minimum bar width
+                                    const double maxBarWidth = 16.0; // Maximum bar width
+                                    const double totalBarSpacePerGroup = 2 * maxBarWidth + 4; // 2 bars + space between them
+                                    const double groupSpace = 16.0; // Space between groups
+                                    final double totalRequiredWidth = (numberOfMonths * totalBarSpacePerGroup) + ((numberOfMonths - 1) * groupSpace);
+                                    final double barWidth = totalRequiredWidth > chartWidth
+                                        ? (chartWidth - ((numberOfMonths - 1) * groupSpace)) / (numberOfMonths * 2) // 2 bars per group
+                                        : maxBarWidth;
+                                    final double adjustedBarWidth = barWidth.clamp(minBarWidth, maxBarWidth);
+
+                                    // Calculate dynamic font size for month labels
+                                    const double defaultFontSize = 12.0; // Default font size
+                                    const double minFontSize = 8.0; // Minimum font size
+                                    final double fontSize = numberOfMonths > 6
+                                        ? defaultFontSize - ((numberOfMonths - 6) * 0.5) // Reduce font size as number of months increases
+                                        : defaultFontSize;
+                                    final double adjustedFontSize = fontSize.clamp(minFontSize, defaultFontSize);
+
+                                    // Calculate Y-axis interval for labels
+                                    final Map<String, double> allTotals = {...monthlyIncomeTotals, ...monthlyExpenseTotals};
+                                    final double maxValue = allTotals.values.isNotEmpty
+                                        ? allTotals.values.reduce((a, b) => a > b ? a : b)
+                                        : 100.0;
+                                    final double yInterval = maxValue > 0 ? (maxValue / 5).ceilToDouble() : 100.0;
+
+                                    final barGroups = monthsWithData.asMap().entries.map((entry) {
+                                      final groupIndex = entry.key;
+                                      final month = entry.value;
+                                      final originalMonthIndex = monthIndicesWithData[groupIndex];
+                                      final incomeTotal = monthlyIncomeTotals[month] ?? 0.0;
+                                      final expenseTotal = monthlyExpenseTotals[month] ?? 0.0;
+                                      final incomeCategoriesData = monthlyIncomeByCategory[month] ?? {};
+                                      final expenseCategoriesData = monthlyExpenseByCategory[month] ?? {};
+
+                                      // Stack items for income
+                                      final List<BarChartRodStackItem> incomeStackItems = [];
+                                      double incomeCurrentHeight = 0.0;
+                                      for (var categoryEntry in incomeCategoriesData.entries) {
+                                        final category = categoryEntry.key;
+                                        final amount = categoryEntry.value;
+                                        if (amount > 0) {
+                                          final color = _getChartColor(category);
+                                          incomeStackItems.add(
+                                            BarChartRodStackItem(
+                                              incomeCurrentHeight,
+                                              incomeCurrentHeight + amount,
+                                              color.withOpacity(1),
+                                            ),
+                                          );
+                                          incomeCurrentHeight += amount;
+                                        }
+                                      }
+
+                                      // Stack items for expenses
+                                      final List<BarChartRodStackItem> expenseStackItems = [];
+                                      double expenseCurrentHeight = 0.0;
+                                      for (var categoryEntry in expenseCategoriesData.entries) {
+                                        final category = categoryEntry.key;
+                                        final amount = categoryEntry.value;
+                                        if (amount > 0) {
+                                          final color = _getChartColor(category);
+                                          expenseStackItems.add(
+                                            BarChartRodStackItem(
+                                              expenseCurrentHeight,
+                                              expenseCurrentHeight + amount,
+                                              color.withOpacity(1),
+                                            ),
+                                          );
+                                          expenseCurrentHeight += amount;
+                                        }
+                                      }
+
+                                      return BarChartGroupData(
+                                        x: groupIndex,
+                                        barRods: [
+                                          BarChartRodData(
+                                            toY: (incomeTotal * _disappearAnimation.value).clamp(0.0, double.infinity),
+                                            width: adjustedBarWidth,
+                                            borderRadius: BorderRadius.circular(Scaling.scale(4)),
+                                            rodStackItems: incomeStackItems.isNotEmpty
+                                                ? incomeStackItems
+                                                : (incomeTotal > 0
+                                                ? [
+                                              BarChartRodStackItem(
+                                                0,
+                                                incomeTotal,
+                                                _getChartColor('other_income').withOpacity(1),
+                                              )
+                                            ]
+                                                : []),
+                                            borderSide: _selectedMonth == month && _selectedRodIndex == 0
+                                                ? BorderSide(color: Colors.white.withOpacity(1), width: Scaling.scale(2))
+                                                : BorderSide.none,
+                                          ),
+                                          BarChartRodData(
+                                            toY: (expenseTotal * _disappearAnimation.value).clamp(0.0, double.infinity),
+                                            width: adjustedBarWidth,
+                                            borderRadius: BorderRadius.circular(Scaling.scale(4)),
+                                            rodStackItems: expenseStackItems.isNotEmpty
+                                                ? expenseStackItems
+                                                : (expenseTotal > 0
+                                                ? [
+                                              BarChartRodStackItem(
+                                                0,
+                                                expenseTotal,
+                                                _getChartColor('other_expense').withOpacity(1),
+                                              )
+                                            ]
+                                                : []),
+                                            borderSide: _selectedMonth == month && _selectedRodIndex == 1
+                                                ? BorderSide(color: Colors.white.withOpacity(1), width: Scaling.scale(2))
+                                                : BorderSide.none,
+                                          ),
+                                        ],
+                                        barsSpace: Scaling.scale(0.3), // Space between income and expense bars
+                                        showingTooltipIndicators: _selectedMonth == month ? (_selectedRodIndex != null ? [_selectedRodIndex!] : []) : [],
+                                      );
+                                    }).toList();
+
+                                    return SizedBox(
+                                      height: Scaling.scale(300),
+                                      width: double.infinity,
+                                      child: BarChart(
+                                        BarChartData(
+                                          barGroups: barGroups,
+                                          groupsSpace: Scaling.scale(16),
+                                          titlesData: FlTitlesData(
+                                            bottomTitles: AxisTitles(
+                                              sideTitles: SideTitles(
+                                                showTitles: true,
+                                                getTitlesWidget: (value, meta) {
+                                                  final index = value.toInt();
+                                                  if (index < 0 || index >= monthsWithData.length) return const SizedBox.shrink();
+                                                  return Text(
+                                                    monthsWithData[index],
+                                                    style: AppTextStyles.chartLabel(context).copyWith(
+                                                      fontSize: Scaling.scaleFont(adjustedFontSize),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            leftTitles: AxisTitles(
+                                              sideTitles: SideTitles(
+                                                showTitles: true,
+                                                reservedSize: Scaling.scale(50),
+                                                interval: yInterval,
+                                                getTitlesWidget: (value, meta) {
+                                                  return Text(
+                                                    "${value.toInt()}",
+                                                    style: AppTextStyles.chartLabel(context).copyWith(
+                                                      fontSize: Scaling.scaleFont(12),
+                                                      color: isDark
+                                                          ? AppColors.darkTextSecondary.withOpacity(0.3)
+                                                          : Colors.grey[300]!,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                          ),
+                                          borderData: FlBorderData(
+                                            show: true,
+                                            border: Border(
+                                              left: BorderSide.none,
+                                              right: BorderSide.none,
+                                              top: BorderSide.none,
+                                              bottom: BorderSide(
+                                                color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300]!,
+                                                width: Scaling.scale(1),
+                                              ),
+                                            ),
+                                          ),
+                                          gridData: FlGridData(
+                                            show: true,
+                                            drawVerticalLine: true,
+                                            drawHorizontalLine: true,
+                                            horizontalInterval: yInterval,
+                                            getDrawingHorizontalLine: (value) {
+                                              return FlLine(
+                                                color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300]!,
+                                                strokeWidth: Scaling.scale(1),
+                                              );
+                                            },
+                                            getDrawingVerticalLine: (value) {
+                                              return FlLine(
+                                                color: isDark ? AppColors.darkTextSecondary.withOpacity(0.3) : Colors.grey[300]!,
+                                                strokeWidth: Scaling.scale(1),
+                                              );
+                                            },
+                                            verticalInterval: 1.0, // One line per group
+                                            checkToShowVerticalLine: (value) {
+                                              // Show vertical lines only between groups (not within a group)
+                                              return (value - 0.5) % 1 == 0 && value != -0.5 && value != (monthsWithData.length - 0.5);
+                                            },
+                                          ),
+                                          backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+                                          barTouchData: BarTouchData(
+                                            touchCallback: (FlTouchEvent event, barTouchResponse) {
+                                              if (!event.isInterestedForInteractions ||
+                                                  barTouchResponse == null ||
+                                                  barTouchResponse.spot == null) {
+                                                setState(() {
+                                                  _selectedMonth = null;
+                                                  _selectedRodIndex = null;
+                                                });
+                                                return;
+                                              }
+                                              final touchedGroupIndex = barTouchResponse.spot!.touchedBarGroupIndex;
+                                              final touchedRodIndex = barTouchResponse.spot!.touchedRodDataIndex;
+                                              final touchedMonth = monthsWithData[touchedGroupIndex];
+
+                                              setState(() {
+                                                if (_selectedMonth == touchedMonth && _selectedRodIndex == touchedRodIndex) {
+                                                  _selectedMonth = null;
+                                                  _selectedRodIndex = null;
+                                                } else {
+                                                  _selectedMonth = touchedMonth;
+                                                  _selectedRodIndex = touchedRodIndex;
+                                                }
+                                              });
+                                            },
+                                            touchTooltipData: BarTouchTooltipData(
+                                              tooltipRoundedRadius: Scaling.scale(8),
+                                              tooltipMargin: -Scaling.scalePadding(10),
+                                              tooltipPadding: EdgeInsets.symmetric(
+                                                horizontal: Scaling.scalePadding(8),
+                                                vertical: Scaling.scalePadding(4),
+                                              ),
+                                              fitInsideHorizontally: true,
+                                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                                if (_selectedRodIndex != rodIndex || _selectedMonth != monthsWithData[groupIndex]) {
+                                                  return null;
+                                                }
+
+                                                final month = monthsWithData[groupIndex];
+                                                final incomeTotal = monthlyIncomeTotals[month] ?? 0.0;
+                                                final expenseTotal = monthlyExpenseTotals[month] ?? 0.0;
+                                                final isIncome = rodIndex == 0;
+                                                final total = isIncome ? incomeTotal : expenseTotal;
+                                                final typeLabel = isIncome ? localizations.income : localizations.expenses;
+
+                                                if (total == 0) return null;
+
+                                                return BarTooltipItem(
+                                                  "$typeLabel: ${total.toStringAsFixed(2)} $currencySymbol",
+                                                  TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: Scaling.scaleFont(12),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                           SizedBox(height: Scaling.scalePadding(20)),
@@ -1323,6 +1554,68 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         strokeWidth: Scaling.scale(4),
       ),
     );
+  }
+
+  List<Widget> _buildCategoryLegend({required bool isIncome}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final transactions = transactionProvider.transactions;
+
+    // Get unique categories from transactions based on type
+    final Set<String> uniqueCategories = {};
+    for (var transaction in transactions) {
+      final category = transaction.getCategory(transactionProvider).toLowerCase();
+      final transactionType = transaction.type;
+      if (isIncome && transactionType == 'income') {
+        uniqueCategories.add(category);
+      } else if (!isIncome && transactionType == 'expense') {
+        uniqueCategories.add(category);
+      }
+    }
+
+    // Convert the set to a list for mapping
+    final categoriesToShow = uniqueCategories.toList();
+
+    // If no categories match for this type, return a message
+    if (categoriesToShow.isEmpty) {
+      return [
+        Text(
+          AppLocalizations.of(context)!.noCategories,
+          style: AppTextStyles.body(context).copyWith(
+            fontSize: Scaling.scaleFont(12),
+            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+          ),
+        ),
+      ];
+    }
+
+    // Map categories to their display names using _getCategoryDisplayName
+    return categoriesToShow.map((category) {
+      final color = _getChartColor(category).withOpacity(0.8);
+      final categoryName = _getCategoryDisplayName(category);
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: Scaling.scale(12),
+            height: Scaling.scale(12),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle, // Circular like in the screenshot
+            ),
+          ),
+          SizedBox(width: Scaling.scalePadding(4)),
+          Text(
+            categoryName,
+            style: AppTextStyles.body(context).copyWith(
+              fontSize: Scaling.scaleFont(12),
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            ),
+          ),
+        ],
+      );
+    }).toList();
   }
 
   Widget _buildDateFilterSection() {

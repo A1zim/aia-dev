@@ -246,7 +246,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   }
 
   Color _getCategoryColor(String categoryName) {
-    const categoryColors = {
+    final Map<String, Color> categoryColors = {
       'food': Color(0xFFEF5350),
       'transport': Color(0xFF42A5F5),
       'housing': Color(0xFFAB47BC),
@@ -260,8 +260,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
       'gift': Color(0xFFF06292),
       'interest': Color(0xFF29B6F6),
       'other_income': Color(0xFF78909C),
+      'unknown': const Color(0xFFB0BEC5),
     };
-    return categoryColors[categoryName] ?? Colors.grey.withOpacity(0.8);
+
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final categoryLower = categoryName.toLowerCase();
+
+    // Check if the category is a default category
+    if (categoryColors.containsKey(categoryLower)) {
+      return categoryColors[categoryLower]!;
+    }
+
+    // For custom categories, use the color from TransactionProvider
+    return transactionProvider.customCategoryColors[categoryLower] ?? const Color(0xFFB0BEC5);
   }
 
   Color _getTypeColor(String type) {

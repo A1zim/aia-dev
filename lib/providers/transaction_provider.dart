@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math'; // For Random
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
@@ -14,6 +15,7 @@ class TransactionProvider with ChangeNotifier {
   List<String> _dateKeys = [];
   UserFinances? _userFinances;
   List<Category> _categories = [];
+  Map<String, Color> _customCategoryColors = {}; // Map to store colors for custom categories
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   // Filter variables
@@ -34,6 +36,7 @@ class TransactionProvider with ChangeNotifier {
   List<String> get dateKeys => _dateKeys;
   UserFinances? get userFinances => _userFinances;
   List<Category> get categories => _categories;
+  Map<String, Color> get customCategoryColors => _customCategoryColors;
   bool get filterIncome => _filterIncome;
   bool get filterExpense => _filterExpense;
   String get dateFilter => _dateFilter;
@@ -77,6 +80,13 @@ class TransactionProvider with ChangeNotifier {
       // Load categories
       final categoryMaps = await db.query('categories');
       _categories = categoryMaps.map((map) => Category.fromMap(map)).toList();
+
+      // Assign colors to existing custom categories
+      for (var category in _categories) {
+        if (!_customCategoryColors.containsKey(category.name.toLowerCase())) {
+          _customCategoryColors[category.name.toLowerCase()] = _generateRandomColor();
+        }
+      }
 
       // Apply filters and group transactions
       _applyDateFilter();
@@ -695,6 +705,8 @@ class TransactionProvider with ChangeNotifier {
       type: type,
     );
     _categories.add(addedCategory);
+    // Assign a random color to the new custom category
+    _customCategoryColors[name.toLowerCase()] = _generateRandomColor();
     notifyListeners();
   }
 
@@ -761,6 +773,8 @@ class TransactionProvider with ChangeNotifier {
 
       // Update the in-memory list of categories
       _categories.removeWhere((category) => category.id == id);
+      // Remove the color for the deleted category
+      _customCategoryColors.remove(categoryName.toLowerCase());
 
       // Refresh transactions in memory to reflect the updates
       await loadData();
@@ -836,5 +850,128 @@ class TransactionProvider with ChangeNotifier {
     _applyDateFilter();
     _groupTransactionsByDate();
     notifyListeners();
+  }
+
+  Color _generateRandomColor() {
+    // Predefined colors in RGB format (same as in CategoryScreen and ReportsScreen)
+    final List<Color> predefinedColors = [
+      Color(0xFFEF5350), // food
+      Color(0xFF42A5F5), // transport
+      Color(0xFFAB47BC), // housing
+      Color(0xFF26C6DA), // utilities
+      Color(0xFFFFCA28), // entertainment
+      Color(0xFF4CAF50), // healthcare
+      Color(0xFFFF8A65), // education
+      Color(0xFFD4E157), // shopping
+      Color(0xFF90A4AE), // other_expense
+      Color(0xFF66BB6A), // salary
+      Color(0xFFF06292), // gift
+      Color(0xFF29B6F6), // interest
+      Color(0xFF78909C), // other_income
+      Color(0xFFB0BEC5), // unknown (used in ReportsScreen)
+    ];
+
+    // Convert predefined colors to HSL for comparison
+    List<List<double>> predefinedHSL = predefinedColors.map((color) {
+      final r = color.red / 255.0;
+      final g = color.green / 255.0;
+      final b = color.blue / 255.0;
+      final cMax = [r, g, b].reduce((a, b) => a > b ? a : b);
+      final cMin = [r, g, b].reduce((a, b) => a < b ? a : b);
+      final delta = cMax - cMin;
+
+      double h = 0.0, s = 0.0, l = (cMax + cMin) / 2.0;
+
+      if (delta != 0) {
+        s = l > 0.5 ? delta / (2.0 - cMax - cMin) : delta / (cMax + cMin);
+        if (cMax == r) {
+          h = (g - b) / delta + (g < b ? 6.0 : 0.0);
+        } else if (cMax == g) {
+          h = (b - r) / delta + 2.0;
+        } else if (cMax == b) {
+          h = (r - g) / delta + 4.0;
+        }
+        h *= 60.0;
+      }
+      return [h, s, l];
+    }).toList();
+
+    // Generate a random color in HSL space and ensure it's not too similar
+    Color randomColor;
+    bool isTooSimilar;
+    do {
+      // Generate random hue (0-360), saturation (0.5-1.0), and lightness (0.4-0.6)
+      final random = Random();
+      final hue = random.nextDouble() * 360.0;
+      final saturation = 0.5 + random.nextDouble() * 0.5; // 0.5 to 1.0
+      final lightness = 0.4 + random.nextDouble() * 0.2; // 0.4 to 0.6
+
+      // Convert HSL to RGB
+      double r, g, b;
+      if (saturation == 0) {
+        r = g = b = lightness;
+      } else {
+        double hueToRgb(double p, double q, double t) {
+          if (t < 0) t += 1.0;
+          if (t > 1) t -= 1.0;
+          if (t < 1 / 6) return p + (q - p) * 6.0 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6.0;
+          return p;
+        }
+
+        final q = lightness < 0.5 ? lightness * (1.0 + saturation) : lightness + saturation - lightness * saturation;
+        final p = 2.0 * lightness - q;
+        r = hueToRgb(p, q, (hue / 360.0) + 1 / 3);
+        g = hueToRgb(p, q, hue / 360.0);
+        b = hueToRgb(p, q, (hue / 360.0) - 1 / 3);
+      }
+
+      randomColor = Color.fromRGBO(
+        (r * 255).round(),
+        (g * 255).round(),
+        (b * 255).round(),
+        1.0,
+      );
+
+      // Convert the random color to HSL for comparison
+      final rNorm = randomColor.red / 255.0;
+      final gNorm = randomColor.green / 255.0;
+      final bNorm = randomColor.blue / 255.0;
+      final cMax = [rNorm, gNorm, bNorm].reduce((a, b) => a > b ? a : b);
+      final cMin = [rNorm, gNorm, bNorm].reduce((a, b) => a < b ? a : b);
+      final delta = cMax - cMin;
+
+      double h = 0.0, s = 0.0, l = (cMax + cMin) / 2.0;
+      if (delta != 0) {
+        s = l > 0.5 ? delta / (2.0 - cMax - cMin) : delta / (cMax + cMin);
+        if (cMax == rNorm) {
+          h = (gNorm - bNorm) / delta + (gNorm < bNorm ? 6.0 : 0.0);
+        } else if (cMax == gNorm) {
+          h = (bNorm - rNorm) / delta + 2.0;
+        } else if (cMax == bNorm) {
+          h = (rNorm - gNorm) / delta + 4.0;
+        }
+        h *= 60.0;
+      }
+
+      // Check if the random color is too similar to any predefined color
+      isTooSimilar = false;
+      for (var hsl in predefinedHSL) {
+        final hueDiff = (h - hsl[0]).abs();
+        final adjustedHueDiff = hueDiff > 180 ? 360 - hueDiff : hueDiff;
+        final saturationDiff = (s - hsl[1]).abs();
+        final lightnessDiff = (l - hsl[2]).abs();
+
+        // Consider colors too similar if hue difference is less than 30 degrees,
+        // and saturation and lightness differences are small
+        if (adjustedHueDiff < 30 && saturationDiff < 0.2 && lightnessDiff < 0.1) {
+          isTooSimilar = true;
+          break;
+        }
+      }
+    } while (isTooSimilar);
+
+    return randomColor;
   }
 }
