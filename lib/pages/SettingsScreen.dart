@@ -25,7 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = false;
 
   List<String> _availableCurrencies = [];
-  static const String appVersion = '0.0.2';
+  static const String appVersion = '0.0.3';
 
   @override
   void initState() {

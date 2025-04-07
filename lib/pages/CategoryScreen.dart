@@ -242,7 +242,17 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
       'interest': Color(0xFF29B6F6),
       'other_income': Color(0xFF78909C),
     };
-    return categoryColors[category] ?? Colors.grey.withOpacity(0.8);
+
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final categoryLower = category.toLowerCase();
+
+    // Check if the category is a default category
+    if (categoryColors.containsKey(categoryLower)) {
+      return categoryColors[categoryLower]!;
+    }
+
+    // For custom categories, use the color from TransactionProvider
+    return transactionProvider.customCategoryColors[categoryLower] ?? Colors.grey.withOpacity(0.8);
   }
 
   Color _getTypeColor(String type) {
@@ -254,7 +264,7 @@ class _CategoryScreenState extends State<CategoryScreen> with SingleTickerProvid
     if (_defaultCategoryNames.contains(category['name'])) {
       return AppLocalizations.of(context)!.getCategoryName(category['name']);
     }
-    return category['name'];
+    return category['name'].toString().replaceAll('_', ' ').split(' ').map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase()).join(' ');
   }
 
   @override

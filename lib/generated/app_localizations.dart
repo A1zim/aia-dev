@@ -224,6 +224,8 @@ class AppLocalizations {
       "dec": "Dec",
       "close": "Close",
       "version": "Version: ",
+      "noCategories": "No Categories: ",
+
     },
     'ky': {
       'appTitle': 'Жеке Финансы',
@@ -436,6 +438,7 @@ class AppLocalizations {
       "dec": "Дек",
       "close": "Жабуу",
       "version": "Версиясы: ",
+      "noCategories": "Категория жок: ",
 
     },
     'ru': {
@@ -649,6 +652,7 @@ class AppLocalizations {
       "dec": "Дек",
       "close": "Закрыть",
       "version": "Версия: ",
+      "noCategories": "Нету категорий: ",
     }
   };
 
@@ -864,6 +868,7 @@ class AppLocalizations {
   String get addCurrency => _localizedValues[locale.languageCode]!['add_currency']!;
   String get close => _localizedValues[locale.languageCode]!['close']!;
   String get version => _localizedValues[locale.languageCode]!['version']!;
+  String get noCategories => _localizedValues[locale.languageCode]!['noCategories']!;
 
 
   // Method to get the full month name based on the month number (1-12)
