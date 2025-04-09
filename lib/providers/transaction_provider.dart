@@ -90,7 +90,7 @@ class TransactionProvider with ChangeNotifier {
 
       // Apply filters and group transactions
       _applyDateFilter();
-      _groupTransactionsByDate();
+      groupTransactionsByDate();
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -188,7 +188,7 @@ class TransactionProvider with ChangeNotifier {
       });
       debugPrint('Transaction list length: ${_transactions.length}');
       _applyDateFilter();
-      _groupTransactionsByDate();
+      groupTransactionsByDate();
       notifyListeners();
     } catch (e) {
       debugPrint('Error adding transaction: $e');
@@ -253,7 +253,7 @@ class TransactionProvider with ChangeNotifier {
       );
     });
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -304,7 +304,7 @@ class TransactionProvider with ChangeNotifier {
       debugPrint('Updated UserFinances after deletion: ${_userFinances!.toMap()}');
     });
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -316,7 +316,7 @@ class TransactionProvider with ChangeNotifier {
     _selectedEndDate = end;
     _dateFilter = 'Custom';
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -326,7 +326,7 @@ class TransactionProvider with ChangeNotifier {
     _selectedStartDate = date;
     _setDateRangeForFilter();
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -439,7 +439,7 @@ class TransactionProvider with ChangeNotifier {
     }
 
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -489,7 +489,7 @@ class TransactionProvider with ChangeNotifier {
     }
 
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -577,7 +577,7 @@ class TransactionProvider with ChangeNotifier {
     _filterExpense = true;
     _setDateRangeForFilter();
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 
@@ -636,7 +636,7 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
-  void _groupTransactionsByDate([BuildContext? context]) {
+  void groupTransactionsByDate([BuildContext? context]) {
     _groupedTransactions.clear();
     _dateKeys.clear();
 
@@ -683,7 +683,7 @@ class TransactionProvider with ChangeNotifier {
         dateB = dateFormat.parse(b);
       }
 
-      return dateB.compareTo(dateA);
+      return dateB.compareTo(dateA); // Sort descending
     });
 
     for (var dateKey in _dateKeys) {
@@ -848,7 +848,7 @@ class TransactionProvider with ChangeNotifier {
       }
     }
     _applyDateFilter();
-    _groupTransactionsByDate();
+    groupTransactionsByDate();
     notifyListeners();
   }
 

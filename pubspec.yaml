@@ -21,6 +21,7 @@ dependencies:
   fl_chart: ^0.70.2
   provider: ^6.1.2
   image_picker: ^1.1.2
+  device_preview: ^1.2.0
 
 dev_dependencies:
   flutter_test:
@@ -40,5 +41,5 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app_logo.png"
+  image_path: "assets/images/ic_launcher.png"
   min_sdk_android: 21
