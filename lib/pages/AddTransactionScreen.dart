@@ -843,7 +843,15 @@ class __CustomTransactionCalendarDialogState extends State<_CustomTransactionCal
     final daysInMonth = lastDayOfMonth.day;
     final firstDayWeekday = firstDayOfMonth.weekday;
     final startingOffset = (firstDayWeekday - 1) % 7;
-    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final weekdays = [
+      AppLocalizations.of(context)!.getShortWeekdayName(1), // Mon
+      AppLocalizations.of(context)!.getShortWeekdayName(2), // Tue
+      AppLocalizations.of(context)!.getShortWeekdayName(3), // Wed
+      AppLocalizations.of(context)!.getShortWeekdayName(4), // Thu
+      AppLocalizations.of(context)!.getShortWeekdayName(5), // Fri
+      AppLocalizations.of(context)!.getShortWeekdayName(6), // Sat
+      AppLocalizations.of(context)!.getShortWeekdayName(7), // Sun
+    ];
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 

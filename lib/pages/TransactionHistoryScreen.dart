@@ -1,3 +1,4 @@
+import 'package:aia_wallet/services/currency_api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -9,8 +10,7 @@ import 'package:aia_wallet/providers/theme_provider.dart';
 import 'package:aia_wallet/generated/app_localizations.dart';
 import 'package:aia_wallet/providers/transaction_provider.dart';
 import 'package:aia_wallet/providers/currency_provider.dart';
-import 'package:aia_wallet/utils/scaling.dart'; // Import Scaling utility
-
+import 'package:aia_wallet/utils/scaling.dart';
 import '../models/category.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
@@ -194,6 +194,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     final logoPath = themeProvider.getLogoPath(context);
     final transactionProvider = Provider.of<TransactionProvider>(context);
 
+    transactionProvider.groupTransactionsByDate(context);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -295,7 +297,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   ],
                 )
                     : ListView.builder(
-                  padding: EdgeInsets.only(bottom: Scaling.scalePadding(80.0)),
+                  padding: EdgeInsets.only(top: Scaling.scalePadding(5)),
                   itemCount: (transactionProvider.dateFilter == 'Daily' ? 0 : transactionProvider.dateKeys.length) + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
@@ -316,7 +318,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                             vertical: Scaling.scalePadding(8.0),
                           ),
                           child: Text(
-                            dateKey,
+                            dateKey, // Localized "Today" or "Yesterday"
                             style: AppTextStyles.body(context).copyWith(
                               fontSize: Scaling.scaleFont(14),
                               fontWeight: FontWeight.bold,
@@ -340,7 +342,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             if (transactionProvider.dateFilter == 'Daily' && transactionProvider.filteredTransactions.isNotEmpty)
               Expanded(
                 child: ListView.builder(
-                  padding: EdgeInsets.only(bottom: Scaling.scalePadding(80.0)),
+                  padding: EdgeInsets.only(top: Scaling.scalePadding(80.0)),
                   itemCount: transactionProvider.filteredTransactions.length,
                   itemBuilder: (context, index) {
                     final transaction = transactionProvider.filteredTransactions[index];
@@ -570,6 +572,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       return transaction.getCategory(transactionProvider).capitalize();
     }
 
+    String origCurrency = transaction.originalCurrency ?? '';
+
     return Semantics(
       label: '${isIncome ? "Income" : "Expense"} transaction, ${transaction.description ?? ''}, ${convertedAmount.toStringAsFixed(2)} $currencySymbol',
       child: Card(
@@ -699,8 +703,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                             Padding(
                               padding: EdgeInsets.only(top: Scaling.scalePadding(8.0)),
                               child: _buildDetailRow(
-                                'Original',
-                                '${transaction.originalAmount!.toStringAsFixed(2)} ${transaction.originalCurrency}',
+                                AppLocalizations.of(context)!.original,
+                                '${transaction.originalAmount!.toStringAsFixed(2)} ${CurrencyApiService().getCurrencySymbol(origCurrency)}',
                                 context,
                               ),
                             ),
@@ -813,8 +817,7 @@ class _CustomCalendarDialog extends StatefulWidget {
 class __CustomCalendarDialogState extends State<_CustomCalendarDialog> {
   @override
   Widget build(BuildContext context) {
-    Scaling.init(context); // Initialize scaling
-
+    Scaling.init(context);
     final localizations = AppLocalizations.of(context)!;
     final transactionProvider = Provider.of<TransactionProvider>(context);
     final calendarDate = transactionProvider.calendarDate;
@@ -865,7 +868,7 @@ class __CustomCalendarDialogState extends State<_CustomCalendarDialog> {
                   onPressed: () {
                     final now = DateTime.now();
                     final nextMonth = DateTime(calendarDate.year, calendarDate.month + 1, 1);
-                    if (nextMonth.isBefore(now) || nextMonth.month == now.month && nextMonth.year == now.year) {
+                    if (nextMonth.isBefore(now) || (nextMonth.month == now.month && nextMonth.year == now.year)) {
                       transactionProvider.shiftCalendarMonth(1);
                     }
                   },
@@ -880,52 +883,31 @@ class __CustomCalendarDialogState extends State<_CustomCalendarDialog> {
               items: [
                 DropdownMenuItem(
                   value: 'Daily',
-                  child: Text(
-                    localizations.daily,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.daily, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
                 DropdownMenuItem(
                   value: 'Weekly',
-                  child: Text(
-                    localizations.weekly,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.weekly, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
                 DropdownMenuItem(
                   value: 'Monthly',
-                  child: Text(
-                    localizations.monthly,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.monthly, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
                 DropdownMenuItem(
                   value: '3 Months',
-                  child: Text(
-                    localizations.last3Months,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.last3Months, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
                 DropdownMenuItem(
                   value: '6 Months',
-                  child: Text(
-                    localizations.last6Months,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.last6Months, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
                 DropdownMenuItem(
                   value: 'Yearly',
-                  child: Text(
-                    localizations.yearly,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.yearly, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
                 DropdownMenuItem(
                   value: 'Custom',
-                  child: Text(
-                    localizations.custom,
-                    style: TextStyle(fontSize: Scaling.scaleFont(14)),
-                  ),
+                  child: Text(localizations.custom, style: TextStyle(fontSize: Scaling.scaleFont(14))),
                 ),
               ],
               onChanged: (value) {
@@ -974,7 +956,15 @@ class __CustomCalendarDialogState extends State<_CustomCalendarDialog> {
     final firstDayWeekday = firstDayOfMonth.weekday;
 
     final startingOffset = (firstDayWeekday - 1) % 7;
-    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final weekdays = [
+      AppLocalizations.of(context)!.getShortWeekdayName(1), // Mon
+      AppLocalizations.of(context)!.getShortWeekdayName(2), // Tue
+      AppLocalizations.of(context)!.getShortWeekdayName(3), // Wed
+      AppLocalizations.of(context)!.getShortWeekdayName(4), // Thu
+      AppLocalizations.of(context)!.getShortWeekdayName(5), // Fri
+      AppLocalizations.of(context)!.getShortWeekdayName(6), // Sat
+      AppLocalizations.of(context)!.getShortWeekdayName(7), // Sun
+    ];
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -1007,9 +997,7 @@ class __CustomCalendarDialogState extends State<_CustomCalendarDialog> {
             }
             final day = index - startingOffset + 1;
             final date = DateTime(calendarDate.year, calendarDate.month, day);
-            final isToday = date.day == now.day &&
-                date.month == now.month &&
-                date.year == now.year;
+            final isToday = date.day == now.day && date.month == now.month && date.year == now.year;
             final isFuture = date.isAfter(today);
             final isSelected = (transactionProvider.dateFilter == 'Custom' &&
                 transactionProvider.customStartDate != null &&
@@ -1051,9 +1039,7 @@ class __CustomCalendarDialogState extends State<_CustomCalendarDialog> {
                           ? AppColors.darkTextSecondary.withOpacity(0.3)
                           : AppColors.lightTextSecondary.withOpacity(0.3))
                           : (isSelected || isToday
-                          ? (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black)
+                          ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)
                           : null),
                       fontWeight: isSelected || isToday ? FontWeight.bold : null,
                       fontSize: Scaling.scaleFont(14),

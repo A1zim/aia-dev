@@ -1,8 +1,8 @@
 flutter_native_splash:
   color: "#FFFFFF" # White background
-  image: assets/images/app_logo.png # Your wallet with Avengers emblem logo
+  image: assets/images/ic_launcher.png # Your wallet with Avengers emblem logo
   android: true
   ios: true
   android_12:
-    image: assets/images/app_logo.png
+    image: assets/images/ic_launcher.png
     color: "#FFFFFF"

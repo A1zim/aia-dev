@@ -100,5 +100,3 @@ backend/db.sqlite3
 *.pdf
 # Optimize images before including them, or exclude large ones
 *.jpg
-*.png
-backend/aiaback/

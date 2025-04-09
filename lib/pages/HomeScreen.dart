@@ -73,7 +73,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       await Future.delayed(Duration.zero); // Ensure provider is initialized
       setState(() {
-        _transactions = transactionProvider.transactions;
+        _transactions = transactionProvider.transactions
+          ..sort((a, b) => b.timestampAsDateTime.compareTo(a.timestampAsDateTime)); // Sort descending (most recent first)
         _totalIncome = transactionProvider.userFinances?.income ?? 0.0;
         _totalExpenses = transactionProvider.userFinances?.expense ?? 0.0;
         _balance = transactionProvider.userFinances?.balance ?? 0.0;
@@ -97,7 +98,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       await transactionProvider.loadData(); // Refresh data from database
       setState(() {
-        _transactions = transactionProvider.transactions;
+        _transactions = transactionProvider.transactions
+          ..sort((a, b) => b.timestampAsDateTime.compareTo(a.timestampAsDateTime)); // Sort descending (most recent first)
         _totalIncome = transactionProvider.userFinances?.income ?? 0.0;
         _totalExpenses = transactionProvider.userFinances?.expense ?? 0.0;
         _balance = transactionProvider.userFinances?.balance ?? 0.0;
@@ -521,7 +523,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           style: AppTextStyles.subheading(context),
                         ),
                       ),
-                      SizedBox(height: Scaling.scalePadding(8)),
                     ],
                   ),
                 ),
@@ -541,14 +542,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   )
                 else
                   Padding(
-                    padding: EdgeInsets.only(bottom: Scaling.scalePadding(80.0)),
+                    padding: EdgeInsets.only(bottom: Scaling.scalePadding(5)),
                     child: ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _transactions.length,
+                      itemCount: _transactions.length > 10 ? 10 : _transactions.length, // Limit to 10 transactions
                       itemBuilder: (context, index) {
-                        final transaction = _transactions[index];
-                        final isLast = index == _transactions.length - 1;
+                        final transaction = _transactions[index]; // Display from the start (most recent first)
+                        final isLast = index == (_transactions.length > 10 ? 9 : _transactions.length - 1);
                         return _buildTransactionTile(transaction, isLast, index);
                       },
                     ),

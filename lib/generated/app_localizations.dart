@@ -222,6 +222,13 @@ class AppLocalizations {
       "oct": "Oct",
       "nov": "Nov",
       "dec": "Dec",
+      'mon': 'Mon',
+      'tue': 'Tue',
+      'wed': 'Wed',
+      'thu': 'Thu',
+      'fri': 'Fri',
+      'sat': 'Sat',
+      'sun': 'Sun',
       "close": "Close",
       "version": "Version: ",
       "noCategories": "No Categories: ",
@@ -436,6 +443,13 @@ class AppLocalizations {
       "oct": "Окт",
       "nov": "Ноя",
       "dec": "Дек",
+      'mon': 'Дүй',
+      'tue': 'Шей',
+      'wed': 'Шар',
+      'thu': 'Бей',
+      'fri': 'Жума',
+      'sat': 'Ишм',
+      'sun': 'Жек',
       "close": "Жабуу",
       "version": "Версиясы: ",
       "noCategories": "Категория жок: ",
@@ -650,6 +664,13 @@ class AppLocalizations {
       "oct": "Окт",
       "nov": "Ноя",
       "dec": "Дек",
+      'mon': 'Пн',
+      'tue': 'Вт',
+      'wed': 'Ср',
+      'thu': 'Чв',
+      'fri': 'Пт',
+      'sat': 'Сб',
+      'sun': 'Вс',
       "close": "Закрыть",
       "version": "Версия: ",
       "noCategories": "Нету категорий: ",
@@ -930,6 +951,27 @@ class AppLocalizations {
         return _localizedValues[locale.languageCode]!['nov']!;
       case 12:
         return _localizedValues[locale.languageCode]!['dec']!;
+      default:
+        return '';
+    }
+  }
+
+  String getShortWeekdayName(int weekday) {
+    switch (weekday) {
+      case 1:
+        return _localizedValues[locale.languageCode]!['mon']!;
+      case 2:
+        return _localizedValues[locale.languageCode]!['tue']!;
+      case 3:
+        return _localizedValues[locale.languageCode]!['wed']!;
+      case 4:
+        return _localizedValues[locale.languageCode]!['thu']!;
+      case 5:
+        return _localizedValues[locale.languageCode]!['fri']!;
+      case 6:
+        return _localizedValues[locale.languageCode]!['sat']!;
+      case 7:
+        return _localizedValues[locale.languageCode]!['sun']!;
       default:
         return '';
     }
