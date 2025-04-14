@@ -222,10 +222,12 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     setState(() {
       _isLoading = true;
       _cachedReportsData = Map.from(_reportsData);
+      _cachedReportsData.remove('monthlySpending'); // Exclude monthlySpending, handled separately
       _selectedCategory = null;
       _detailsAnimationController.reverse();
     });
 
+    // Show loading overlay after a brief delay to avoid flicker
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_isLoading) {
         setState(() {
@@ -238,17 +240,22 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       final transactions = transactionProvider.transactions;
 
+      // Apply date filters
       final filteredTransactions = transactions.where((transaction) {
         final transactionDate = DateTime.parse(transaction.timestamp.split('T')[0]);
-        return (_selectedStartDate == null || transactionDate.isAfter(_selectedStartDate!.subtract(const Duration(days: 1)))) &&
-            (_selectedEndDate == null || transactionDate.isBefore(_selectedEndDate!.add(const Duration(days: 1))));
+        return (_selectedStartDate == null ||
+            transactionDate.isAfter(_selectedStartDate!.subtract(const Duration(days: 1)))) &&
+            (_selectedEndDate == null ||
+                transactionDate.isBefore(_selectedEndDate!.add(const Duration(days: 1))));
       }).toList();
 
+      // Determine transaction type based on current page (0: expenses, 1: income)
       final String selectedType = _currentPage == 0 ? 'expense' : 'income';
       final List<String> categoryNames = selectedCategories.isNotEmpty
           ? selectedCategories.map((cat) => cat['name'] as String).toList()
-          : [];
+          : []; // Empty list after page switch ensures all categories are shown
 
+      // Calculate category-wise spending/income
       final Map<String, double> categorySpending = {};
       for (var transaction in filteredTransactions) {
         if (transaction.type != selectedType) continue;
@@ -260,28 +267,19 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         categorySpending[category] = (categorySpending[category] ?? 0) + amount;
       }
 
-      final Map<String, double> monthlySpending = {};
-      for (var transaction in filteredTransactions) {
-        if (transaction.type != selectedType) continue;
-
-        final category = transaction.getCategory(transactionProvider);
-        if (categoryNames.isNotEmpty && !categoryNames.contains(category)) continue;
-
-        final date = transaction.timestamp.substring(0, 7);
-        final amount = _convertAmount(transaction);
-        monthlySpending[date] = (monthlySpending[date] ?? 0) + amount;
-      }
-
+      // Prepare new reports data
       final newReportsData = {
         "categorySpending": categorySpending,
-        "monthlySpending": monthlySpending,
         "total": categorySpending.values.fold(0.0, (a, b) => a + b),
       };
 
-      final previousSpending = _cachedReportsData["categorySpending"] as Map<String, double>;
+      // Handle animations for disappearing categories
+      final previousSpending = _cachedReportsData["categorySpending"] as Map<String, double>? ?? {};
       final newSpending = newReportsData["categorySpending"] as Map<String, double>;
 
-      final removedCategories = previousSpending.keys.where((category) => !newSpending.containsKey(category)).toList();
+      final removedCategories = previousSpending.keys
+          .where((category) => !newSpending.containsKey(category))
+          .toList();
 
       for (var category in removedCategories) {
         if (!_disappearingControllers.containsKey(category)) {
@@ -309,6 +307,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         }
       }
 
+      // Prepare animations for value changes
       final allCategories = {...previousSpending.keys, ...newSpending.keys};
       final newValueAnimations = <String, Animation<double>>{};
 
@@ -326,8 +325,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         );
       }
 
-      final bool newCategorySpendingEmpty = (newReportsData["categorySpending"] as Map<String, double>).isEmpty;
-      final bool newMonthlySpendingEmpty = (newReportsData["monthlySpending"] as Map<String, double>).isEmpty;
+      // Handle empty state for category spending
+      final bool newCategorySpendingEmpty =
+          (newReportsData["categorySpending"] as Map<String, double>).isEmpty;
 
       if (!_isCategorySpendingEmpty && newCategorySpendingEmpty) {
         await _disappearAnimationController.forward(from: 0.0);
@@ -343,27 +343,17 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         });
       }
 
-      if (!_isMonthlySpendingEmpty && newMonthlySpendingEmpty) {
-        await _disappearAnimationController.forward(from: 0.0);
-        setState(() {
-          _shouldShowNoDataForMonthlySpending = true;
-        });
-      } else if (_isMonthlySpendingEmpty && !newMonthlySpendingEmpty) {
-        setState(() {
-          _shouldShowNoDataForMonthlySpending = false;
-        });
-        _disappearAnimationController.reverse(from: 1.0).then((_) {
-          _pulseAnimationController.forward(from: 0.0);
-        });
-      }
-
+      // Update state
       setState(() {
-        _reportsData = newReportsData;
+        _reportsData = {
+          ...newReportsData,
+          "monthlySpending": {}, // Reset to empty, handled by getAllFinancialData
+        };
         _valueAnimations = newValueAnimations;
         _isLoading = false;
         _showLoadingOverlay = false;
         _isCategorySpendingEmpty = newCategorySpendingEmpty;
-        _isMonthlySpendingEmpty = newMonthlySpendingEmpty;
+        _isMonthlySpendingEmpty = false; // Monthly spending checked in chart
       });
 
       _valueAnimationController.forward(from: 0.0);
@@ -374,7 +364,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       });
       NotificationService.showNotification(
         context,
-        message: AppLocalizations.of(context)?.failedToLoadData(e.toString()) ?? 'Failed to load data: $e',
+        message: AppLocalizations.of(context)?.failedToLoadData(e.toString()) ??
+            'Failed to load data: $e',
         isError: true,
       );
     }
@@ -743,7 +734,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       fontSize: Scaling.scaleFont(24),
                                       fontWeight: FontWeight.bold,
                                       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                      fontFamily: 'Poppins',
+                                      fontFamily: 'Poppins959',
                                     ),
                                   ),
                                   TextSpan(
@@ -752,7 +743,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       fontSize: Scaling.scaleFont(24),
                                       fontWeight: FontWeight.normal,
                                       color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                      fontFamily: 'Poppins',
+                                      fontFamily: 'Poppins959',
                                     ),
                                   ),
                                 ],
@@ -798,10 +789,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                     controller: _pageController,
                                     itemCount: 2,
                                     onPageChanged: (index) {
-                                      setState(() {
-                                        _currentPage = index;
-                                      });
-                                      _fetchData();
+                                      if (_currentPage != index) {
+                                        setState(() {
+                                          _currentPage = index;
+                                          selectedCategories.clear(); // Clear category filters
+                                        });
+                                        _fetchData();
+                                      }
                                     },
                                     itemBuilder: (context, index) {
                                       final total = (_isLoading ? _cachedReportsData : _reportsData)["total"] as double;
@@ -895,7 +889,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       fontSize = isSelected ? Scaling.scaleFont(14.0) : Scaling.scaleFont(12.0);
                                     }
 
-                                    // Truncate category name, but show the full amount
                                     final truncatedCategory = _truncateString(_getCategoryDisplayName(category), 15);
                                     final amountLabel = '${animatedValue.toStringAsFixed(2)} $currencySymbol';
 
@@ -943,7 +936,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                       fontSize = isSelected ? Scaling.scaleFont(14.0) : Scaling.scaleFont(12.0);
                                     }
 
-                                    // Truncate category name, but show the full amount
                                     final truncatedCategory = _truncateString(_getCategoryDisplayName(category), 15);
                                     final amountLabel = '${animatedValue.toStringAsFixed(2)} $currencySymbol';
 
@@ -1057,230 +1049,258 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                           SizedBox(height: Scaling.scalePadding(20)),
                           _buildChartCard(
                             title: AppLocalizations.of(context)!.monthlySpendingTrends,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Legend for categories (split into Income and Expenses)
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: Scaling.scalePadding(16), vertical: Scaling.scalePadding(8)),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        AppLocalizations.of(context)!.income,
-                                        style: AppTextStyles.subheading(context).copyWith(
-                                          fontSize: Scaling.scaleFont(14),
-                                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                            child: FutureBuilder<Map<String, dynamic>>(
+                              future: Provider.of<TransactionProvider>(context, listen: false).getAllFinancialData(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return Container(
+                                    height: Scaling.scale(300),
+                                    alignment: Alignment.center,
+                                    child: _buildCustomLoadingIndicator(),
+                                  );
+                                }
+
+                                if (snapshot.hasError) {
+                                  return _buildNoDataWidget(isDark: isDark);
+                                }
+
+                                final financialData = snapshot.data;
+                                if (financialData == null) {
+                                  return _buildNoDataWidget(isDark: isDark);
+                                }
+
+                                final transactions = financialData['transactions'] as List<Transaction>;
+                                final localizations = AppLocalizations.of(context)!;
+                                final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+
+                                // Aggregate transactions by month name (ignoring year)
+                                final Map<String, Map<String, double>> monthlyIncomeByCategory = {};
+                                final Map<String, Map<String, double>> monthlyExpenseByCategory = {};
+                                final Map<String, double> monthlyIncomeTotals = {};
+                                final Map<String, double> monthlyExpenseTotals = {};
+
+                                // Initialize all months
+                                for (int month = 1; month <= 12; month++) {
+                                  final monthName = localizations.getShortMonthName(month);
+                                  monthlyIncomeByCategory[monthName] = {};
+                                  monthlyExpenseByCategory[monthName] = {};
+                                  monthlyIncomeTotals[monthName] = 0.0;
+                                  monthlyExpenseTotals[monthName] = 0.0;
+                                }
+
+                                for (var transaction in transactions) {
+                                  final date = DateTime.parse(transaction.timestamp.split('T')[0]);
+                                  final monthName = localizations.getShortMonthName(date.month);
+                                  final category = transaction.getCategory(transactionProvider);
+                                  final amount = _convertAmount(transaction);
+
+                                  if (transaction.type == 'income') {
+                                    monthlyIncomeByCategory[monthName]![category] =
+                                        (monthlyIncomeByCategory[monthName]![category] ?? 0) + amount;
+                                    monthlyIncomeTotals[monthName] = (monthlyIncomeTotals[monthName] ?? 0) + amount;
+                                  } else {
+                                    monthlyExpenseByCategory[monthName]![category] =
+                                        (monthlyExpenseByCategory[monthName]![category] ?? 0) + amount;
+                                    monthlyExpenseTotals[monthName] = (monthlyExpenseTotals[monthName] ?? 0) + amount;
+                                  }
+                                }
+
+                                // Filter out months with no data
+                                final allMonths = List.generate(12, (index) => localizations.getShortMonthName(index + 1));
+                                final List<String> monthsWithData = [];
+                                final List<int> monthIndicesWithData = [];
+
+                                for (int i = 0; i < allMonths.length; i++) {
+                                  final month = allMonths[i];
+                                  final hasIncome = (monthlyIncomeTotals[month] ?? 0.0) > 0;
+                                  final hasExpense = (monthlyExpenseTotals[month] ?? 0.0) > 0;
+                                  if (hasIncome || hasExpense) {
+                                    monthsWithData.add(month);
+                                    monthIndicesWithData.add(i);
+                                  }
+                                }
+
+                                bool hasData = monthsWithData.isNotEmpty;
+
+                                if (!hasData) {
+                                  return _buildNoDataWidget(isDark: isDark);
+                                }
+
+                                // Calculate dynamic bar width
+                                final int numberOfMonths = monthsWithData.length;
+                                final double chartWidth = MediaQuery.of(context).size.width - Scaling.scalePadding(32);
+                                const double minBarWidth = 8.0;
+                                const double maxBarWidth = 16.0;
+                                const double totalBarSpacePerGroup = 2 * maxBarWidth + 4;
+                                const double groupSpace = 16.0;
+                                final double totalRequiredWidth =
+                                    (numberOfMonths * totalBarSpacePerGroup) + ((numberOfMonths - 1) * groupSpace);
+                                final double barWidth = totalRequiredWidth > chartWidth
+                                    ? (chartWidth - ((numberOfMonths - 1) * groupSpace)) / (numberOfMonths * 2)
+                                    : maxBarWidth;
+                                final double adjustedBarWidth = barWidth.clamp(minBarWidth, maxBarWidth);
+
+                                // Calculate dynamic font size
+                                const double defaultFontSize = 12.0;
+                                const double minFontSize = 8.0;
+                                final double fontSize = numberOfMonths > 6
+                                    ? defaultFontSize - ((numberOfMonths - 6) * 0.5)
+                                    : defaultFontSize;
+                                final double adjustedFontSize = fontSize.clamp(minFontSize, defaultFontSize);
+
+                                // Calculate Y-axis interval
+                                final Map<String, double> exTotals = {...monthlyExpenseTotals};
+                                final Map<String, double> inTotals = {...monthlyIncomeTotals}; // Fixed to use income totals
+                                final double maxValue = () {
+                                  final List<double> allValues = [
+                                    if (exTotals.values.isNotEmpty) ...exTotals.values,
+                                    if (inTotals.values.isNotEmpty) ...inTotals.values,
+                                  ];
+                                  return allValues.isNotEmpty
+                                      ? allValues.reduce((a, b) => a > b ? a : b)
+                                      : 100.0; // Default value if no data
+                                }();
+                                final double yInterval = maxValue > 0 ? (maxValue / 5).ceilToDouble() : 20.0; // Adjusted default
+
+                                final barGroups = monthsWithData.asMap().entries.map((entry) {
+                                  final groupIndex = entry.key;
+                                  final month = entry.value;
+                                  final originalMonthIndex = monthIndicesWithData[groupIndex];
+                                  final incomeTotal = monthlyIncomeTotals[month] ?? 0.0;
+                                  final expenseTotal = monthlyExpenseTotals[month] ?? 0.0;
+                                  final incomeCategoriesData = monthlyIncomeByCategory[month] ?? {};
+                                  final expenseCategoriesData = monthlyExpenseByCategory[month] ?? {};
+
+                                  // Stack items for income
+                                  final List<BarChartRodStackItem> incomeStackItems = [];
+                                  double incomeCurrentHeight = 0.0;
+                                  for (var categoryEntry in incomeCategoriesData.entries) {
+                                    final category = categoryEntry.key;
+                                    final amount = categoryEntry.value;
+                                    if (amount > 0) {
+                                      final color = _getChartColor(category);
+                                      incomeStackItems.add(
+                                        BarChartRodStackItem(
+                                          incomeCurrentHeight,
+                                          incomeCurrentHeight + amount,
+                                          color.withOpacity(1),
                                         ),
-                                      ),
-                                      SizedBox(height: Scaling.scalePadding(4)),
-                                      Wrap(
-                                        spacing: Scaling.scalePadding(12),
-                                        runSpacing: Scaling.scalePadding(8),
-                                        children: _buildCategoryLegend(isIncome: true),
-                                      ),
-                                      SizedBox(height: Scaling.scalePadding(8)),
-                                      Text(
-                                        AppLocalizations.of(context)!.expenses,
-                                        style: AppTextStyles.subheading(context).copyWith(
-                                          fontSize: Scaling.scaleFont(14),
-                                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                      );
+                                      incomeCurrentHeight += amount;
+                                    }
+                                  }
+
+                                  // Stack items for expenses
+                                  final List<BarChartRodStackItem> expenseStackItems = [];
+                                  double expenseCurrentHeight = 0.0;
+                                  for (var categoryEntry in expenseCategoriesData.entries) {
+                                    final category = categoryEntry.key;
+                                    final amount = categoryEntry.value;
+                                    if (amount > 0) {
+                                      final color = _getChartColor(category);
+                                      expenseStackItems.add(
+                                        BarChartRodStackItem(
+                                          expenseCurrentHeight,
+                                          expenseCurrentHeight + amount,
+                                          color.withOpacity(1),
                                         ),
-                                      ),
-                                      SizedBox(height: Scaling.scalePadding(4)),
-                                      Wrap(
-                                        spacing: Scaling.scalePadding(12),
-                                        runSpacing: Scaling.scalePadding(8),
-                                        children: _buildCategoryLegend(isIncome: false),
-                                      ),
-                                    ],
+                                      );
+                                      expenseCurrentHeight += amount;
+                                    }
+                                  }
+
+                                  return BarChartGroupData(
+                                      x: groupIndex,
+                                      barRods: [
+                                      BarChartRodData(
+                                      toY: incomeTotal,
+                                      width: adjustedBarWidth,
+                                      borderRadius: BorderRadius.circular(Scaling.scale(4)),
+                                      rodStackItems: incomeStackItems.isNotEmpty
+                                          ? incomeStackItems
+                                          : (incomeTotal > 0
+                                      ? [
+                                      BarChartRodStackItem(
+                                          0,
+                                          incomeTotal,
+                                          _getChartColor('other_income').withOpacity(1),
+                                      )
+                                      ]
+                                      : []),
+                                  borderSide: _selectedMonth == month && _selectedRodIndex == 0
+                                  ? BorderSide(color: Colors.white.withOpacity(1), width: Scaling.scale(2))
+                                      : BorderSide.none,
                                   ),
-                                ),
-                                // The chart itself
-                                AnimatedBuilder(
-                                  animation: _disappearAnimationController,
-                                  builder: (context, child) {
-                                    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-                                    final transactions = transactionProvider.transactions;
-                                    final localizations = AppLocalizations.of(context)!;
+                                  BarChartRodData(
+                                  toY: expenseTotal,
+                                  width: adjustedBarWidth,
+                                  borderRadius: BorderRadius.circular(Scaling.scale(4)),
+                                  rodStackItems: expenseStackItems.isNotEmpty
+                                  ? expenseStackItems
+                                      : (expenseTotal > 0
+                                  ? [
+                                  BarChartRodStackItem(
+                                  0,
+                                  expenseTotal,
+                                  _getChartColor('other_expense').withOpacity(1),
+                                  )
+                                  ]
+                                      : []),
+                                  borderSide: _selectedMonth == month && _selectedRodIndex == 1
+                                  ? BorderSide(color: Colors.white.withOpacity(1), width: Scaling.scale(2))
+                                      : BorderSide.none,
+                                  ),
+                                  ],
+                                  barsSpace: Scaling.scale(0.3),
+                                  showingTooltipIndicators:
+                                  _selectedMonth == month ? (_selectedRodIndex != null ? [_selectedRodIndex!] : []) : [],
+                                  );
+                                }).toList();
 
-                                    // Aggregate transactions by month name (ignoring year)
-                                    final Map<String, Map<String, double>> monthlyIncomeByCategory = {};
-                                    final Map<String, Map<String, double>> monthlyExpenseByCategory = {};
-                                    final Map<String, double> monthlyIncomeTotals = {};
-                                    final Map<String, double> monthlyExpenseTotals = {};
-
-                                    // Initialize all months
-                                    for (int month = 1; month <= 12; month++) {
-                                      final monthName = localizations.getShortMonthName(month);
-                                      monthlyIncomeByCategory[monthName] = {};
-                                      monthlyExpenseByCategory[monthName] = {};
-                                      monthlyIncomeTotals[monthName] = 0.0;
-                                      monthlyExpenseTotals[monthName] = 0.0;
-                                    }
-
-                                    for (var transaction in transactions) {
-                                      final date = DateTime.parse(transaction.timestamp.split('T')[0]);
-                                      final monthName = localizations.getShortMonthName(date.month);
-                                      final category = transaction.getCategory(transactionProvider);
-                                      final amount = _convertAmount(transaction);
-
-                                      // Removed category filter check to include all transactions
-                                      if (transaction.type == 'income') {
-                                        monthlyIncomeByCategory[monthName]![category] =
-                                            (monthlyIncomeByCategory[monthName]![category] ?? 0) + amount;
-                                        monthlyIncomeTotals[monthName] = (monthlyIncomeTotals[monthName] ?? 0) + amount;
-                                      } else {
-                                        monthlyExpenseByCategory[monthName]![category] =
-                                            (monthlyExpenseByCategory[monthName]![category] ?? 0) + amount;
-                                        monthlyExpenseTotals[monthName] = (monthlyExpenseTotals[monthName] ?? 0) + amount;
-                                      }
-                                    }
-
-                                    // Filter out months with no data
-                                    final allMonths = List.generate(12, (index) => localizations.getShortMonthName(index + 1));
-                                    final List<String> monthsWithData = [];
-                                    final List<int> monthIndicesWithData = [];
-
-                                    for (int i = 0; i < allMonths.length; i++) {
-                                      final month = allMonths[i];
-                                      final hasIncome = (monthlyIncomeTotals[month] ?? 0.0) > 0;
-                                      final hasExpense = (monthlyExpenseTotals[month] ?? 0.0) > 0;
-                                      if (hasIncome || hasExpense) {
-                                        monthsWithData.add(month);
-                                        monthIndicesWithData.add(i);
-                                      }
-                                    }
-
-                                    bool hasData = monthsWithData.isNotEmpty;
-
-                                    if (!hasData) {
-                                      return _buildNoDataWidget(isDark: isDark);
-                                    }
-
-                                    // Calculate dynamic bar width based on the number of months
-                                    final int numberOfMonths = monthsWithData.length;
-                                    final double chartWidth = MediaQuery.of(context).size.width - Scaling.scalePadding(32); // Account for padding
-                                    const double minBarWidth = 8.0; // Minimum bar width
-                                    const double maxBarWidth = 16.0; // Maximum bar width
-                                    const double totalBarSpacePerGroup = 2 * maxBarWidth + 4; // 2 bars + space between them
-                                    const double groupSpace = 16.0; // Space between groups
-                                    final double totalRequiredWidth = (numberOfMonths * totalBarSpacePerGroup) + ((numberOfMonths - 1) * groupSpace);
-                                    final double barWidth = totalRequiredWidth > chartWidth
-                                        ? (chartWidth - ((numberOfMonths - 1) * groupSpace)) / (numberOfMonths * 2) // 2 bars per group
-                                        : maxBarWidth;
-                                    final double adjustedBarWidth = barWidth.clamp(minBarWidth, maxBarWidth);
-
-                                    // Calculate dynamic font size for month labels
-                                    const double defaultFontSize = 12.0; // Default font size
-                                    const double minFontSize = 8.0; // Minimum font size
-                                    final double fontSize = numberOfMonths > 6
-                                        ? defaultFontSize - ((numberOfMonths - 6) * 0.5) // Reduce font size as number of months increases
-                                        : defaultFontSize;
-                                    final double adjustedFontSize = fontSize.clamp(minFontSize, defaultFontSize);
-
-                                    // Calculate Y-axis interval for labels
-                                    final Map<String, double> allTotals = {...monthlyIncomeTotals, ...monthlyExpenseTotals};
-                                    final double maxValue = allTotals.values.isNotEmpty
-                                        ? allTotals.values.reduce((a, b) => a > b ? a : b)
-                                        : 100.0;
-                                    final double yInterval = maxValue > 0 ? (maxValue / 5).ceilToDouble() : 100.0;
-
-                                    final barGroups = monthsWithData.asMap().entries.map((entry) {
-                                      final groupIndex = entry.key;
-                                      final month = entry.value;
-                                      final originalMonthIndex = monthIndicesWithData[groupIndex];
-                                      final incomeTotal = monthlyIncomeTotals[month] ?? 0.0;
-                                      final expenseTotal = monthlyExpenseTotals[month] ?? 0.0;
-                                      final incomeCategoriesData = monthlyIncomeByCategory[month] ?? {};
-                                      final expenseCategoriesData = monthlyExpenseByCategory[month] ?? {};
-
-                                      // Stack items for income
-                                      final List<BarChartRodStackItem> incomeStackItems = [];
-                                      double incomeCurrentHeight = 0.0;
-                                      for (var categoryEntry in incomeCategoriesData.entries) {
-                                        final category = categoryEntry.key;
-                                        final amount = categoryEntry.value;
-                                        if (amount > 0) {
-                                          final color = _getChartColor(category);
-                                          incomeStackItems.add(
-                                            BarChartRodStackItem(
-                                              incomeCurrentHeight,
-                                              incomeCurrentHeight + amount,
-                                              color.withOpacity(1),
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: Scaling.scalePadding(16), vertical: Scaling.scalePadding(8)),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            AppLocalizations.of(context)!.income,
+                                            style: AppTextStyles.subheading(context).copyWith(
+                                              fontSize: Scaling.scaleFont(14),
+                                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                                             ),
-                                          );
-                                          incomeCurrentHeight += amount;
-                                        }
-                                      }
-
-                                      // Stack items for expenses
-                                      final List<BarChartRodStackItem> expenseStackItems = [];
-                                      double expenseCurrentHeight = 0.0;
-                                      for (var categoryEntry in expenseCategoriesData.entries) {
-                                        final category = categoryEntry.key;
-                                        final amount = categoryEntry.value;
-                                        if (amount > 0) {
-                                          final color = _getChartColor(category);
-                                          expenseStackItems.add(
-                                            BarChartRodStackItem(
-                                              expenseCurrentHeight,
-                                              expenseCurrentHeight + amount,
-                                              color.withOpacity(1),
-                                            ),
-                                          );
-                                          expenseCurrentHeight += amount;
-                                        }
-                                      }
-
-                                      return BarChartGroupData(
-                                        x: groupIndex,
-                                        barRods: [
-                                          BarChartRodData(
-                                            toY: (incomeTotal * _disappearAnimation.value).clamp(0.0, double.infinity),
-                                            width: adjustedBarWidth,
-                                            borderRadius: BorderRadius.circular(Scaling.scale(4)),
-                                            rodStackItems: incomeStackItems.isNotEmpty
-                                                ? incomeStackItems
-                                                : (incomeTotal > 0
-                                                ? [
-                                              BarChartRodStackItem(
-                                                0,
-                                                incomeTotal,
-                                                _getChartColor('other_income').withOpacity(1),
-                                              )
-                                            ]
-                                                : []),
-                                            borderSide: _selectedMonth == month && _selectedRodIndex == 0
-                                                ? BorderSide(color: Colors.white.withOpacity(1), width: Scaling.scale(2))
-                                                : BorderSide.none,
                                           ),
-                                          BarChartRodData(
-                                            toY: (expenseTotal * _disappearAnimation.value).clamp(0.0, double.infinity),
-                                            width: adjustedBarWidth,
-                                            borderRadius: BorderRadius.circular(Scaling.scale(4)),
-                                            rodStackItems: expenseStackItems.isNotEmpty
-                                                ? expenseStackItems
-                                                : (expenseTotal > 0
-                                                ? [
-                                              BarChartRodStackItem(
-                                                0,
-                                                expenseTotal,
-                                                _getChartColor('other_expense').withOpacity(1),
-                                              )
-                                            ]
-                                                : []),
-                                            borderSide: _selectedMonth == month && _selectedRodIndex == 1
-                                                ? BorderSide(color: Colors.white.withOpacity(1), width: Scaling.scale(2))
-                                                : BorderSide.none,
+                                          SizedBox(height: Scaling.scalePadding(4)),
+                                          Wrap(
+                                            spacing: Scaling.scalePadding(12),
+                                            runSpacing: Scaling.scalePadding(8),
+                                            children: _buildCategoryLegend(isIncome: true),
+                                          ),
+                                          SizedBox(height: Scaling.scalePadding(8)),
+                                          Text(
+                                            AppLocalizations.of(context)!.expenses,
+                                            style: AppTextStyles.subheading(context).copyWith(
+                                              fontSize: Scaling.scaleFont(14),
+                                              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                                            ),
+                                          ),
+                                          SizedBox(height: Scaling.scalePadding(4)),
+                                          Wrap(
+                                            spacing: Scaling.scalePadding(12),
+                                            runSpacing: Scaling.scalePadding(8),
+                                            children: _buildCategoryLegend(isIncome: false),
                                           ),
                                         ],
-                                        barsSpace: Scaling.scale(0.3), // Space between income and expense bars
-                                        showingTooltipIndicators: _selectedMonth == month ? (_selectedRodIndex != null ? [_selectedRodIndex!] : []) : [],
-                                      );
-                                    }).toList();
-
-                                    return SizedBox(
+                                      ),
+                                    ),
+                                    Divider(
+                                      color: isDark ? AppColors.darkTextSecondary.withOpacity(0) : Colors.grey[300],
+                                      thickness: 15,
+                                    ),
+                                    SizedBox(
                                       height: Scaling.scale(300),
                                       width: double.infinity,
                                       child: BarChart(
@@ -1353,10 +1373,11 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                                 strokeWidth: Scaling.scale(1),
                                               );
                                             },
-                                            verticalInterval: 1.0, // One line per group
+                                            verticalInterval: 1.0,
                                             checkToShowVerticalLine: (value) {
-                                              // Show vertical lines only between groups (not within a group)
-                                              return (value - 0.5) % 1 == 0 && value != -0.5 && value != (monthsWithData.length - 0.5);
+                                              return (value - 0.5) % 1 == 0 &&
+                                                  value != -0.5 &&
+                                                  value != (monthsWithData.length - 0.5);
                                             },
                                           ),
                                           backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
@@ -1421,10 +1442,10 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                                           ),
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ],
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
                           SizedBox(height: Scaling.scalePadding(20)),

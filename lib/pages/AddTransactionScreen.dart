@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:aia_wallet/utils/scaling.dart'; // Import Scaling utility
 
 import '../providers/transaction_provider.dart';
+import '../services/currency_api_service.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -47,6 +48,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
   late Animation<double> _animation;
 
   @override
+  @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
@@ -61,10 +63,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
     _descriptionFocusNode = FocusNode();
 
     final currencyProvider = Provider.of<CurrencyProvider>(context, listen: false);
+    final currencyApiService = CurrencyApiService(); // Instantiate directly or get via provider if injected
     _displayCurrency = currencyProvider.currency == 'KGS'
         ? 'Сом'
-        : NumberFormat.simpleCurrency(name: currencyProvider.currency).currencySymbol;
-    debugPrint('Initialized with currency: $_displayCurrency');
+        : currencyApiService.getCurrencySymbol(currencyProvider.currency);
+    debugPrint('Initialized with currency: ${_displayCurrency} (${currencyProvider.currency})');
 
     if (widget.transaction == null) {
       _selectedType = 'expense';
@@ -76,17 +79,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> with Single
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       _selectedType = widget.transaction!.type;
       _descriptionController.text = widget.transaction!.description ?? '';
-      _amountController.text = widget.transaction!.originalAmount!.toStringAsFixed(2);
       _selectedDate = DateTime.parse(widget.transaction!.timestamp);
       _selectedCategory = {
         'id': widget.transaction!.customCategoryId,
         'name': widget.transaction!.defaultCategory ?? widget.transaction!.getCategory(transactionProvider),
         'type': widget.transaction!.type,
+        'isDefault': widget.transaction!.defaultCategory != null,
       };
+
+      // Convert the stored amount to the current currency
+      final currentCurrency = currencyProvider.currency;
+      final storedCurrency = widget.transaction!.originalCurrency;
+      final storedAmount = widget.transaction!.originalAmount!;
+      double displayAmount;
+
+      try {
+        if (storedCurrency == currentCurrency) {
+          displayAmount = storedAmount;
+        } else {
+          // Use CurrencyApiService to convert from storedCurrency to currentCurrency
+          final conversionRate = currencyApiService.getConversionRate(storedCurrency!, currentCurrency);
+          displayAmount = storedAmount * conversionRate;
+        }
+        _amountController.text = displayAmount.toStringAsFixed(2);
+        debugPrint(
+            'Editing transaction: Stored $storedAmount $storedCurrency, Displayed $displayAmount $currentCurrency');
+      } catch (e) {
+        // Fallback in case of unsupported currency
+        debugPrint('Error converting amount: $e');
+        _amountController.text = storedAmount.toStringAsFixed(2);
+      }
     }
 
     _fetchCategories();
-    _animationController.forward(); // Start animation on screen load
+    _animationController.forward();
   }
 
   Future<void> _fetchCategories() async {
