@@ -974,4 +974,61 @@ class TransactionProvider with ChangeNotifier {
 
     return randomColor;
   }
+
+  Future<Map<String, dynamic>> getAllFinancialData() async {
+    try {
+      final db = await _dbHelper.database;
+
+      // Fetch all transactions
+      final transactionMaps = await db.query('transactions', orderBy: 'timestamp DESC');
+      _transactions = transactionMaps.map((map) => Transaction.fromMap(map)).toList();
+
+      // Fetch all categories
+      final categoryMaps = await db.query('categories');
+      _categories = categoryMaps.map((map) => Category.fromMap(map)).toList();
+
+      // Add default categories if not already included
+      final defaultCategories = [
+        Category(id: null, name: 'food', type: 'expense'),
+        Category(id: null, name: 'transport', type: 'expense'),
+        Category(id: null, name: 'housing', type: 'expense'),
+        Category(id: null, name: 'utilities', type: 'expense'),
+        Category(id: null, name: 'entertainment', type: 'expense'),
+        Category(id: null, name: 'healthcare', type: 'expense'),
+        Category(id: null, name: 'education', type: 'expense'),
+        Category(id: null, name: 'shopping', type: 'expense'),
+        Category(id: null, name: 'other_expense', type: 'expense'),
+        Category(id: null, name: 'salary', type: 'income'),
+        Category(id: null, name: 'gift', type: 'income'),
+        Category(id: null, name: 'interest', type: 'income'),
+        Category(id: null, name: 'other_income', type: 'income'),
+      ];
+
+      final seenNames = _categories.map((c) => c.name.toLowerCase()).toSet();
+      for (var defaultCat in defaultCategories) {
+        if (!seenNames.contains(defaultCat.name.toLowerCase())) {
+          _categories.add(defaultCat);
+          seenNames.add(defaultCat.name.toLowerCase());
+        }
+      }
+
+      // Extract all unique timestamps (dates)
+      final timestamps = _transactions
+          .map((t) => DateTime.parse(t.timestamp.split('T')[0]))
+          .toSet()
+          .toList()
+        ..sort((a, b) => a.compareTo(b));
+
+      notifyListeners(); // Notify listeners of updated data
+
+      return {
+        'transactions': _transactions,
+        'categories': _categories,
+        'timestamps': timestamps,
+      };
+    } catch (e) {
+      debugPrint('Error fetching all financial data: $e');
+      rethrow;
+    }
+  }
 }

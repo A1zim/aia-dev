@@ -30,7 +30,6 @@ migrate_working_dir/
 
 # Flutter/Dart/Pub related
 **/doc/api/
-**/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -61,15 +60,10 @@ app.*.map.json
 *.apk
 *.aab
 
-# iOS specific
-/ios/build/
-/ios/Pods/
-/ios/Podfile.lock
-*.ipa
+
 
 # Flutter plugin build artifacts
 flutter_plugins/*/android/build/
-flutter_plugins/*/ios/build/
 
 # CMake generated files
 CMakeCache.txt
